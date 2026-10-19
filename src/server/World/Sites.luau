@@ -59,7 +59,7 @@ local function siteCF(name: string, dx: number?, dz: number?, yaw: number?): CFr
 	return ground(p.X + (dx or 0), p.Y + (dz or 0), yaw)
 end
 
-local function spawnProp(parent: Instance, builder: (Random) -> Model, cf: CFrame, rng: Random): Model
+local function spawnProp(parent: Instance, builder: (Util.Rng) -> Model, cf: CFrame, rng: Util.Rng): Model
 	local m = builder(rng)
 	m:PivotTo(cf)
 	m.Parent = parent
@@ -128,7 +128,7 @@ local function shed(
 end
 
 ---------------------------------------------------------------- crash site & highway
-local function buildHighway(parent: Instance, info: Info, rng: Random)
+local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 	local road = Config.Roads[1]
 	local folder = Build.folder(parent, "Highway")
 	local length = Util.polylineLength(road.points)
@@ -234,7 +234,7 @@ local function buildHighway(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- truck clearing
-local function buildTruck(parent: Instance, info: Info, rng: Random)
+local function buildTruck(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "TruckClearing")
 	local site = S.Truck.pos
 	local target = Config.DrivePath[2]
@@ -289,7 +289,7 @@ local function buildTruck(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- barn
-local function buildBarn(parent: Instance, info: Info, rng: Random)
+local function buildBarn(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Barn")
 	local origin = siteCF("Barn", 0, 0, rad(20))
 	origin = origin + Vector3.new(0, 0.5, 0)
@@ -328,7 +328,7 @@ local function buildBarn(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- hunter's camp
-local function buildCamp(parent: Instance, info: Info, rng: Random)
+local function buildCamp(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "HunterCamp")
 	local origin = siteCF("Camp")
 	spawnProp(folder, function()
@@ -368,7 +368,7 @@ local function buildCamp(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- doctor's trailer
-local function buildTrailer(parent: Instance, info: Info, rng: Random)
+local function buildTrailer(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Trailer")
 	local origin = siteCF("Trailer", 0, 0, rad(-25)) + Vector3.new(0, 2.4, 0)
 	local w, d, h = 10, 26, 8
@@ -424,7 +424,7 @@ local function buildTrailer(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- cemetery
-local function buildCemetery(parent: Instance, info: Info, rng: Random)
+local function buildCemetery(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Cemetery")
 	local origin = siteCF("Cemetery", 0, 0, rad(10))
 	for row = 0, 3 do
@@ -480,7 +480,7 @@ local function buildCemetery(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- ranger station, tower, shed, helipad
-local function buildStation(parent: Instance, info: Info, rng: Random)
+local function buildStation(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "RangerStation")
 	local site = S.Station.pos
 	local origin = siteCF("Station", 0, 0, rad(200)) + Vector3.new(0, 1, 0)
@@ -646,7 +646,7 @@ local function buildTower(parent: Instance, info: Info)
 	lanternOn(folder, base * CF(2, h + 0.4, 3))
 end
 
-local function buildToolShed(parent: Instance, info: Info, rng: Random)
+local function buildToolShed(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "ToolShed")
 	local origin = siteCF("Shed", 0, 0, rad(150)) + Vector3.new(0, 0.5, 0)
 	shed(folder, origin, 12, 10, 9, rgb(84, 70, 54), { doorWidth = 4.5 })
@@ -697,7 +697,7 @@ local function buildSigns(parent: Instance)
 end
 
 function Sites.build(parent: Instance): Info
-	local rng = Random.new(Config.Map.Seed + 77)
+	local rng = Util.rng(Config.Map.Seed + 77)
 	local info: Info = {
 		patrols = {},
 		spots = {},

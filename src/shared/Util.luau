@@ -116,7 +116,40 @@ function Util.polylineSample(points: { Vector2 }, along: number): (Vector2, Vect
 	return points[#points], Vector2.new(0, 1)
 end
 
-function Util.shuffle<T>(list: { T }, rng: Random): { T }
+-- Deterministic random number generator (xorshift32). Same results in Roblox,
+-- in Studio edit mode and in the offline baker, so a baked world matches
+-- the world built at runtime. API mirrors Roblox's Random.
+export type Rng = {
+	NextNumber: (self: Rng, min: number?, max: number?) -> number,
+	NextInteger: (self: Rng, min: number, max: number) -> number,
+}
+
+function Util.rng(seed: number): Rng
+	local state = bit32.band(math.floor(seed) * 2654435761 + 1013904223, 0xFFFFFFFF)
+	if state == 0 then
+		state = 0x9E3779B9
+	end
+	local function nextU32(): number
+		state = bit32.bxor(state, bit32.lshift(state, 13))
+		state = bit32.bxor(state, bit32.rshift(state, 17))
+		state = bit32.bxor(state, bit32.lshift(state, 5))
+		return state
+	end
+	local rng = {}
+	function rng.NextNumber(_: any, min: number?, max: number?): number
+		local unit = nextU32() / 4294967296
+		if min and max then
+			return min + (max - min) * unit
+		end
+		return unit
+	end
+	function rng.NextInteger(_: any, min: number, max: number): number
+		return min + math.floor(nextU32() / 4294967296 * (max - min + 1))
+	end
+	return rng :: any
+end
+
+function Util.shuffle<T>(list: { T }, rng: Rng): { T }
 	for i = #list, 2, -1 do
 		local j = rng:NextInteger(1, i)
 		list[i], list[j] = list[j], list[i]

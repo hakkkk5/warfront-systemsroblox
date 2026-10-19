@@ -51,7 +51,7 @@ function Forest.build(parent: Instance)
 	local folder = Build.folder(parent, "Forest")
 	local trees = Build.folder(folder, "Trees")
 	local ground = Build.folder(folder, "Ground")
-	local rng = Random.new(Config.Map.Seed)
+	local rng = Util.rng(Config.Map.Seed)
 	local half = Config.Map.PlayHalf + 40
 	local cell = 24
 	local meshPine = AssetService.hasMesh("PineTree")

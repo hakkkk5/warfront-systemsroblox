@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Build = require(script.Parent.Build)
+local Util = require(ReplicatedStorage.Shared.Util)
 local Props = require(script.Parent.Props)
 local Terrain = require(script.Parent.Terrain)
 local AssetService = require(script.Parent.Parent.Systems.AssetService)
@@ -61,7 +62,7 @@ function House.build(parent: Instance): Info
 	local groundY = Terrain.siteY("House")
 	local foundation = Config.House.Foundation
 	local O = CF(site.pos.X, groundY + foundation, site.pos.Y)
-	local rng = Random.new(Config.Map.Seed + 11)
+	local rng = Util.rng(Config.Map.Seed + 11)
 
 	local model = Build.model(parent, "CannibalHouse")
 	local structure = Build.model(model, "Structure")

@@ -2,6 +2,9 @@
 -- Part construction helpers used by every world builder.
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Util = require(ReplicatedStorage.Shared.Util)
 
 local Build = {}
 
@@ -213,7 +216,7 @@ function Build.candle(parent: Instance, cf: CFrame, height: number?)
 end
 
 -- Thin glossy dark red decal-like stain lying on a surface.
-function Build.stain(parent: Instance, cf: CFrame, size: Vector2, rng: Random)
+function Build.stain(parent: Instance, cf: CFrame, size: Vector2, rng: Util.Rng)
 	local color = Color3.fromRGB(rng:NextInteger(60, 90), rng:NextInteger(4, 12), rng:NextInteger(4, 10))
 	Build.part(parent, Vector3.new(size.X, 0.05, size.Y), cf, color, Enum.Material.Glass, {
 		CanCollide = false,

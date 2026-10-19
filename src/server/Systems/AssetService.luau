@@ -14,6 +14,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Assets = require(ReplicatedStorage.Shared.Assets)
 local Props = require(script.Parent.Parent.World.Props)
+local Util = require(ReplicatedStorage.Shared.Util)
 
 local AssetService = {}
 
@@ -174,11 +175,11 @@ function AssetService.hasMesh(name: string): boolean
 	return (loaded[name] :: Model?) ~= nil
 end
 
-local fallbackRng = Random.new(1234)
+local fallbackRng = Util.rng(1234)
 
 -- Returns a fresh copy of the named model (mesh or procedural). `rng` is used
 -- by procedural builders that vary their shape.
-function AssetService.create(name: string, rng: Random?): Model
+function AssetService.create(name: string, rng: Util.Rng?): Model
 	local template = loaded[name]
 	if template then
 		return template:Clone()
@@ -199,7 +200,7 @@ function AssetService.create(name: string, rng: Random?): Model
 	return m
 end
 
-function AssetService.spawn(name: string, cf: CFrame, parent: Instance, rng: Random?): Model
+function AssetService.spawn(name: string, cf: CFrame, parent: Instance, rng: Util.Rng?): Model
 	local m = AssetService.create(name, rng)
 	m:PivotTo(cf)
 	m.Parent = parent

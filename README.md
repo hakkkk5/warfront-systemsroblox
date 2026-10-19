@@ -35,12 +35,35 @@ A first-person survival horror game for Roblox. Your car crashes on a forest roa
 
 ## Getting it into Roblox Studio
 
-1. Install [Rojo](https://rojo.space) 7.4+.
-2. Build the place file: `rojo build default.project.json -o ButchersHollow.rbxlx`, then open it in Studio. For live sync while editing, use `rojo serve` with the Rojo Studio plugin instead.
-3. **Publish the place from the Roblox account `@hakaaannnnnnnn` (user 1864017860).** The ForgeGUI meshes are owned by that account, and `InsertService:LoadAsset` only loads models the experience owner owns. If you publish elsewhere, the game still works, but those props fall back to their part-built versions.
-4. In **Game Settings → Security**, turn on **Allow Mesh / Image APIs**. The Blender props are rebuilt at runtime with `EditableMesh`; without this setting the part-built versions are shown instead.
-5. Recommended: set **Max Players** to 1 for the intended experience. Co-op for 2–4 players works: objectives are shared and cutscenes play for everyone.
-6. Optional: in Studio, select Terrain and enable **Decoration** for animated grass.
+The quickest way in: open the prebuilt place file `ButchersHollow.rbxl` in Studio. The whole world is already in it:
+- the house, every site, the forest, the items and the family, standing where they start;
+- a part-built preview of the terrain.
+
+Press **Play** and the game generates real smooth terrain and wires up every door, prompt and cannibal.
+
+**Real terrain in edit mode.** To get real terrain (and the ForgeGUI meshes) while editing, run this once in **View → Command Bar**, then save:
+
+```lua
+require(game.ServerScriptService.Server.Bake)()
+```
+
+A local Claude session connected to the Roblox Studio MCP can run the same line with `run_code`.
+
+**Building the place file yourself:**
+1. Install [Rojo](https://rojo.space) 7.4+, and the standalone [Luau](https://github.com/luau-lang/luau/releases) interpreter for the bake.
+2. Bake the world, then build:
+   ```sh
+   python tools/bake/bake.py                      # runs the world builders offline
+   rojo build build/bake/ButchersHollow.project.json -o ButchersHollow.rbxl
+   ```
+   `rojo build default.project.json` also works, but the place then stays empty until you press Play. For live sync, use `rojo serve` with the Rojo Studio plugin.
+3. Optional: `python tools/bake/render_preview.py` (needs `pip install bpy`) renders the baked world to `assets/screenshots/` so you can check it without Studio.
+**Before publishing:**
+
+1. **Publish the place from the Roblox account `@hakaaannnnnnnn` (user 1864017860).** The ForgeGUI meshes are owned by that account, and `InsertService:LoadAsset` only loads models the experience owner owns. If you publish elsewhere, the game still works, but those props fall back to their part-built versions.
+2. In **Game Settings → Security**, turn on **Allow Mesh / Image APIs**. The Blender props are rebuilt at runtime with `EditableMesh`; without this setting the part-built versions are shown instead.
+3. Recommended: set **Max Players** to 1 for the intended experience. Co-op for 2–4 players works: objectives are shared and cutscenes play for everyone.
+4. Optional: in Studio, select Terrain and enable **Decoration** for animated grass.
 
 ## Assets
 
