@@ -70,7 +70,7 @@ function Forest.build(parent: Instance)
 					if meshPine then
 						local tree = AssetService.create("PineTree", rng)
 						local scale = rng:NextNumber(0.8, 1.25)
-						tree:ScaleTo(scale)
+						tree:ScaleTo(tree:GetScale() * scale)
 						tree:PivotTo(cf * CFrame.new(0, -0.6, 0))
 						tree.Parent = trees
 						prepareMeshTree(tree, trees, cf, 46 * scale)
@@ -84,7 +84,7 @@ function Forest.build(parent: Instance)
 					if meshOak then
 						local tree = AssetService.create("OakTree", rng)
 						local scale = rng:NextNumber(0.8, 1.15)
-						tree:ScaleTo(scale)
+						tree:ScaleTo(tree:GetScale() * scale)
 						tree:PivotTo(cf * CFrame.new(0, -0.5, 0))
 						tree.Parent = trees
 						prepareMeshTree(tree, trees, cf, 32 * scale)
