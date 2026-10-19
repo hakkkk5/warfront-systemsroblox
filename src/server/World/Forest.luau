@@ -62,8 +62,7 @@ function Forest.build(parent: Instance)
 		for gz = -half, half, cell do
 			local x = gx + rng:NextNumber(0, cell)
 			local z = gz + rng:NextNumber(0, cell)
-			local surf = Terrain.surface(x, z)
-			if surf.height > Config.Map.WaterLevel + 0.8 and clearOf(x, z, 7) then
+			if not Terrain.isWater(x, z) and clearOf(x, z, 7) then
 				local roll = rng:NextNumber()
 				local cf = Terrain.groundCFrame(x, z, rng:NextNumber(0, math.pi * 2))
 				if roll < 0.66 then
@@ -110,8 +109,7 @@ function Forest.build(parent: Instance)
 		for gz = -half, half, small do
 			local x = gx + rng:NextNumber(0, small)
 			local z = gz + rng:NextNumber(0, small)
-			local surf = Terrain.surface(x, z)
-			if surf.height > Config.Map.WaterLevel + 0.5 and clearOf(x, z, 3) then
+			if not Terrain.isWater(x, z) and clearOf(x, z, 3) then
 				local roll = rng:NextNumber()
 				local cf = Terrain.groundCFrame(x, z, rng:NextNumber(0, math.pi * 2))
 				local m: Model? = nil

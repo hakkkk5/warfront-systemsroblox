@@ -67,7 +67,7 @@ class Batch:
         self.faces = []
 
 
-def collect(node, batches, skip_names=()):
+def collect(node, batches, skip_names=(), max_y=None):
     cls = node.get("ClassName")
     props = node.get("Properties", {})
     if cls in ("Part", "WedgePart", "TrussPart") and node.get("Name") not in skip_names:
@@ -77,6 +77,8 @@ def collect(node, batches, skip_names=()):
             cfv = props.get("CFrame", {}).get("CFrame", {"position": [0, 0, 0], "orientation": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
             pos = cfv["position"]
             rot = cfv["orientation"]
+            if max_y is not None and pos[1] > max_y:
+                return
             shape = "Wedge" if cls == "WedgePart" else props.get("Shape", "Block")
             if shape not in SHAPES:
                 shape = "Block"
@@ -101,15 +103,25 @@ def collect(node, batches, skip_names=()):
             for f in faces:
                 b.faces.append([base + i for i in f])
     for child in node.get("Children", []):
-        collect(child, batches, skip_names)
+        collect(child, batches, skip_names, max_y)
 
 
-def build_scene(skip_names=()):
+def find_part(node, name):
+    if node.get("Name") == name and "CFrame" in node.get("Properties", {}):
+        return node["Properties"]["CFrame"]["CFrame"]["position"]
+    for child in node.get("Children", []):
+        found = find_part(child, name)
+        if found:
+            return found
+    return None
+
+
+def build_scene(skip_names=(), max_y=None):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     batches = {}
     for name in ("TerrainPreview", "World", "Cannibals"):
         with open(os.path.join(BAKE, f"{name}.model.json")) as f:
-            collect(json.load(f), batches, skip_names)
+            collect(json.load(f), batches, skip_names, max_y)
     total = 0
     for key, b in batches.items():
         me = bpy.data.meshes.new("batch")
@@ -191,9 +203,13 @@ def main():
     cx, cz = from_config["Cemetery"]
     shoot(scene, "cemetery", (cx - 45, 25, cz - 50), (cx, 6, cz), lens=32)
 
-    # cut-away of the house: drop the roof and upper floor, look straight down
-    scene = build_scene()
-    shoot(scene, "house_interior", (hx, 39, hz + 0.01), (hx, 0, hz), ortho=72, clip_start=12)
+    # cut-away of the ground floor: drop everything above the first-floor
+    # ceiling and look straight down
+    with open(os.path.join(BAKE, "World.model.json")) as f:
+        seat = find_part(json.load(f), "Seat")
+    floor_y = (seat[1] - 1.9) if seat else 15
+    scene = build_scene(max_y=floor_y + 11.4)
+    shoot(scene, "house_interior", (hx, floor_y + 80, hz + 0.01), (hx, floor_y, hz), ortho=72)
 
 
 if __name__ == "__main__":

@@ -301,11 +301,15 @@ for x = -half + TILE / 2, half - TILE / 2, TILE do
 			local right = Vector3.new(1, gx, 0).Unit
 			local back = right:Cross(up).Unit
 			right = up:Cross(back).Unit
+			-- thicken steep tiles so neighbouring slabs overlap instead of
+			-- leaving stair-step gaps on the mountain rim
+			local steep = math.max(math.abs(gx), math.abs(gz)) * TILE
+			local thickness = 6 + steep * 1.6
 			local tile = Instance.new("Part")
 			tile.Name = "Ground"
 			tile.Anchored = true
-			tile.Size = Vector3.new(TILE + 2, 6, TILE + 2)
-			tile.CFrame = CFrame.fromMatrix(Vector3.new(x, h - 3, z), right, up, back)
+			tile.Size = Vector3.new(TILE + 2, thickness, TILE + 2)
+			tile.CFrame = CFrame.fromMatrix(Vector3.new(x, h - thickness / 2, z), right, up, back)
 			tile.Material = Enum.Material[c.mat]
 			tile.Color = colors[c.mat] or Color3.fromRGB(70, 66, 52)
 			tile.TopSurface = Enum.SurfaceType.Smooth
