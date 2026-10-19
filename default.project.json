@@ -1,0 +1,71 @@
+{
+  "name": "ButchersHollow",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMode": "LockFirstPerson",
+        "CameraMaxZoomDistance": 0.5,
+        "CameraMinZoomDistance": 0.5,
+        "CharacterWalkSpeed": 11,
+        "CharacterUseJumpPower": false,
+        "CharacterJumpHeight": 3,
+        "AutoJumpEnabled": false,
+        "EnableMouseLockOption": false
+      },
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "StarterGui": {
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ShowDevelopmentGui": false
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false,
+        "RespawnTime": 3
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false,
+        "Gravity": 196.2
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 0.4,
+        "Brightness": 0.35,
+        "Ambient": [0.04, 0.04, 0.05],
+        "OutdoorAmbient": [0.07, 0.08, 0.11],
+        "EnvironmentDiffuseScale": 0.25,
+        "EnvironmentSpecularScale": 0.6,
+        "ExposureCompensation": -0.2,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.25
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "AmbientReverb": "Forest",
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

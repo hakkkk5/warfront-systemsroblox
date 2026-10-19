@@ -1,0 +1,628 @@
+--!strict
+-- The cannibal family's farmhouse. Two floors, eight rooms, a porch, and the
+-- slaughter room where the player wakes up.
+--
+-- Local layout (origin = centre of the ground floor, floor top at y = 0,
+-- front door faces -Z / north):
+--   ground floor: living room (NW), dining room (NE), kitchen (SW),
+--                 slaughter room (SE), hallway + stairs in the middle
+--   upper floor:  master bedroom (NW), kid's room (NE), bathroom (SW),
+--                 trophy room (SE)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Build = require(script.Parent.Build)
+local Props = require(script.Parent.Props)
+local Terrain = require(script.Parent.Terrain)
+local AssetService = require(script.Parent.Parent.Systems.AssetService)
+local Doors = require(script.Parent.Parent.Systems.Doors)
+local Hiding = require(script.Parent.Parent.Systems.Hiding)
+
+local House = {}
+
+export type Info = {
+	origin: CFrame,
+	model: Model,
+	chairSeat: CFrame, -- where the tied-up player sits, facing the table
+	chairEye: CFrame,
+	chair: Model,
+	tableTop: CFrame,
+	body: Model,
+	knifeSpot: CFrame,
+	knife: Model?,
+	slaughterDoor: Doors.Door,
+	frontDoor: Doors.Door,
+	padlock: Model,
+	spawnInside: CFrame,
+	spawnPorch: CFrame,
+	groundPatrol: { Vector3 },
+	upperPatrol: { Vector3 },
+	keySpots: { CFrame },
+	spots: { [string]: CFrame },
+	actors: { [string]: CFrame },
+	center: Vector3,
+}
+
+local rgb = Color3.fromRGB
+local M = Enum.Material
+local CF = CFrame.new
+local ANG = CFrame.Angles
+local rad = math.rad
+
+local WALL = rgb(118, 104, 86)
+local WALL_DIRTY = rgb(96, 84, 70)
+local TRIM = rgb(60, 44, 32)
+local FLOOR = rgb(70, 50, 34)
+local EXTERIOR = rgb(104, 92, 78)
+
+function House.build(parent: Instance): Info
+	local site = Config.Sites.House
+	local groundY = Terrain.siteY("House")
+	local foundation = Config.House.Foundation
+	local O = CF(site.pos.X, groundY + foundation, site.pos.Y)
+	local rng = Random.new(Config.Map.Seed + 11)
+
+	local model = Build.model(parent, "CannibalHouse")
+	local structure = Build.model(model, "Structure")
+	local furniture = Build.model(model, "Furniture")
+	local lights = Build.model(model, "Lights")
+
+	local function L(x: number, y: number, z: number): CFrame
+		return O * CF(x, y, z)
+	end
+	local function box(p: Instance, size: Vector3, x: number, y: number, z: number, color: Color3, mat: Enum.Material, extra: { [string]: any }?): Part
+		return Build.part(p, size, L(x, y, z), color, mat, extra)
+	end
+	local function boxCF(p: Instance, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, extra: { [string]: any }?): Part
+		return Build.part(p, size, O * cf, color, mat, extra)
+	end
+
+	------------------------------------------------------------ foundation & floors
+	box(structure, Vector3.new(66, foundation + 6, 50), 0, -(foundation + 6) / 2, 0, rgb(70, 66, 62), M.Cobblestone)
+	-- ground floor rooms
+	box(structure, Vector3.new(27, 0.4, 24), -18.5, -0.2, -12, FLOOR, M.WoodPlanks) -- living
+	box(structure, Vector3.new(27, 0.4, 24), 18.5, -0.2, -12, FLOOR, M.WoodPlanks) -- dining
+	box(structure, Vector3.new(27, 0.4, 24), -18.5, -0.2, 12, rgb(150, 140, 120), M.CeramicTiles) -- kitchen
+	box(structure, Vector3.new(27, 0.4, 24), 18.5, -0.2, 12, rgb(90, 86, 80), M.Concrete) -- slaughter
+	box(structure, Vector3.new(10, 0.4, 48), 0, -0.2, 0, rgb(62, 44, 30), M.WoodPlanks) -- hall
+	-- upper floor slab (hole for the stairwell at x -5..0, z 8..22)
+	box(structure, Vector3.new(64, 1, 32), 0, 12.5, -8, FLOOR, M.WoodPlanks)
+	box(structure, Vector3.new(27, 1, 16), -18.5, 12.5, 16, rgb(150, 150, 145), M.CeramicTiles)
+	box(structure, Vector3.new(32, 1, 16), 16, 12.5, 16, FLOOR, M.WoodPlanks)
+	box(structure, Vector3.new(5, 1, 2), -2.5, 12.5, 23, FLOOR, M.WoodPlanks)
+	-- upper ceiling
+	box(structure, Vector3.new(64, 1, 48), 0, 24.5, 0, rgb(80, 70, 58), M.WoodPlanks)
+
+	------------------------------------------------------------ roof
+	local roofColor = rgb(44, 40, 38)
+	Build.wedge(structure, Vector3.new(69, 11, 27), L(0, 30.5, -12.5), roofColor, M.RoofShingles)
+	Build.wedge(structure, Vector3.new(69, 11, 27), L(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
+	box(structure, Vector3.new(69, 0.6, 1.2), 0, 36.1, 0, rgb(34, 30, 28), M.Wood)
+	-- chimney over the living room fireplace
+	box(structure, Vector3.new(4, 18, 4), -30, 28, -12, rgb(96, 50, 40), M.Brick)
+	local chimneyTop = box(structure, Vector3.new(4.4, 0.6, 4.4), -30, 37.3, -12, rgb(70, 66, 62), M.Concrete)
+	local smoke = Instance.new("Smoke")
+	smoke.Color = rgb(60, 58, 56)
+	smoke.Opacity = 0.12
+	smoke.RiseVelocity = 5
+	smoke.Size = 3
+	smoke.Parent = chimneyTop
+
+	------------------------------------------------------------ walls
+	local function window(at: number): Build.Opening
+		return { at = at, width = 4, bottom = 4, top = 8.5 }
+	end
+	local function door(at: number): Build.Opening
+		return { at = at, width = 5, bottom = 0, top = 9 }
+	end
+	local function wall(a: Vector2, b: Vector2, y0: number, h: number, openings: { Build.Opening }, color: Color3?, mat: Enum.Material?)
+		Build.wall(structure, O, a, b, y0, h, 1, openings, color or WALL, mat or M.Plaster)
+	end
+	local function exterior(a: Vector2, b: Vector2, y0: number, h: number, openings: { Build.Opening })
+		-- weathered siding outside, plaster inside
+		local alongX = math.abs(b.Y - a.Y) < 1e-3
+		local outward = if alongX then Vector2.new(0, if a.Y < 0 then -0.6 else 0.6) else Vector2.new(if a.X < 0 then -0.6 else 0.6, 0)
+		Build.wall(structure, O, a, b, y0, h, 1, openings, WALL_DIRTY, M.Plaster)
+		Build.wall(structure, O, a + outward, b + outward, y0, h, 0.2, openings, EXTERIOR, M.WoodPlanks)
+	end
+
+	-- ground floor exterior
+	exterior(Vector2.new(-32.5, -24), Vector2.new(32.5, -24), 0, 12, { door(0), window(-20), window(-12), window(12), window(22) })
+	exterior(Vector2.new(-32.5, 24), Vector2.new(32.5, 24), 0, 12, { { at = 2.5, width = 4.6, bottom = 0, top = 9 }, window(-20), window(20) })
+	exterior(Vector2.new(-32, -24), Vector2.new(-32, 24), 0, 12, { window(-6), window(12) })
+	exterior(Vector2.new(32, -24), Vector2.new(32, 24), 0, 12, { window(-12), window(12) })
+	-- upper floor exterior
+	exterior(Vector2.new(-32.5, -24), Vector2.new(32.5, -24), 13, 11, { window(-20), window(-12), window(12), window(22) })
+	exterior(Vector2.new(-32.5, 24), Vector2.new(32.5, 24), 13, 11, { window(-18), window(18) })
+	exterior(Vector2.new(-32, -24), Vector2.new(-32, 24), 13, 11, { window(-12), window(12) })
+	exterior(Vector2.new(32, -24), Vector2.new(32, 24), 13, 11, { window(-12), window(12) })
+
+	-- ground floor interior
+	wall(Vector2.new(-5, -23.5), Vector2.new(-5, 0), 0, 12, { door(-11.5) })
+	wall(Vector2.new(5, -23.5), Vector2.new(5, 0), 0, 12, { door(-11.5) })
+	wall(Vector2.new(-31.5, 0), Vector2.new(-5.5, 0), 0, 12, { { at = -18, width = 5, bottom = 0, top = 9.5 } })
+	wall(Vector2.new(5.5, 0), Vector2.new(31.5, 0), 0, 12, {}, rgb(84, 76, 66))
+	wall(Vector2.new(-5, 0), Vector2.new(-5, 23.5), 0, 12, { door(4.5) })
+	wall(Vector2.new(5, 0), Vector2.new(5, 23.5), 0, 12, { door(16.5) }, rgb(84, 76, 66))
+	-- upper floor interior
+	wall(Vector2.new(-5, -23.5), Vector2.new(-5, 0), 13, 11, { door(-5.5) })
+	wall(Vector2.new(5, -23.5), Vector2.new(5, 0), 13, 11, { door(-5.5) }, rgb(96, 110, 120))
+	wall(Vector2.new(-31.5, 0), Vector2.new(-5.5, 0), 13, 11, {})
+	wall(Vector2.new(5.5, 0), Vector2.new(31.5, 0), 13, 11, {})
+	wall(Vector2.new(-5, 0), Vector2.new(-5, 23.5), 13, 11, { door(4.5) })
+	wall(Vector2.new(5, 0), Vector2.new(5, 23.5), 13, 11, { door(4.5) })
+
+	-- skirting boards along the hallway
+	for _, x in { -4.4, 4.4 } do
+		box(structure, Vector3.new(0.2, 0.6, 47), x, 0.3, 0, TRIM, M.Wood, { CanCollide = false })
+	end
+
+	------------------------------------------------------------ windows (glass + boards)
+	local function windowFill(cf: CFrame, boarded: boolean)
+		boxCF(structure, Vector3.new(4, 4.5, 0.15), cf, rgb(40, 50, 56), M.Glass, { Transparency = 0.55, Reflectance = 0.2 })
+		boxCF(structure, Vector3.new(4.4, 0.3, 0.6), cf * CF(0, -2.35, 0), TRIM, M.Wood)
+		if boarded then
+			for i = -1, 1 do
+				boxCF(structure, Vector3.new(4.8, 0.7, 0.25), cf * CF(0, i * 1.4, -0.45) * ANG(0, 0, rad(rng:NextNumber(-14, 14))), rgb(92, 72, 52), M.WoodPlanks)
+			end
+		end
+	end
+	for _, x in { -20, -12, 12, 22 } do
+		windowFill(CF(x, 6.25, -24), x > 0)
+		windowFill(CF(x, 19.25, -24), true)
+	end
+	windowFill(CF(-20, 6.25, 24) * ANG(0, math.pi, 0), false)
+	windowFill(CF(20, 6.25, 24) * ANG(0, math.pi, 0), true)
+	windowFill(CF(-18, 19.25, 24) * ANG(0, math.pi, 0), true)
+	windowFill(CF(18, 19.25, 24) * ANG(0, math.pi, 0), false)
+	for _, z in { -6, 12 } do
+		windowFill(CF(-32, 6.25, z) * ANG(0, rad(90), 0), z > 0)
+	end
+	for _, z in { -12, 12 } do
+		windowFill(CF(32, 6.25, z) * ANG(0, rad(-90), 0), true)
+		windowFill(CF(-32, 19.25, z) * ANG(0, rad(90), 0), false)
+		windowFill(CF(32, 19.25, z) * ANG(0, rad(-90), 0), z < 0)
+	end
+
+	------------------------------------------------------------ stairs
+	local steps = 13
+	local run = 14 / steps
+	for i = 1, steps do
+		local zFar = 22 - (i - 1) * run
+		local zNear = 22 - i * run
+		box(structure, Vector3.new(5, i, run), -2.5, i / 2, (zFar + zNear) / 2, rgb(66, 48, 34), M.WoodPlanks)
+	end
+	-- banister along the walkway side
+	local railCF = L(0.1, 3 + 6.5, 15) * ANG(math.atan2(13, 14), 0, 0)
+	Build.part(structure, Vector3.new(0.3, 0.3, 19), railCF, TRIM, M.Wood)
+	for i = 0, 5 do
+		local z = 21 - i * 2.6
+		local y = (22 - z) / run
+		box(structure, Vector3.new(0.25, 3, 0.25), 0.1, y + 1.5, z, TRIM, M.Wood)
+	end
+	-- upper floor railing around the stairwell
+	box(structure, Vector3.new(0.3, 0.3, 14), 0.1, 16.2, 15, TRIM, M.Wood)
+	box(structure, Vector3.new(5, 0.3, 0.3), -2.5, 16.2, 22, TRIM, M.Wood)
+	for _, z in { 8.5, 12, 15.5, 19, 21.8 } do
+		box(structure, Vector3.new(0.25, 3.2, 0.25), 0.1, 14.6, z, TRIM, M.Wood)
+	end
+
+	------------------------------------------------------------ doors
+	local function hingeZ(x: number, zc: number, y0: number): CFrame
+		return L(x, y0, zc - 2.4) * ANG(0, -math.pi / 2, 0)
+	end
+	local function hingeX(xc: number, z: number, y0: number): CFrame
+		return L(xc - 2.4, y0, z)
+	end
+	Doors.create(model, hingeZ(-5, -11.5, 0), 4.8, 9, { name = "LivingDoor", swing = -1 })
+	Doors.create(model, hingeZ(5, -11.5, 0), 4.8, 9, { name = "DiningDoor", swing = 1 })
+	Doors.create(model, hingeZ(-5, 4.5, 0), 4.8, 9, { name = "KitchenDoor", swing = -1 })
+	local slaughterDoor = Doors.create(model, hingeZ(5, 16.5, 0), 4.8, 9, {
+		name = "SlaughterDoor",
+		swing = 1,
+		color = rgb(60, 44, 34),
+	})
+	Doors.create(model, hingeZ(-5, -5.5, 13), 4.8, 9, { name = "MasterDoor", swing = -1 })
+	Doors.create(model, hingeZ(5, -5.5, 13), 4.8, 9, { name = "KidsDoor", swing = 1, color = rgb(120, 110, 96) })
+	Doors.create(model, hingeZ(-5, 4.5, 13), 4.8, 9, { name = "BathroomDoor", swing = -1 })
+	Doors.create(model, hingeZ(5, 4.5, 13), 4.8, 9, { name = "TrophyDoor", swing = 1 })
+	Doors.create(model, L(0.2, 0, 24), 4.4, 9, { name = "BackDoor", barred = true })
+	-- planks nailed across the back door
+	for i = 0, 2 do
+		box(structure, Vector3.new(5.6, 0.6, 0.3), 2.4, 2.5 + i * 2.4, 23.4, rgb(92, 72, 52), M.WoodPlanks, { CanCollide = false })
+	end
+
+	local frontDoor = Doors.create(model, hingeX(0, -24, 0), 4.8, 9, {
+		name = "FrontDoor",
+		swing = -1,
+		locked = true,
+		keyItem = "HouseKey",
+		lockedText = "A heavy chain and padlock hold it shut. I need the key.",
+		color = rgb(66, 40, 30),
+	})
+	-- chain + padlock across the front door (removed when unlocked)
+	local padlock = Build.model(model, "Padlock")
+	for i = -6, 6 do
+		Build.part(padlock, Vector3.new(0.35, 0.2, 0.2), L(i * 0.4, 4.5 - math.abs(i) * 0.05, -24.6) * ANG(0, 0, if i % 2 == 0 then 0 else rad(90)), rgb(90, 86, 80), M.Metal, { CanCollide = false })
+	end
+	Build.part(padlock, Vector3.new(0.7, 0.8, 0.35), L(0, 4.1, -24.75), rgb(130, 110, 70), M.Metal, { CanCollide = false })
+
+	------------------------------------------------------------ porch & exterior
+	box(structure, Vector3.new(20, 1, 9), 0, -0.5, -29, rgb(76, 60, 44), M.WoodPlanks)
+	for i = 1, 3 do
+		box(structure, Vector3.new(8, foundation * (1 - i / 4) + 0.2, 1.4), 0, -foundation + (foundation * (1 - i / 4)) / 2 - 0.4, -33 - i * 1.2, rgb(70, 56, 40), M.WoodPlanks)
+	end
+	for _, x in { -9.5, 9.5 } do
+		box(structure, Vector3.new(0.6, 11, 0.6), x, 5.5, -33, TRIM, M.Wood)
+	end
+	box(structure, Vector3.new(21, 0.6, 10), 0, 11.3, -29, rgb(52, 46, 42), M.RoofShingles)
+	Build.bulb(lights, L(0, 9.8, -26.5), rgb(255, 196, 130), 0.9, 16, true)
+	local porchChair = Props.Chair(false)
+	porchChair:PivotTo(L(-6, 0, -28) * ANG(0, rad(200), 0))
+	porchChair.Parent = furniture
+	-- skulls on stakes along the driveway
+	for i = 0, 3 do
+		local side = if i % 2 == 0 then -1 else 1
+		local x = site.pos.X + side * 9
+		local z = site.pos.Y - 44 - i * 12
+		local gy = Terrain.groundY(x, z)
+		Build.post(structure, 6, 0.4, CF(x, gy + 3, z), rgb(70, 54, 40), M.Wood)
+		Build.ball(structure, 1.1, CF(x, gy + 6.4, z), rgb(220, 214, 196), M.SmoothPlastic)
+		Build.part(structure, Vector3.new(0.3, 0.25, 0.1), CF(x - 0.22, gy + 6.5, z - 0.5), rgb(10, 10, 10), M.SmoothPlastic)
+		Build.part(structure, Vector3.new(0.3, 0.25, 0.1), CF(x + 0.22, gy + 6.5, z - 0.5), rgb(10, 10, 10), M.SmoothPlastic)
+	end
+	-- wood pile and chopping block by the side wall
+	for i = 0, 8 do
+		Build.cylinder(furniture, 4, 0.9, L(-36, -foundation + 0.45 + (i // 3) * 0.85, -14 + (i % 3) * 0.95) * ANG(0, rad(90), 0), rgb(84, 62, 44), M.Wood)
+	end
+	Build.post(furniture, 2, 2, L(-37, -foundation + 1, -6), rgb(78, 58, 42), M.Wood)
+
+	------------------------------------------------------------ lights
+	Build.bulb(lights, L(0, 10.5, -14), rgb(255, 180, 110), 0.6, 18, true)
+	Build.bulb(lights, L(2.5, 10.5, 14), rgb(255, 170, 100), 0.45, 14, true)
+	Build.bulb(lights, L(18, 10, 10), rgb(255, 70, 50), 1.1, 26, true) -- slaughter room red bulb
+	Build.bulb(lights, L(-18, 10.5, 12), rgb(255, 190, 120), 0.5, 18, false)
+	Build.bulb(lights, L(0, 22.5, -10), rgb(255, 180, 110), 0.4, 16, true)
+	Build.bulb(lights, L(-18, 22.5, 12), rgb(220, 230, 255), 0.5, 16, true) -- bathroom
+	Build.bulb(lights, L(18, 22.5, 12), rgb(255, 160, 90), 0.35, 16, false)
+
+	------------------------------------------------------------ living room (NW)
+	-- fireplace with a low fire
+	box(furniture, Vector3.new(2.5, 8, 8), -30.6, 4, -6, rgb(96, 50, 40), M.Brick)
+	box(furniture, Vector3.new(1.2, 3.4, 4.2), -29.6, 1.7, -6, rgb(16, 12, 10), M.Slate)
+	local hearth = box(furniture, Vector3.new(1, 0.4, 2.4), -29.8, 0.4, -6, rgb(255, 110, 40), M.Neon, { Transparency = 0.3 })
+	Build.fire(hearth, 2.2, false)
+	box(furniture, Vector3.new(3.2, 0.5, 9), -30, 8.2, -6, TRIM, M.Wood)
+	Build.candle(furniture, L(-29.6, 8.45, -9), 0.7)
+	Build.candle(furniture, L(-29.6, 8.45, -3), 0.5)
+	-- sofa facing the fire
+	local leather = rgb(56, 36, 30)
+	box(furniture, Vector3.new(4, 1.6, 9), -20, 1.3, -6, leather, M.Leather)
+	box(furniture, Vector3.new(1.4, 3.6, 9), -18.3, 2.3, -6, leather, M.Leather)
+	box(furniture, Vector3.new(4, 2.6, 1.2), -20, 1.8, -10.9, leather, M.Leather)
+	box(furniture, Vector3.new(4, 2.6, 1.2), -20, 1.8, -1.1, leather, M.Leather)
+	-- coffee table
+	box(furniture, Vector3.new(3, 0.3, 5), -25, 1.8, -6, TRIM, M.Wood)
+	for _, dz in { -2, 2 } do
+		box(furniture, Vector3.new(2.6, 1.6, 0.3), -25, 0.85, -6 + dz, TRIM, M.Wood)
+	end
+	-- rug
+	box(furniture, Vector3.new(12, 0.05, 10), -24, 0.03, -6, rgb(90, 30, 28), M.Carpet, { CanCollide = false })
+	Build.stain(furniture, L(-23, 0.07, -4), Vector2.new(1.8, 1.2), rng)
+	-- old CRT television showing static
+	box(furniture, Vector3.new(3, 2.2, 3.5), -8, 1.1, -20, TRIM, M.Wood)
+	box(furniture, Vector3.new(2.6, 2.4, 2.8), -8, 3.4, -20, rgb(30, 28, 26), M.Plastic)
+	local screen = box(furniture, Vector3.new(0.1, 1.8, 2.1), -9.35, 3.45, -20, rgb(160, 170, 175), M.Neon, { Transparency = 0.35 })
+	Build.tag(screen, "TVStatic")
+	local tvLight = Instance.new("SurfaceLight")
+	tvLight.Face = Enum.NormalId.Left
+	tvLight.Color = rgb(170, 190, 220)
+	tvLight.Brightness = 0.8
+	tvLight.Range = 14
+	tvLight.Angle = 100
+	tvLight.Parent = screen
+	-- rocking chair and deer skulls on the wall
+	local rocker = Props.Chair(false)
+	rocker:PivotTo(L(-26, 0, -19) * ANG(0, rad(35), 0))
+	rocker.Parent = furniture
+	for i = 0, 2 do
+		local x = -26 + i * 7
+		box(furniture, Vector3.new(1.2, 1.6, 0.8), x, 8.5, -23.2, rgb(214, 206, 190), M.SmoothPlastic)
+		for _, s in { -1, 1 } do
+			box(furniture, Vector3.new(0.2, 2.4, 0.2), x + s * 0.9, 9.8, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
+			box(furniture, Vector3.new(0.8, 0.2, 0.2), x + s * 1.3, 10.6, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
+		end
+	end
+	-- bookshelf
+	box(furniture, Vector3.new(1.4, 9, 6), -31, 4.5, 6 - 12, TRIM, M.Wood)
+
+	------------------------------------------------------------ dining room (NE): the family table
+	local tableWood = rgb(70, 46, 30)
+	box(furniture, Vector3.new(16, 0.6, 5), 19, 3.2, -12, tableWood, M.Wood)
+	for _, x in { 12, 26 } do
+		for _, z in { -14, -10 } do
+			box(furniture, Vector3.new(0.6, 2.9, 0.6), x, 1.45, z, tableWood, M.Wood)
+		end
+	end
+	for i = 0, 2 do
+		for _, side in { -1, 1 } do
+			local chair = Props.Chair(false)
+			chair:PivotTo(L(14 + i * 5, 0, -12 + side * 4) * ANG(0, if side < 0 then 0 else math.pi, 0))
+			chair.Parent = furniture
+		end
+	end
+	for i = 0, 4 do
+		local x = 12.5 + i * 3.2
+		Build.post(furniture, 0.1, 1.5, L(x, 3.55, -12 + (if i % 2 == 0 then -1.3 else 1.3)), rgb(200, 196, 186), M.SmoothPlastic)
+		box(furniture, Vector3.new(0.9, 0.4, 0.6), x, 3.75, -12 + (if i % 2 == 0 then -1.3 else 1.3), rgb(110, 30, 24), M.SmoothPlastic, { CanCollide = false })
+		Build.candle(furniture, L(x + 1.5, 3.5, -12), 0.5 + rng:NextNumber() * 0.4)
+	end
+	-- covered platter and bones in the middle
+	Build.ball(furniture, 2.2, L(19, 3.6, -12), rgb(160, 160, 155), M.Metal)
+	for i = 0, 5 do
+		box(furniture, Vector3.new(0.9, 0.2, 0.2), 15 + i, 3.6, -11 + (i % 2) * 0.6, rgb(225, 218, 200), M.SmoothPlastic, { CanCollide = false })
+	end
+	Build.stain(furniture, L(22, 3.53, -12.5), Vector2.new(1.5, 1), rng)
+	box(furniture, Vector3.new(2.5, 8, 7), 30.6, 4, -18, TRIM, M.Wood) -- china hutch
+	box(furniture, Vector3.new(0.2, 4, 6), 29.3, 5.5, -18, rgb(40, 50, 56), M.Glass, { Transparency = 0.4 })
+	Build.bulb(lights, L(19, 10, -12), rgb(255, 180, 110), 0.5, 16, true)
+
+	------------------------------------------------------------ kitchen (SW)
+	for i = 0, 5 do
+		local x = -29 + i * 4
+		box(furniture, Vector3.new(4, 3.4, 2.6), x, 1.7, 22.4, rgb(98, 82, 64), M.Wood)
+		box(furniture, Vector3.new(4.05, 0.3, 2.8), x, 3.5, 22.3, rgb(170, 166, 156), M.Marble)
+	end
+	box(furniture, Vector3.new(3, 0.4, 1.8), -17, 3.5, 22.4, rgb(140, 140, 145), M.Metal) -- sink
+	box(furniture, Vector3.new(4, 3.6, 3), -9, 1.8, 22.2, rgb(30, 30, 30), M.Metal) -- stove
+	for _, dx in { -1, 1 } do
+		Build.post(furniture, 0.1, 1, L(-9 + dx, 3.65, 22), rgb(60, 60, 60), M.Metal)
+	end
+	local pot = Build.post(furniture, 1.2, 1.6, L(-9, 4.3, 22), rgb(70, 70, 72), M.Metal)
+	local steam = Instance.new("Smoke")
+	steam.Color = rgb(200, 200, 200)
+	steam.Opacity = 0.05
+	steam.RiseVelocity = 2
+	steam.Size = 0.8
+	steam.Parent = pot
+	box(furniture, Vector3.new(3.4, 8, 3), -30, 4, 4, rgb(200, 196, 180), M.Metal) -- fridge
+	-- jars of "preserves" on a shelf
+	box(furniture, Vector3.new(8, 0.3, 1.4), -20, 7, 23.2, TRIM, M.Wood)
+	for i = 0, 5 do
+		Build.post(furniture, 0.9, 0.7, L(-23.5 + i * 1.3, 7.6, 23.1), rgb(120, 30, 26), M.Glass, { Transparency = 0.25 })
+	end
+	-- kitchen table with a cutting board
+	box(furniture, Vector3.new(8, 0.5, 4), -18, 3, 12, rgb(100, 76, 50), M.Wood)
+	for _, x in { -21.5, -14.5 } do
+		for _, z in { 10.5, 13.5 } do
+			box(furniture, Vector3.new(0.5, 2.8, 0.5), x, 1.4, z, rgb(100, 76, 50), M.Wood)
+		end
+	end
+	box(furniture, Vector3.new(2.5, 0.2, 1.6), -18, 3.35, 12, rgb(160, 120, 80), M.Wood)
+	Build.stain(furniture, L(-18, 3.47, 12), Vector2.new(0.9, 0.6), rng)
+	-- pantry (hiding spot)
+	local pantry = box(furniture, Vector3.new(3, 9, 5.5), -30.4, 4.5, 15, rgb(90, 70, 50), M.WoodPlanks)
+	pantry.Name = "Pantry"
+	box(furniture, Vector3.new(0.2, 8.4, 2.4), -28.85, 4.4, 13.7, rgb(74, 56, 40), M.Wood, { CanCollide = false })
+	box(furniture, Vector3.new(0.2, 8.4, 2.4), -28.85, 4.4, 16.3, rgb(74, 56, 40), M.Wood, { CanCollide = false })
+	pantry.CanCollide = false
+	Hiding.add(pantry, L(-30.3, 3, 15) * ANG(0, rad(-90), 0), L(-26, 3, 15) * ANG(0, rad(-90), 0), "Pantry")
+
+	------------------------------------------------------------ slaughter room (SE)
+	local tableCF = L(17, 0, 9)
+	local butcherTable = AssetService.spawn("ButcherTable", tableCF, furniture, rng)
+	local _, tableSize = butcherTable:GetBoundingBox()
+	local tableTop = tableCF * CF(0, tableSize.Y, 0)
+	local body = Props.BodyBag(rng)
+	body:PivotTo(tableCF * CF(0, math.min(tableSize.Y, 3.6) - 0.2, 0))
+	body.Name = "Victim"
+	body.Parent = furniture
+
+	local hooks = AssetService.create("MeatHooks", rng)
+	local _, hookSize = hooks:GetBoundingBox()
+	hooks:PivotTo(L(12, 12 - hookSize.Y, 21))
+	hooks.Parent = furniture
+	local hooks2 = AssetService.create("MeatHooks", rng)
+	hooks2:PivotTo(L(24, 12 - hookSize.Y, 3) * ANG(0, rad(90), 0))
+	hooks2.Parent = furniture
+
+	local cage = Props.Cage()
+	cage:PivotTo(L(28.5, 0, 4.5))
+	cage.Parent = furniture
+	for i = 0, 1 do
+		local bag = Props.BodyBag(rng)
+		bag:PivotTo(L(9, i * 1.4, 3 + i * 0.3) * ANG(0, rad(80 + i * 15), 0))
+		bag.Parent = furniture
+	end
+	for i = 0, 2 do
+		local barrel = Props.Barrel(rng)
+		barrel:PivotTo(L(7.5 + i * 2.6, 0, 22.5))
+		barrel.Parent = furniture
+	end
+	-- floor drain and pooled blood
+	Build.post(furniture, 0.06, 1.4, L(17, 0.03, 13.5), rgb(30, 30, 30), M.DiamondPlate, { CanCollide = false })
+	Build.stain(furniture, L(17, 0.04, 12), Vector2.new(3.5, 2.4), rng)
+	Build.stain(furniture, L(12, 0.04, 6), Vector2.new(1.6, 2.2), rng)
+	Build.stain(furniture, L(23, 0.04, 15), Vector2.new(1.2, 1), rng)
+	-- shelf on the east wall (flashlight sits here)
+	for _, y in { 3, 5.6, 8.2 } do
+		box(furniture, Vector3.new(1.8, 0.25, 7), 30.9, y, 14, TRIM, M.Wood)
+	end
+	box(furniture, Vector3.new(0.3, 8.5, 0.3), 30.9, 4.25, 10.6, TRIM, M.Wood)
+	box(furniture, Vector3.new(0.3, 8.5, 0.3), 30.9, 4.25, 17.4, TRIM, M.Wood)
+	-- saws hanging on the wall
+	for i = 0, 2 do
+		box(furniture, Vector3.new(0.1, 0.6, 2.2), 31.3, 7 + i * 0.1, 3 + i * 2.6, rgb(150, 150, 150), M.Metal, { CanCollide = false })
+	end
+	-- the chair the player is tied to, facing the table
+	local chairPos = L(25.5, 0, 19.5).Position
+	local chairCF = CFrame.lookAt(chairPos, Vector3.new(tableCF.Position.X, chairPos.Y, tableCF.Position.Z))
+	local chair = Props.Chair(true)
+	chair.Name = "CaptiveChair"
+	chair:PivotTo(chairCF)
+	chair.Parent = furniture
+	-- small side table with the knife
+	local sideCF = chairCF * CF(2.3, 0, 0.4)
+	Build.part(furniture, Vector3.new(1.6, 0.2, 1.6), sideCF * CF(0, 2.7, 0), TRIM, M.Wood)
+	Build.post(furniture, 2.6, 0.3, sideCF * CF(0, 1.3, 0), TRIM, M.Wood)
+	local knifeSpot = sideCF * CF(0, 2.82, 0) * ANG(0, rad(70), 0)
+	local knife = AssetService.spawn("HuntingKnife", knifeSpot, furniture, rng)
+
+	------------------------------------------------------------ master bedroom (NW, upstairs)
+	local U = 13
+	box(furniture, Vector3.new(7, 1.4, 9), -24, U + 1.4, -18.5, rgb(80, 60, 44), M.Wood)
+	box(furniture, Vector3.new(6.6, 0.8, 8.6), -24, U + 2.5, -18.5, rgb(170, 160, 140), M.Fabric)
+	Build.stain(furniture, L(-23.5, U + 2.95, -17), Vector2.new(1.6, 2), rng)
+	box(furniture, Vector3.new(7, 5, 0.6), -24, U + 2.5, -23.2, rgb(70, 50, 36), M.Wood)
+	box(furniture, Vector3.new(2.6, 0.7, 1.6), -24, U + 3.2, -22, rgb(190, 186, 170), M.Fabric)
+	for _, x in { -29.2, -18.8 } do
+		box(furniture, Vector3.new(2, 2.4, 2), x, U + 1.2, -22, TRIM, M.Wood)
+	end
+	Build.candle(furniture, L(-18.8, U + 2.4, -22.3), 0.5)
+	-- wardrobe (hiding spot)
+	local wardrobe = box(furniture, Vector3.new(3, 9, 6), -30.4, U + 4.5, -6, rgb(64, 46, 32), M.Wood)
+	wardrobe.Name = "Wardrobe"
+	wardrobe.CanCollide = false
+	box(furniture, Vector3.new(0.2, 8.6, 2.8), -28.85, U + 4.5, -7.45, rgb(54, 38, 28), M.WoodPlanks, { CanCollide = false })
+	box(furniture, Vector3.new(0.2, 8.6, 2.8), -28.85, U + 4.5, -4.55, rgb(54, 38, 28), M.WoodPlanks, { CanCollide = false })
+	Hiding.add(wardrobe, L(-30.3, U + 3, -6) * ANG(0, rad(-90), 0), L(-26, U + 3, -6) * ANG(0, rad(-90), 0), "Wardrobe")
+	-- dresser with a cracked mirror
+	box(furniture, Vector3.new(6, 3.4, 2), -12, U + 1.7, -22.6, TRIM, M.Wood)
+	box(furniture, Vector3.new(4, 4, 0.2), -12, U + 5.6, -23.4, rgb(160, 170, 175), M.Glass, { Reflectance = 0.5 })
+
+	------------------------------------------------------------ kid's room (NE, upstairs)
+	box(furniture, Vector3.new(4, 1.6, 7), 27.5, U + 0.8, -10, rgb(110, 90, 70), M.Wood)
+	box(furniture, Vector3.new(3.6, 0.6, 6.6), 27.5, U + 1.9, -10, rgb(140, 150, 170), M.Fabric)
+	local toyChest = box(furniture, Vector3.new(4, 2.2, 2.4), 26, U + 1.1, -22, rgb(140, 60, 50), M.Wood)
+	toyChest.Name = "ToyChest"
+	-- a row of dolls watching the door
+	for i = 0, 4 do
+		local x = 10 + i * 2.2
+		Build.ball(furniture, 0.9, L(x, U + 2.9, -23.1), rgb(230, 210, 196), M.SmoothPlastic)
+		box(furniture, Vector3.new(0.9, 1.4, 0.6), x, U + 1.95, -23.1, rgb(120 + i * 20, 80, 90), M.Fabric)
+		box(furniture, Vector3.new(0.12, 0.12, 0.05), x - 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
+		box(furniture, Vector3.new(0.12, 0.12, 0.05), x + 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
+	end
+	box(furniture, Vector3.new(11.5, 0.3, 1.4), 14.4, U + 1.2, -23.1, TRIM, M.Wood)
+	local nightLight = box(furniture, Vector3.new(0.6, 0.6, 0.2), 30, U + 1.5, -1, rgb(120, 160, 255), M.Neon)
+	local nl = Instance.new("PointLight")
+	nl.Color = rgb(110, 140, 255)
+	nl.Brightness = 0.6
+	nl.Range = 12
+	nl.Parent = nightLight
+	local closet = box(furniture, Vector3.new(3, 9, 5), 30.4, U + 4.5, -4, rgb(200, 190, 170), M.Wood)
+	closet.Name = "Closet"
+	closet.CanCollide = false
+	box(furniture, Vector3.new(0.2, 8.6, 4.6), 28.85, U + 4.4, -4, rgb(180, 170, 150), M.WoodPlanks, { CanCollide = false })
+	Hiding.add(closet, L(30.3, U + 3, -4) * ANG(0, rad(90), 0), L(26, U + 3, -4) * ANG(0, rad(90), 0), "Closet")
+
+	------------------------------------------------------------ bathroom (SW, upstairs)
+	box(furniture, Vector3.new(8, 2.6, 3.6), -26, U + 1.3, 21.6, rgb(220, 216, 206), M.Marble)
+	box(furniture, Vector3.new(7.2, 0.2, 2.8), -26, U + 2.3, 21.6, rgb(60, 14, 12), M.Glass, { Transparency = 0.1, Reflectance = 0.3 })
+	box(furniture, Vector3.new(2, 2, 2.4), -9, U + 1, 22, rgb(220, 216, 206), M.Marble)
+	box(furniture, Vector3.new(3, 3, 2), -31, U + 1.5, 8, rgb(200, 196, 186), M.Marble)
+	box(furniture, Vector3.new(0.2, 3, 2.6), -31.4, U + 5.6, 8, rgb(150, 160, 165), M.Glass, { Reflectance = 0.5 })
+	Build.stain(furniture, L(-20, U + 0.05, 15), Vector2.new(1.4, 2.4), rng)
+
+	------------------------------------------------------------ trophy room (SE, upstairs)
+	for i = 0, 2 do
+		box(furniture, Vector3.new(1.6, 0.25, 14), 30.9, U + 2.5 + i * 2.6, 13, TRIM, M.Wood)
+		for j = 0, 5 do
+			local z = 7.5 + j * 2.2
+			if (i + j) % 2 == 0 then
+				Build.ball(furniture, 0.9, L(30.9, U + 3.1 + i * 2.6, z), rgb(220, 212, 196), M.SmoothPlastic)
+			else
+				Build.post(furniture, 1, 0.8, L(30.9, U + 3.15 + i * 2.6, z), rgb(110, 40, 30), M.Glass, { Transparency = 0.3 })
+			end
+		end
+	end
+	box(furniture, Vector3.new(6, 0.4, 3), 22, U + 3, 21.5, TRIM, M.Wood) -- desk
+	for _, x in { 19.4, 24.6 } do
+		box(furniture, Vector3.new(0.4, 2.8, 2.6), x, U + 1.4, 21.5, TRIM, M.Wood)
+	end
+	-- piles of the victims' belongings
+	for i = 0, 7 do
+		box(furniture, Vector3.new(rng:NextNumber(1, 2), rng:NextNumber(0.4, 1.2), rng:NextNumber(1, 1.8)), 10 + rng:NextNumber(0, 6), U + 0.4 + (i // 3) * 0.6, 20 + rng:NextNumber(0, 3), Color3.fromHSV(rng:NextNumber(), 0.4, 0.35), M.Fabric)
+	end
+	-- clothes rack
+	box(furniture, Vector3.new(0.2, 0.2, 7), 9, U + 6.5, 12, rgb(90, 90, 90), M.Metal)
+	for i = 0, 4 do
+		box(furniture, Vector3.new(0.4, 3.6, 1.8), 9, U + 4.6, 9.5 + i * 1.3, Color3.fromHSV(rng:NextNumber(), 0.5, 0.4), M.Fabric, { CanCollide = false })
+	end
+
+	------------------------------------------------------------ upstairs hall
+	box(furniture, Vector3.new(0.2, 3.6, 2.6), -4.4, U + 6, -16, rgb(60, 50, 40), M.Wood)
+	box(furniture, Vector3.new(0.1, 3, 2), -4.25, U + 6, -16, rgb(110, 90, 80), M.Fabric)
+
+	------------------------------------------------------------ gameplay data
+	local function at(x: number, y: number, z: number): Vector3
+		return L(x, y, z).Position
+	end
+
+	local info: Info = {
+		origin = O,
+		model = model,
+		chairSeat = chairCF * CF(0, 2.05, 0),
+		chairEye = chairCF * CF(0, 4.6, -0.2),
+		chair = chair,
+		tableTop = tableTop,
+		body = body,
+		knifeSpot = knifeSpot,
+		knife = knife,
+		slaughterDoor = slaughterDoor,
+		frontDoor = frontDoor,
+		padlock = padlock,
+		spawnInside = CFrame.lookAt(at(22, 3, 17), at(5, 3, 16.5)),
+		spawnPorch = CFrame.lookAt(at(0, 3, -30), at(0, 3, -60)),
+		groundPatrol = {
+			at(0, 0, -18),
+			at(-18, 0, -14),
+			at(0, 0, -6),
+			at(18, 0, -18),
+			at(0, 0, -3),
+			at(-16, 0, 8),
+			at(2.5, 0, 10),
+			at(15, 0, 17),
+			at(2.5, 0, 20),
+			at(0, 0, -12),
+		},
+		upperPatrol = {
+			at(0, U, -16),
+			at(-16, U, -12),
+			at(0, U, -3),
+			at(18, U, -14),
+			at(1, U, 4),
+			at(-17, U, 12),
+			at(1, U, 5),
+			at(17, U, 12),
+			at(2.5, U, 18),
+		},
+		keySpots = {
+			L(-29.2, U + 2.45, -22) * ANG(0, rad(30), 0),
+			L(26, U + 2.25, -22) * ANG(0, rad(-20), 0),
+			L(22.5, U + 3.25, 21.5) * ANG(0, rad(75), 0),
+		},
+		spots = {
+			Flashlight = L(30.9, 3.15, 13) * ANG(0, rad(90), 0),
+			Syringe = L(-31, U + 3.05, 8.5) * ANG(0, rad(20), 0),
+			Bandage = L(-31, U + 3.05, 7.2),
+			BatteryKitchen = L(-25, 3.68, 22.2),
+			BatteryLiving = L(-25, 1.98, -6.5),
+			NoteLedger = L(30.9, 5.75, 15.5) * ANG(0, rad(90), 0),
+			NoteDiary = L(-25, 1.98, -5),
+			NoteDrawing = L(14, U + 1.38, -23) * ANG(0, rad(10), 0),
+			NoteClipping = L(21, U + 3.22, 21.4) * ANG(0, rad(-12), 0),
+		},
+		actors = {
+			butcher = CFrame.lookAt(at(17, 0, 12.4), at(17, 0, 9)),
+			brother = CFrame.lookAt(at(20.5, 0, 5.4), at(17, 0, 9)),
+			exit = L(2.5, 0, 16.5),
+			doorway = L(7, 0, 16.5),
+		},
+		center = O.Position,
+	}
+	return info
+end
+
+return House
