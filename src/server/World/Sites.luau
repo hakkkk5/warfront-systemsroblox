@@ -165,20 +165,21 @@ local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 	Build.part(folder, Vector3.new(4.6, 3, 1), treeCF * CF(0, 2.5, -2) , rgb(150, 120, 90), M.Wood, { CanCollide = false })
 	info.crashTree = treeCF
 
-	local sedanCF = treeCF * CF(0.6, 0, -10.5) * ANG(0, rad(8), 0)
+	-- the car left the road heading south and wrapped its bonnet (-Z) around the tree
+	local sedanCF = treeCF * CF(0.6, 0, -9.5) * ANG(0, math.pi + rad(8), 0)
 	local sedan = AssetService.spawn("CrashedSedan", sedanCF, folder, rng)
 	sedan.Name = "CrashedSedan"
 	info.sedan = sedan
-	local engineSmoke = invisible(folder, Vector3.new(2, 1, 2), sedanCF * CF(0, 3.2, 4.5), "Smoke")
+	local engineSmoke = invisible(folder, Vector3.new(2, 1, 2), sedanCF * CF(0, 3.2, -5), "Smoke")
 	local smoke = Instance.new("Smoke")
 	smoke.Color = rgb(70, 70, 70)
 	smoke.Opacity = 0.25
 	smoke.RiseVelocity = 4
 	smoke.Size = 2
 	smoke.Parent = engineSmoke
-	-- blinking hazard lights
+	-- blinking hazard lights at the rear
 	for _, x in { -2.8, 2.8 } do
-		local hazard = Build.part(folder, Vector3.new(0.6, 0.4, 0.3), sedanCF * CF(x, 3, -7.2), rgb(255, 150, 30), M.Neon, { CanCollide = false })
+		local hazard = Build.part(folder, Vector3.new(0.6, 0.4, 0.3), sedanCF * CF(x, 3, 7.4), rgb(255, 150, 30), M.Neon, { CanCollide = false })
 		local light = Instance.new("PointLight")
 		light.Color = rgb(255, 150, 40)
 		light.Range = 12
@@ -186,13 +187,13 @@ local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 		light.Parent = hazard
 		Build.tag(hazard, "Hazard")
 	end
-	-- skid marks and glass on the asphalt
+	-- skid marks behind the car (towards the road) and glass in front of it
 	for i = 0, 5 do
-		local t = sedanCF * CF(-1.6 + (i % 2) * 3.2, 0.05, -10 - (i // 2) * 9) * ANG(0, rad(-12 + i * 3), 0)
+		local t = sedanCF * CF(-1.6 + (i % 2) * 3.2, 0.05, 10 + (i // 2) * 9) * ANG(0, rad(-12 + i * 3), 0)
 		Build.part(folder, Vector3.new(0.9, 0.05, 9), t, rgb(18, 18, 18), M.SmoothPlastic, { CanCollide = false, Transparency = 0.3 })
 	end
 	for _ = 1, 24 do
-		Build.part(folder, Vector3.new(0.25, 0.05, 0.2), sedanCF * CF(rng:NextNumber(-5, 5), 0.06, rng:NextNumber(-12, -6)) * ANG(0, rng:NextNumber(0, 3), 0), rgb(190, 210, 210), M.Glass, {
+		Build.part(folder, Vector3.new(0.25, 0.05, 0.2), sedanCF * CF(rng:NextNumber(-5, 5), 0.06, rng:NextNumber(-9, -6)) * ANG(0, rng:NextNumber(0, 3), 0), rgb(190, 210, 210), M.Glass, {
 			CanCollide = false,
 			Transparency = 0.2,
 		})
