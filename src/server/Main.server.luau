@@ -9,6 +9,16 @@ local Server = script.Parent
 local World = Server:WaitForChild("World")
 local Systems = Server:WaitForChild("Systems")
 
+-- The place ships with a baked copy of the world (tools/bake, or Server.Bake
+-- in Studio) so it isn't empty in edit mode. Generation is deterministic, so
+-- rebuilding it here gives the same world with every door and prompt wired.
+for _, name in { "World", "Cannibals", "TerrainPreview" } do
+	local baked = workspace:FindFirstChild(name)
+	if baked then
+		baked:Destroy()
+	end
+end
+
 require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net")) -- create remotes first
 
 local Terrain = require(World.Terrain)
@@ -40,7 +50,9 @@ Cannibals.init()
 LightingSetup.apply()
 
 AssetService.preload()
-Terrain.generate()
+if workspace:GetAttribute("TerrainBaked") ~= true then
+	Terrain.generate()
+end
 
 local world = Instance.new("Folder")
 world.Name = "World"

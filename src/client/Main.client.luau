@@ -1,0 +1,49 @@
+--!strict
+-- Butcher's Hollow - client entry point.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
+ReplicatedStorage:WaitForChild("Shared")
+require(ReplicatedStorage.Shared.Net)
+
+local Controllers = script.Parent:WaitForChild("Controllers")
+local UI = script.Parent:WaitForChild("UI")
+
+for _, coreGui in { Enum.CoreGuiType.Backpack, Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Health, Enum.CoreGuiType.EmotesMenu } do
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(coreGui, false)
+	end)
+end
+
+local MeshLibrary = require(Controllers.MeshLibrary)
+local Audio = require(Controllers.Audio)
+local CameraController = require(Controllers.CameraController)
+local Movement = require(Controllers.Movement)
+local Effects = require(Controllers.Effects)
+local Viewmodel = require(Controllers.Viewmodel)
+local HidingView = require(Controllers.HidingView)
+local Cutscenes = require(Controllers.Cutscenes)
+local Prompts = require(UI.Prompts)
+local HUD = require(UI.HUD)
+local Inventory = require(UI.Inventory)
+local Notes = require(UI.Notes)
+local Death = require(UI.Death)
+local Ending = require(UI.Ending)
+local Menu = require(UI.Menu)
+
+MeshLibrary.init()
+Audio.init()
+CameraController.init()
+Movement.init()
+Effects.init()
+Viewmodel.init()
+HidingView.init()
+Prompts.init()
+HUD.init()
+Inventory.init()
+Notes.init()
+Cutscenes.init()
+Death.init()
+Ending.init()
+Menu.init()

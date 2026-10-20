@@ -51,7 +51,7 @@ function Forest.build(parent: Instance)
 	local folder = Build.folder(parent, "Forest")
 	local trees = Build.folder(folder, "Trees")
 	local ground = Build.folder(folder, "Ground")
-	local rng = Random.new(Config.Map.Seed)
+	local rng = Util.rng(Config.Map.Seed)
 	local half = Config.Map.PlayHalf + 40
 	local cell = 24
 	local meshPine = AssetService.hasMesh("PineTree")
@@ -62,15 +62,14 @@ function Forest.build(parent: Instance)
 		for gz = -half, half, cell do
 			local x = gx + rng:NextNumber(0, cell)
 			local z = gz + rng:NextNumber(0, cell)
-			local surf = Terrain.surface(x, z)
-			if surf.height > Config.Map.WaterLevel + 0.8 and clearOf(x, z, 7) then
+			if not Terrain.isWater(x, z) and clearOf(x, z, 7) then
 				local roll = rng:NextNumber()
 				local cf = Terrain.groundCFrame(x, z, rng:NextNumber(0, math.pi * 2))
 				if roll < 0.66 then
 					if meshPine then
 						local tree = AssetService.create("PineTree", rng)
 						local scale = rng:NextNumber(0.8, 1.25)
-						tree:ScaleTo(scale)
+						tree:ScaleTo(tree:GetScale() * scale)
 						tree:PivotTo(cf * CFrame.new(0, -0.6, 0))
 						tree.Parent = trees
 						prepareMeshTree(tree, trees, cf, 46 * scale)
@@ -84,7 +83,7 @@ function Forest.build(parent: Instance)
 					if meshOak then
 						local tree = AssetService.create("OakTree", rng)
 						local scale = rng:NextNumber(0.8, 1.15)
-						tree:ScaleTo(scale)
+						tree:ScaleTo(tree:GetScale() * scale)
 						tree:PivotTo(cf * CFrame.new(0, -0.5, 0))
 						tree.Parent = trees
 						prepareMeshTree(tree, trees, cf, 32 * scale)
@@ -110,8 +109,7 @@ function Forest.build(parent: Instance)
 		for gz = -half, half, small do
 			local x = gx + rng:NextNumber(0, small)
 			local z = gz + rng:NextNumber(0, small)
-			local surf = Terrain.surface(x, z)
-			if surf.height > Config.Map.WaterLevel + 0.5 and clearOf(x, z, 3) then
+			if not Terrain.isWater(x, z) and clearOf(x, z, 3) then
 				local roll = rng:NextNumber()
 				local cf = Terrain.groundCFrame(x, z, rng:NextNumber(0, math.pi * 2))
 				local m: Model? = nil

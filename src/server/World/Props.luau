@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Build = require(script.Parent.Build)
+local Util = require(ReplicatedStorage.Shared.Util)
 
 local Props = {}
 
@@ -46,7 +47,7 @@ end
 
 ---------------------------------------------------------------- vegetation
 
-function Props.PineTree(rng: Random): Model
+function Props.PineTree(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "PineTree"
 	local height = rng:NextNumber(34, 52)
@@ -71,7 +72,7 @@ function Props.PineTree(rng: Random): Model
 	return finish(m)
 end
 
-function Props.DeadTree(rng: Random): Model
+function Props.DeadTree(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "DeadTree"
 	local bark = rgb(66, 60, 54)
@@ -97,7 +98,7 @@ function Props.DeadTree(rng: Random): Model
 	return finish(m, if rng:NextNumber() > 0.5 then "DeadTree" else "DeadTree2")
 end
 
-function Props.Bush(rng: Random): Model
+function Props.Bush(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Bush"
 	local green = rgb(rng:NextInteger(30, 42), rng:NextInteger(42, 52), rng:NextInteger(26, 32))
@@ -111,7 +112,7 @@ function Props.Bush(rng: Random): Model
 	return finish(m)
 end
 
-function Props.Rock(rng: Random): Model
+function Props.Rock(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Rock"
 	local grey = rng:NextInteger(70, 92)
@@ -124,7 +125,7 @@ function Props.Rock(rng: Random): Model
 	return finish(m, if rng:NextNumber() > 0.5 then "Rock" else "Rock2")
 end
 
-function Props.Log(rng: Random): Model
+function Props.Log(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Log"
 	local len = rng:NextNumber(8, 16)
@@ -133,7 +134,7 @@ function Props.Log(rng: Random): Model
 	return finish(m)
 end
 
-function Props.Stump(rng: Random): Model
+function Props.Stump(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Stump"
 	local d = rng:NextNumber(1.8, 2.8)
@@ -143,7 +144,7 @@ function Props.Stump(rng: Random): Model
 	return finish(m)
 end
 
-function Props.Mushrooms(rng: Random): Model
+function Props.Mushrooms(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Mushrooms"
 	for _ = 1, rng:NextInteger(3, 6) do
@@ -454,7 +455,7 @@ end
 
 ---------------------------------------------------------------- furniture / house props
 
-function Props.ButcherTable(rng: Random): Model
+function Props.ButcherTable(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "ButcherTable"
 	local wood = rgb(78, 52, 34)
@@ -493,7 +494,7 @@ function Props.MeatHooks(): Model
 	return finish(m)
 end
 
-function Props.BodyBag(rng: Random): Model
+function Props.BodyBag(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "BodyBag"
 	local burlap = rgb(122, 98, 70)
@@ -550,7 +551,7 @@ function Props.Cage(): Model
 	return finish(m)
 end
 
-function Props.Barrel(rng: Random): Model
+function Props.Barrel(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Barrel"
 	local colors = { rgb(70, 50, 34), rgb(60, 70, 60), rgb(110, 60, 40) }
@@ -562,7 +563,7 @@ function Props.Barrel(rng: Random): Model
 	return finish(m)
 end
 
-function Props.Crate(rng: Random): Model
+function Props.Crate(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Crate"
 	local s = rng:NextNumber(2.4, 3.4)
@@ -675,7 +676,7 @@ function Props.Campfire(): Model
 	return finish(m)
 end
 
-function Props.Gravestone(rng: Random): Model
+function Props.Gravestone(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Gravestone"
 	local g = rng:NextInteger(80, 105)

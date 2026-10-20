@@ -59,7 +59,7 @@ local function siteCF(name: string, dx: number?, dz: number?, yaw: number?): CFr
 	return ground(p.X + (dx or 0), p.Y + (dz or 0), yaw)
 end
 
-local function spawnProp(parent: Instance, builder: (Random) -> Model, cf: CFrame, rng: Random): Model
+local function spawnProp(parent: Instance, builder: (Util.Rng) -> Model, cf: CFrame, rng: Util.Rng): Model
 	local m = builder(rng)
 	m:PivotTo(cf)
 	m.Parent = parent
@@ -128,7 +128,7 @@ local function shed(
 end
 
 ---------------------------------------------------------------- crash site & highway
-local function buildHighway(parent: Instance, info: Info, rng: Random)
+local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 	local road = Config.Roads[1]
 	local folder = Build.folder(parent, "Highway")
 	local length = Util.polylineLength(road.points)
@@ -165,20 +165,21 @@ local function buildHighway(parent: Instance, info: Info, rng: Random)
 	Build.part(folder, Vector3.new(4.6, 3, 1), treeCF * CF(0, 2.5, -2) , rgb(150, 120, 90), M.Wood, { CanCollide = false })
 	info.crashTree = treeCF
 
-	local sedanCF = treeCF * CF(0.6, 0, -10.5) * ANG(0, rad(8), 0)
+	-- the car left the road heading south and wrapped its bonnet (-Z) around the tree
+	local sedanCF = treeCF * CF(0.6, 0, -9.5) * ANG(0, math.pi + rad(8), 0)
 	local sedan = AssetService.spawn("CrashedSedan", sedanCF, folder, rng)
 	sedan.Name = "CrashedSedan"
 	info.sedan = sedan
-	local engineSmoke = invisible(folder, Vector3.new(2, 1, 2), sedanCF * CF(0, 3.2, 4.5), "Smoke")
+	local engineSmoke = invisible(folder, Vector3.new(2, 1, 2), sedanCF * CF(0, 3.2, -5), "Smoke")
 	local smoke = Instance.new("Smoke")
 	smoke.Color = rgb(70, 70, 70)
 	smoke.Opacity = 0.25
 	smoke.RiseVelocity = 4
 	smoke.Size = 2
 	smoke.Parent = engineSmoke
-	-- blinking hazard lights
+	-- blinking hazard lights at the rear
 	for _, x in { -2.8, 2.8 } do
-		local hazard = Build.part(folder, Vector3.new(0.6, 0.4, 0.3), sedanCF * CF(x, 3, -7.2), rgb(255, 150, 30), M.Neon, { CanCollide = false })
+		local hazard = Build.part(folder, Vector3.new(0.6, 0.4, 0.3), sedanCF * CF(x, 3, 7.4), rgb(255, 150, 30), M.Neon, { CanCollide = false })
 		local light = Instance.new("PointLight")
 		light.Color = rgb(255, 150, 40)
 		light.Range = 12
@@ -186,13 +187,13 @@ local function buildHighway(parent: Instance, info: Info, rng: Random)
 		light.Parent = hazard
 		Build.tag(hazard, "Hazard")
 	end
-	-- skid marks and glass on the asphalt
+	-- skid marks behind the car (towards the road) and glass in front of it
 	for i = 0, 5 do
-		local t = sedanCF * CF(-1.6 + (i % 2) * 3.2, 0.05, -10 - (i // 2) * 9) * ANG(0, rad(-12 + i * 3), 0)
+		local t = sedanCF * CF(-1.6 + (i % 2) * 3.2, 0.05, 10 + (i // 2) * 9) * ANG(0, rad(-12 + i * 3), 0)
 		Build.part(folder, Vector3.new(0.9, 0.05, 9), t, rgb(18, 18, 18), M.SmoothPlastic, { CanCollide = false, Transparency = 0.3 })
 	end
 	for _ = 1, 24 do
-		Build.part(folder, Vector3.new(0.25, 0.05, 0.2), sedanCF * CF(rng:NextNumber(-5, 5), 0.06, rng:NextNumber(-12, -6)) * ANG(0, rng:NextNumber(0, 3), 0), rgb(190, 210, 210), M.Glass, {
+		Build.part(folder, Vector3.new(0.25, 0.05, 0.2), sedanCF * CF(rng:NextNumber(-5, 5), 0.06, rng:NextNumber(-9, -6)) * ANG(0, rng:NextNumber(0, 3), 0), rgb(190, 210, 210), M.Glass, {
 			CanCollide = false,
 			Transparency = 0.2,
 		})
@@ -234,7 +235,7 @@ local function buildHighway(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- truck clearing
-local function buildTruck(parent: Instance, info: Info, rng: Random)
+local function buildTruck(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "TruckClearing")
 	local site = S.Truck.pos
 	local target = Config.DrivePath[2]
@@ -289,7 +290,7 @@ local function buildTruck(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- barn
-local function buildBarn(parent: Instance, info: Info, rng: Random)
+local function buildBarn(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Barn")
 	local origin = siteCF("Barn", 0, 0, rad(20))
 	origin = origin + Vector3.new(0, 0.5, 0)
@@ -328,7 +329,7 @@ local function buildBarn(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- hunter's camp
-local function buildCamp(parent: Instance, info: Info, rng: Random)
+local function buildCamp(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "HunterCamp")
 	local origin = siteCF("Camp")
 	spawnProp(folder, function()
@@ -368,7 +369,7 @@ local function buildCamp(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- doctor's trailer
-local function buildTrailer(parent: Instance, info: Info, rng: Random)
+local function buildTrailer(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Trailer")
 	local origin = siteCF("Trailer", 0, 0, rad(-25)) + Vector3.new(0, 2.4, 0)
 	local w, d, h = 10, 26, 8
@@ -424,7 +425,7 @@ local function buildTrailer(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- cemetery
-local function buildCemetery(parent: Instance, info: Info, rng: Random)
+local function buildCemetery(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Cemetery")
 	local origin = siteCF("Cemetery", 0, 0, rad(10))
 	for row = 0, 3 do
@@ -480,7 +481,7 @@ local function buildCemetery(parent: Instance, info: Info, rng: Random)
 end
 
 ---------------------------------------------------------------- ranger station, tower, shed, helipad
-local function buildStation(parent: Instance, info: Info, rng: Random)
+local function buildStation(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "RangerStation")
 	local site = S.Station.pos
 	local origin = siteCF("Station", 0, 0, rad(200)) + Vector3.new(0, 1, 0)
@@ -646,7 +647,7 @@ local function buildTower(parent: Instance, info: Info)
 	lanternOn(folder, base * CF(2, h + 0.4, 3))
 end
 
-local function buildToolShed(parent: Instance, info: Info, rng: Random)
+local function buildToolShed(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "ToolShed")
 	local origin = siteCF("Shed", 0, 0, rad(150)) + Vector3.new(0, 0.5, 0)
 	shed(folder, origin, 12, 10, 9, rgb(84, 70, 54), { doorWidth = 4.5 })
@@ -697,7 +698,7 @@ local function buildSigns(parent: Instance)
 end
 
 function Sites.build(parent: Instance): Info
-	local rng = Random.new(Config.Map.Seed + 77)
+	local rng = Util.rng(Config.Map.Seed + 77)
 	local info: Info = {
 		patrols = {},
 		spots = {},

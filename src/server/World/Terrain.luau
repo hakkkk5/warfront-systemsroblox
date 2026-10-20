@@ -129,6 +129,16 @@ function Terrain.surface(x: number, z: number): Surface
 	return { height = h, road = roadMat, roadBlend = roadBlend, clearing = clearing }
 end
 
+-- Water only fills the lake basin; low ground elsewhere stays dry.
+local function inLake(x: number, z: number): boolean
+	local dx, dz = x - lake.pos.X, z - lake.pos.Y
+	return dx * dx + dz * dz < (lake.radius * 0.92) ^ 2
+end
+
+function Terrain.isWater(x: number, z: number): boolean
+	return inLake(x, z) and Terrain.height(x, z) < water
+end
+
 function Terrain.height(x: number, z: number): number
 	return Terrain.surface(x, z).height
 end
@@ -172,7 +182,7 @@ local function pickMaterial(x: number, z: number, s: Surface, slope: number): En
 	if slope > 1.05 then
 		return if math.noise(x / 20, z / 20, 6.6) > 0 then Enum.Material.Rock else Enum.Material.Slate
 	end
-	if s.height < water + 1.2 and s.height > water - 6 then
+	if s.height < water + 1.2 and s.height > water - 6 and inLake(x, z) then
 		return if math.noise(x / 16, z / 16, 2.2) > 0.1 then Enum.Material.Mud else Enum.Material.Ground
 	end
 	if s.roadBlend > 0.35 then
@@ -228,16 +238,19 @@ function Terrain.generate()
 			-- heights with a one-column border for slope estimation
 			local heights: { { number } } = {}
 			local surfaces: { { Surface } } = {}
+			local wet: { { boolean } } = {}
 			local maxH = water
 			for i = 0, nx + 1 do
 				heights[i] = {}
 				surfaces[i] = {}
+				wet[i] = {}
 				for k = 0, nz + 1 do
 					local x = x0 + (i - 0.5) * RES
 					local z = z0 + (k - 0.5) * RES
 					local s = Terrain.surface(x, z)
 					surfaces[i][k] = s
 					heights[i][k] = s.height
+					wet[i][k] = inLake(x, z)
 					if i >= 1 and i <= nx and k >= 1 and k <= nz then
 						maxH = math.max(maxH, s.height)
 					end
@@ -281,7 +294,7 @@ function Terrain.generate()
 								mj[k] = Enum.Material.Rock
 							end
 							oj[k] = math.min(fill, 1)
-						elseif yb < water then
+						elseif yb < water and wet[i][k] then
 							mj[k] = Enum.Material.Water
 							oj[k] = math.clamp((water - yb) / RES, 0, 1)
 						else

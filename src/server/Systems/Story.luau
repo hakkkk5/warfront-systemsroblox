@@ -107,6 +107,12 @@ local function anyPlayerWithin(position: Vector3, radius: number): Player?
 	return nil
 end
 
+-- Snap a CFrame onto the terrain (spawn points away from flattened sites).
+local function onGround(cf: CFrame): CFrame
+	local p = cf.Position
+	return Terrain.groundCFrame(p.X, p.Z)
+end
+
 local function teleportAll(cf: CFrame, anchored: boolean)
 	for i, player in Players:GetPlayers() do
 		local root = rootOf(player)
@@ -481,9 +487,9 @@ function Story.startDrive()
 	teleportAll(Story.checkpoint(), false)
 	local target = Players:GetPlayers()[1]
 	local base = sites.wreck
-	Cannibals.spawn("Papa", base * CFrame.new(0, 0, 55), { hunting = true, chase = target })
-	Cannibals.spawn("Kin", base * CFrame.new(-40, 0, 40), { hunting = true })
-	Cannibals.spawn("Kin", base * CFrame.new(45, 0, 30), { hunting = true })
+	Cannibals.spawn("Papa", onGround(base * CFrame.new(0, 0, 55)), { hunting = true, chase = target })
+	Cannibals.spawn("Kin", onGround(base * CFrame.new(-40, 0, 40)), { hunting = true })
+	Cannibals.spawn("Kin", onGround(base * CFrame.new(45, 0, 30)), { hunting = true })
 	Story.say("Papa", "YOU BROKE MY TRUCK!", 3)
 end
 
