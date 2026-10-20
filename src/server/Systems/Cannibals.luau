@@ -610,6 +610,12 @@ end
 
 ---------------------------------------------------------------- combat
 
+-- Just respawned: the family ignores the player for a few seconds.
+local function isSafe(player: Player): boolean
+	local untilTime = player:GetAttribute("SafeUntil")
+	return typeof(untilTime) == "number" and os.clock() < untilTime
+end
+
 local function attack(c: Cannibal, player: Player)
 	if c.attacking then
 		return
@@ -624,7 +630,7 @@ local function attack(c: Cannibal, player: Player)
 	soundRemote:FireAllClients("Slash", c.head.Position)
 	task.wait(TUNE.AttackWindup)
 	local _, humanoid, root = playerParts(player)
-	if humanoid and root and c.alive and c.state == "Chase" and not player:GetAttribute("Hidden") then
+	if humanoid and root and c.alive and c.state == "Chase" and not player:GetAttribute("Hidden") and not isSafe(player) then
 		local offset = root.Position - c.root.Position
 		if offset.Magnitude < TUNE.HitRange then
 			player:SetAttribute("LastAttacker", c.kind)
@@ -722,7 +728,7 @@ local function perceive(c: Cannibal, dt: number): (Player?, number)
 	for _, player in Players:GetPlayers() do
 		local _, humanoid, root, head = playerParts(player)
 		local d = c.detection[player] or 0
-		if humanoid and root and head and not player:GetAttribute("InCutscene") then
+		if humanoid and root and head and not player:GetAttribute("InCutscene") and not isSafe(player) then
 			if player:GetAttribute("Hidden") then
 				d = math.max(0, d - TUNE.DetectDecay * dt)
 			else
@@ -739,7 +745,7 @@ local function perceive(c: Cannibal, dt: number): (Player?, number)
 				end
 				if seen then
 					local closeness = 1 - dist / range
-					d += (TUNE.DetectRate * vis * math.sqrt(closeness) + (if dist < 16 then 1.6 else 0)) * dt
+					d += (TUNE.DetectRate * vis * math.sqrt(closeness) + (if dist < 16 then 0.9 else 0)) * dt
 					if c.target == player then
 						c.lastSeenPos = root.Position
 						c.lastSeenTime = now
@@ -806,7 +812,7 @@ local function think(c: Cannibal, dt: number)
 		local nd = math.huge
 		for _, player in Players:GetPlayers() do
 			local _, _, root = playerParts(player)
-			if root and not player:GetAttribute("InCutscene") then
+			if root and not player:GetAttribute("InCutscene") and not isSafe(player) then
 				local d = (root.Position - c.root.Position).Magnitude
 				if d < nd then
 					nd = d
@@ -842,14 +848,14 @@ local function think(c: Cannibal, dt: number)
 				c.target = target
 			else
 				c.searchUntil = now + TUNE.SearchTime
-				c.detection[target] = 0.4
+				c.detection[target] = 0.2
 				setState(c, "Search")
 			end
 			return
 		end
 		if now - c.lastSeenTime > TUNE.LoseSightTime then
 			c.searchUntil = now + TUNE.SearchTime
-			c.detection[target] = 0.5
+			c.detection[target] = 0.2
 			setState(c, "Search")
 			return
 		end
@@ -894,7 +900,7 @@ local function think(c: Cannibal, dt: number)
 		end
 		local center = c.lastSeenPos or c.root.Position
 		if not c.searchPoint or arrived(c, c.searchPoint :: Vector3, 3.5) then
-			c.searchPoint = center + Vector3.new(math.random(-16, 16), 0, math.random(-16, 16))
+			c.searchPoint = center + Vector3.new(math.random(-12, 12), 0, math.random(-12, 12))
 		end
 		moveTo(c, c.searchPoint :: Vector3, c.spec.walk * 1.15)
 	elseif state == "Idle" then
@@ -1160,6 +1166,28 @@ function Cannibals.forgetPlayer(player: Player)
 		if c.target == player and c.state ~= "Sedated" then
 			c.searchUntil = os.clock() + 4
 			setState(c, "Search")
+		end
+	end
+end
+
+-- Send anyone near a respawn point off to the far end of their patrol, so a
+-- player who just woke up isn't caught again on the spot.
+function Cannibals.retreatFrom(position: Vector3, radius: number)
+	for _, c in list do
+		if c.alive and c.state ~= "Sedated" and (c.root.Position - position).Magnitude < radius then
+			c.target = nil
+			table.clear(c.detection)
+			if #c.patrol > 0 then
+				local far, farDistance = 1, -1
+				for i, point in c.patrol do
+					local d = (point - position).Magnitude
+					if d > farDistance then
+						far, farDistance = i, d
+					end
+				end
+				c.patrolIndex = far
+			end
+			setState(c, "Patrol")
 		end
 	end
 end

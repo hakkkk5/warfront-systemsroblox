@@ -60,6 +60,7 @@ world.Parent = workspace
 
 Forest.boundary(world)
 local house = House.build(world)
+require(World.HidingSpots).build(house, world) -- more places to hide in the house
 local sites = Sites.build(world)
 Forest.build(world)
 

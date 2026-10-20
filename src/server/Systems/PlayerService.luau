@@ -63,7 +63,33 @@ function PlayerService.spawn(player: Player)
 	end
 	local root = character:WaitForChild("HumanoidRootPart", 10) :: BasePart?
 	if root then
-		root.CFrame = Story.checkpoint()
+		-- stand on the floor under the checkpoint at this avatar's own height
+		-- (checkpoints assume a default-size body; bigger avatars sank into the floor)
+		local checkpoint = Story.checkpoint()
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local height = if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15
+			then humanoid.HipHeight + root.Size.Y / 2
+			else root.Size.Y * 1.5
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore: { Instance } = {}
+		for _, p in Players:GetPlayers() do
+			if p.Character then
+				table.insert(ignore, p.Character)
+			end
+		end
+		local npcs = workspace:FindFirstChild("Cannibals")
+		if npcs then
+			table.insert(ignore, npcs)
+		end
+		params.FilterDescendantsInstances = ignore
+		local hit = workspace:Raycast(checkpoint.Position + Vector3.new(0, 2, 0), Vector3.new(0, -14, 0), params)
+		local floorY = if hit then hit.Position.Y else checkpoint.Position.Y - 3
+		root.CFrame = CFrame.new(checkpoint.X, floorY + height + 0.15, checkpoint.Z) * checkpoint.Rotation
+		root.AssemblyLinearVelocity = Vector3.zero
+		-- a moment to get your bearings: nobody near the checkpoint, nobody looking
+		player:SetAttribute("SafeUntil", os.clock() + 10)
+		Cannibals.retreatFrom(checkpoint.Position, 70)
 	end
 	Story.syncPlayer(player)
 end
