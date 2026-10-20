@@ -3,6 +3,7 @@
 -- patrol / investigate / chase / search behaviour, attacks, sedation and
 -- dragging players out of hiding spots.
 
+local CollectionService = game:GetService("CollectionService")
 local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,7 +42,7 @@ export type KindSpec = {
 
 local KINDS: { [string]: KindSpec } = {
 	Butcher = {
-		display = "The Butcher",
+		display = "Jason",
 		height = 1.15,
 		width = 1.3,
 		skin = rgb(190, 150, 128),
@@ -56,7 +57,7 @@ local KINDS: { [string]: KindSpec } = {
 		keys = true,
 	},
 	Brother = {
-		display = "Brother Abel",
+		display = "Michel",
 		height = 1.02,
 		width = 0.9,
 		skin = rgb(206, 176, 156),
@@ -125,19 +126,10 @@ local KINDS: { [string]: KindSpec } = {
 }
 Cannibals.Kinds = KINDS
 
-local ANIMS = {
-	R15 = {
-		idle = "rbxassetid://507766666",
-		walk = "rbxassetid://507777826",
-		run = "rbxassetid://507767714",
-		attack = "rbxassetid://522635514",
-	},
-	R6 = {
-		idle = "rbxassetid://180435571",
-		walk = "rbxassetid://180426354",
-		run = "rbxassetid://180426354",
-		attack = "rbxassetid://129967390",
-	},
+-- Locomotion (idle / walk / run) is played on every client by
+-- KeyframeAnimator from the rig's speed; the server only plays the swing.
+local ANIMS: { [string]: string } = {
+	attack = "rbxassetid://129967390",
 }
 
 export type State = "Patrol" | "Idle" | "Investigate" | "Chase" | "Search" | "Sedated" | "Grab" | "Paused"
@@ -299,13 +291,19 @@ local function createRig(spec: KindSpec): Model
 	desc.TorsoColor = spec.shirt
 	desc.LeftLegColor = spec.pants
 	desc.RightLegColor = spec.pants
+	-- R6 like the players, so the baked R6 run/walk/idle clips fit
 	local ok, result = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R6)
 	end)
 	if ok and result then
+		if spec.height ~= 1 then
+			pcall(function()
+				result:ScaleTo(spec.height)
+			end)
+		end
 		return result
 	end
-	warn("[Cannibals] R15 rig unavailable, using R6 fallback: " .. tostring(result))
+	warn("[Cannibals] R6 rig unavailable, using the block fallback: " .. tostring(result))
 	return buildR6(spec)
 end
 
@@ -327,6 +325,11 @@ local function dress(rig: Model, spec: KindSpec): { BasePart }
 
 	local eyes: { BasePart } = {}
 	local hs = head.Size
+	if head:FindFirstChildOfClass("SpecialMesh") then
+		-- R6 head: a 2x1x1 part showing a rounder mesh about 1.2 across
+		local k = head.Size.Y * 1.2
+		hs = Vector3.new(k, k, k)
+	end
 	local hcf = head.CFrame
 	local maskSize = Vector3.new(hs.X * 1.18, hs.Y * 1.22, hs.Z * 1.18)
 
@@ -430,24 +433,14 @@ end
 
 ---------------------------------------------------------------- animation
 
-local function setAnim(c: Cannibal, name: string, speed: number?)
+-- Clients pick idle / walk / run from the rig's speed (KeyframeAnimator);
+-- the server only tells them when to stop (sedated, lying on the floor).
+local function setAnim(c: Cannibal, name: string, _speed: number?)
 	if c.currentTrack == name then
-		local track = c.tracks[name]
-		if track and speed then
-			track:AdjustSpeed(speed)
-		end
 		return
 	end
-	for key, track in c.tracks do
-		if key ~= "attack" and key ~= name then
-			track:Stop(0.25)
-		end
-	end
-	local track = c.tracks[name]
-	if track then
-		track:Play(0.25, 1, speed or 1)
-	end
 	c.currentTrack = name
+	c.model:SetAttribute("AnimForce", if name == "none" then "none" else nil)
 end
 
 local function updateLocomotionAnim(c: Cannibal)
@@ -626,6 +619,11 @@ local function attack(c: Cannibal, player: Player)
 	local track = c.tracks.attack
 	if track then
 		track:Play(0.1, 1, 1.3)
+		-- let the swing show instead of the client walk cycle
+		c.model:SetAttribute("AnimBusy", true)
+		task.delay(math.max(track.Length / 1.3, 0.5), function()
+			c.model:SetAttribute("AnimBusy", nil)
+		end)
 	end
 	soundRemote:FireAllClients("Slash", c.head.Position)
 	task.wait(TUNE.AttackWindup)
@@ -1001,9 +999,8 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		created.Parent = humanoid
 		animator = created
 	end
-	local ids: { [string]: string } = if humanoid.RigType == Enum.HumanoidRigType.R15 then ANIMS.R15 else ANIMS.R6
 	local tracks: { [string]: AnimationTrack } = {}
-	for name, id in ids do
+	for name, id in ANIMS do
 		local anim = Instance.new("Animation")
 		anim.AnimationId = id
 		local ok, track = pcall(function()
@@ -1063,6 +1060,13 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 	}
 	rig:SetAttribute("Kind", kind)
 	rig:SetAttribute("State", "Patrol")
+	-- the family's own gait: the heavier walk and the long-stride run
+	rig:SetAttribute("AnimWalk", "Walk2")
+	rig:SetAttribute("AnimRun", "Run3")
+	rig:SetAttribute("AnimRunAt", spec.walk * 1.3)
+	rig:SetAttribute("AnimWalkRef", 10)
+	rig:SetAttribute("AnimRunRef", 18)
+	CollectionService:AddTag(rig, "KeyframeAnimated")
 
 	-- sedation prompt on the back of the torso
 	local torso = (rig:FindFirstChild("UpperTorso") or rig:FindFirstChild("Torso")) :: BasePart

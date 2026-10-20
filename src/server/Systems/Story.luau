@@ -18,12 +18,16 @@ local Doors = require(script.Parent.Doors)
 local Interact = require(script.Parent.Interact)
 local Inventory = require(script.Parent.Inventory)
 local Pickups = require(script.Parent.Pickups)
+local Hosts = require(script.Parent.Hosts)
+local HouseLights = require(script.Parent.HouseLights)
+local Investigation = require(script.Parent.Investigation)
 
 local Story = {}
 
 export type Stage =
 	"Waiting"
 	| "Intro"
+	| "Investigate"
 	| "Captured"
 	| "HouseEscape"
 	| "Forest"
@@ -37,17 +41,18 @@ export type Stage =
 	| "Ending"
 
 local CHAPTERS: { [string]: { string } } = {
-	Intro = { "PROLOGUE", "Hollow Road" },
-	Captured = { "CHAPTER I", "The Butcher's House" },
-	HouseEscape = { "CHAPTER I", "The Butcher's House" },
-	Forest = { "CHAPTER II", "The Woods" },
-	Repair = { "CHAPTER II", "The Woods" },
-	Drive = { "CHAPTER III", "Last Ride" },
-	Hunt = { "CHAPTER IV", "The Ranger Station" },
-	Power = { "CHAPTER IV", "The Ranger Station" },
-	Radio = { "CHAPTER IV", "The Ranger Station" },
-	Survive = { "CHAPTER V", "Rescue" },
-	Extraction = { "CHAPTER V", "Rescue" },
+	Intro = { "PROLOGUE", "The Storm" },
+	Investigate = { "CHAPTER I", "Investigate The House" },
+	Captured = { "CHAPTER II", "They Know" },
+	HouseEscape = { "CHAPTER II", "They Know" },
+	Forest = { "CHAPTER III", "The Woods" },
+	Repair = { "CHAPTER III", "The Woods" },
+	Drive = { "CHAPTER IV", "Last Ride" },
+	Hunt = { "CHAPTER V", "The Ranger Station" },
+	Power = { "CHAPTER V", "The Ranger Station" },
+	Radio = { "CHAPTER V", "The Ranger Station" },
+	Survive = { "CHAPTER VI", "Rescue" },
+	Extraction = { "CHAPTER VI", "Rescue" },
 	Ending = { "EPILOGUE", "Dawn" },
 }
 
@@ -67,7 +72,6 @@ local world: Folder
 local flags = {
 	keyFound = false,
 	frontDoorOpen = false,
-	flashlightFound = false,
 	syringeFound = false,
 	keysFound = false,
 	installed = { Engine = false, CarBattery = false, SparkPlugs = false, Tire = false } :: { [string]: boolean },
@@ -137,10 +141,12 @@ local function objectives(): { Objective }
 	local function add(text: string, done: boolean, optional: boolean?)
 		table.insert(list, { text = text, done = done, optional = optional })
 	end
+	if stage == "Investigate" then
+		return Investigation.objectives()
+	end
 	if stage == "Intro" or stage == "Captured" then
 		add("...", false)
 	elseif stage == "HouseEscape" then
-		add("Find a light source", flags.flashlightFound, true)
 		add("Find the key to the padlock (upstairs?)", flags.keyFound)
 		add("Escape through the front door", flags.frontDoorOpen)
 	elseif stage == "Forest" then
@@ -209,7 +215,9 @@ function Story.stage(): Stage
 end
 
 function Story.checkpoint(): CFrame
-	if stage == "Waiting" or stage == "Intro" or stage == "Captured" or stage == "HouseEscape" then
+	if stage == "Investigate" then
+		return Investigation.spawnCF()
+	elseif stage == "Waiting" or stage == "Intro" or stage == "Captured" or stage == "HouseEscape" then
 		return house.spawnInside
 	elseif stage == "Forest" then
 		return house.spawnPorch
@@ -253,7 +261,18 @@ local function playCutscene(name: string, data: any, timeout: number)
 end
 
 -- Late joiners get the cutscene that is currently running.
+-- Everyone carries a flashlight from the start (late joiners too).
+local function giveFlashlight(player: Player)
+	if not Inventory.has(player, "Flashlight") then
+		Inventory.add(player, "Flashlight", 1, true)
+		Interact.notify(player, "You have a flashlight - press F", "item")
+	end
+end
+
 function Story.syncPlayer(player: Player)
+	if started then
+		giveFlashlight(player)
+	end
 	Story.broadcast(player)
 	if currentCutscene then
 		player:SetAttribute("InCutscene", true)
@@ -266,12 +285,8 @@ end
 local function spawnHouseItems()
 	local spots = house.spots
 	local items = Build.folder(world, "Items")
-	Pickups.spawn("Flashlight", spots.Flashlight, items, {
-		onPicked = function()
-			flags.flashlightFound = true
-			Story.broadcast()
-		end,
-	})
+	-- everyone starts with a flashlight now; a spare battery lies where it was
+	Pickups.spawn("Battery", spots.Flashlight, items)
 	Pickups.spawn("Syringe", spots.Syringe, items, {
 		onPicked = function()
 			flags.syringeFound = true
@@ -284,8 +299,16 @@ local function spawnHouseItems()
 	Pickups.note("Diary", spots.NoteDiary, items)
 	Pickups.note("Drawing", spots.NoteDrawing, items)
 	Pickups.note("Clipping", spots.NoteClipping, items)
+end
+
+-- The padlock key only turns up once the hosts drop the act (reveal),
+-- so nobody can walk out of the front door during Chapter 1.
+local function spawnHouseKey()
+	if keyModel then
+		return
+	end
 	local keySpot = house.keySpots[math.random(1, #house.keySpots)]
-	keyModel = Pickups.spawn("HouseKey", keySpot, items, {
+	keyModel = Pickups.spawn("HouseKey", keySpot, Build.folder(world, "HouseKey"), {
 		onPicked = function(player)
 			flags.keyFound = true
 			Story.broadcast()
@@ -490,7 +513,6 @@ function Story.startDrive()
 	Cannibals.spawn("Papa", onGround(base * CFrame.new(0, 0, 55)), { hunting = true, chase = target })
 	Cannibals.spawn("Kin", onGround(base * CFrame.new(-40, 0, 40)), { hunting = true })
 	Cannibals.spawn("Kin", onGround(base * CFrame.new(45, 0, 30)), { hunting = true })
-	Story.say("Papa", "YOU BROKE MY TRUCK!", 3)
 end
 
 local function enterPower()
@@ -690,54 +712,61 @@ end
 
 ---------------------------------------------------------------- main sequence
 
+-- End of Chapter 1: Jason and Michel drop the act and the hunt begins (the
+-- house escape that follows is the existing Chapter 2 flow).
+local function reveal()
+	if stage ~= "Investigate" then
+		return
+	end
+	Investigation.finish()
+	Doors.unlock(house.slaughterDoor)
+	playCutscene("TheyKnow", Investigation.revealData(), 30)
+	setStage("HouseEscape")
+	spawnHouseKey()
+	for _, player in Players:GetPlayers() do
+		player:SetAttribute("SafeUntil", os.clock() + 8)
+		Inventory.add(player, "Knife", 1, true)
+	end
+	spawnHouseCannibals()
+	Story.say("You", "They know. The front door's padlocked... the key has to be upstairs somewhere. MOVE!", 5)
+end
+
 function Story.begin()
 	if started then
 		return
 	end
 	started = true
+	for _, player in Players:GetPlayers() do
+		giveFlashlight(player)
+	end
 	task.spawn(function()
 		setStage("Intro")
 		playCutscene("Crash", {
 			sedan = sites.sedan,
 			tree = sites.crashTree,
-			trapLog = sites.trapLog,
+			truck = sites.truck,
+			truckCF = sites.truckCF,
 			house = house.origin,
 		}, 60)
 
-		setStage("Captured")
-		teleportAll(house.chairSeat, true)
-		local brother = house.actors.brother
-		playCutscene("WakeUp", {
-			eye = house.chairEye,
-			seat = house.chairSeat,
-			tableTop = house.tableTop,
-			butcher = house.actors.butcher,
-			brother = brother,
-			exit = house.actors.exit,
-			doorway = house.actors.doorway,
-			knife = house.knife,
-			chair = house.chair,
-			body = house.body,
-		}, 90)
-
-		-- the ropes are cut, the knife is ours
-		if house.knife then
-			house.knife:Destroy()
-		end
-		for _, d in house.chair:GetDescendants() do
-			if d.Name == "Rope" then
-				d:Destroy()
-			end
-		end
-		house.chair:SetAttribute("Mesh", "Chair")
-		for _, player in Players:GetPlayers() do
-			Inventory.add(player, "Knife", 1, true)
-		end
+		-- Chapter 1: two friendly strangers pulled us out of the wreck. The
+		-- slaughter room stays locked while they play nice.
+		house.slaughterDoor.locked = true
 		Doors.setOpen(house.slaughterDoor, false)
-		setStage("HouseEscape")
-		teleportAll(house.spawnInside, false)
-		spawnHouseCannibals()
-		Story.say("You", "I have to get out of here. That door was chained... I need a key.", 4)
+		setStage("Investigate")
+		teleportAll(Investigation.spawnCF(), true)
+		playCutscene("WakeUp", Investigation.wakeData(), 90)
+		teleportAll(Investigation.spawnCF(), false)
+		Story.say("You", "Where am I...? Everyone's alright... I think.", 3.5)
+		Investigation.start(world, {
+			say = Story.say,
+			changed = function()
+				Story.broadcast()
+			end,
+			onComplete = function()
+				task.spawn(reveal)
+			end,
+		})
 	end)
 end
 
@@ -776,7 +805,9 @@ end
 
 function Story.hintTargets(): { Vector3 }
 	local list: { Vector3 } = {}
-	if stage == "HouseEscape" then
+	if stage == "Investigate" then
+		return Investigation.hintTargets()
+	elseif stage == "HouseEscape" then
 		if not flags.keyFound and keyModel and keyModel.Parent then
 			table.insert(list, keyModel:GetPivot().Position)
 		else
@@ -844,6 +875,12 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder)
 		end
 	end
 
+	Hosts.publishTemplates()
+	-- room lights + switches; the breaker only works once the act is over
+	HouseLights.build(house.origin, world, function()
+		return stage ~= "Investigate" and stage ~= "Intro"
+	end)
+	Investigation.prepare(house.origin, world)
 	spawnHouseItems()
 	spawnForestItems()
 	setupTruck()

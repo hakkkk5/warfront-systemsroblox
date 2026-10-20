@@ -19,6 +19,7 @@ local C = Theme.Colors
 local player = Players.LocalPlayer
 
 local PLAYING: { [string]: boolean } = {
+	Investigate = true,
 	HouseEscape = true,
 	Forest = true,
 	Repair = true,

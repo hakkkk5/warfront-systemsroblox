@@ -6,15 +6,15 @@ export type Note = { title: string, body: string }
 local Lore: { [string]: Note } = {
 	Ledger = {
 		title = "Meat Ledger",
-		body = "OCT 3 - two hikers. Good weight.\nOCT 9 - trucker. Tough, smoked him.\nOCT 15 - girl from the gas station. Mama says no more locals.\nOCT 19 - car off the highway. Brother laid the log across the road like Papa showed us.\n\nKeep the knife sharp. Keep the door chained. Keep the key UPSTAIRS where the meat can't reach it.",
+		body = "OCT 3 - two hikers. Good weight.\nOCT 9 - trucker. Tough, smoked him.\nOCT 15 - girl from the gas station. Mama says no more locals.\nOCT 19 - car on the highway. Jason ran it off the road with the truck, lights off, like Papa showed us.\n\nKeep the knife sharp. Keep the door chained. Keep the key UPSTAIRS where the meat can't reach it.",
 	},
 	Diary = {
 		title = "Mama's Diary",
-		body = "The boys are getting careless. The Butcher leaves his truck keys on his belt like a trophy, jingling everywhere he goes. I can hear him coming a mile off.\n\nAbel sleeps upstairs now. He says the meat whispers at night.\n\nPapa took the motor out of the old truck so nobody leaves. Nobody ever leaves.",
+		body = "The boys are getting careless. Jason leaves his truck keys on his belt like a trophy, jingling everywhere he goes. I can hear him coming a mile off.\n\nMichel sleeps upstairs now. He says the meat whispers at night.\n\nPapa took the motor out of the old truck so nobody leaves. Nobody ever leaves.",
 	},
 	Drawing = {
 		title = "Child's Drawing",
-		body = "(A crayon drawing of a house. Stick figures with sacks over their heads stand around a long table. One figure is lying on the table.)\n\nWritten underneath in shaky letters:\n\"FAMILY DINNER. I HIDE IN THE CLOSET WHEN BROTHER IS ANGRY. HE NEVER LOOKS IN THE CLOSET.\"",
+		body = "(A crayon drawing of a house. Stick figures with sacks over their heads stand around a long table. One figure is lying on the table.)\n\nWritten underneath in shaky letters:\n\"FAMILY DINNER. I HIDE IN THE CLOSET WHEN MICHEL IS ANGRY. HE NEVER LOOKS IN THE CLOSET.\"",
 	},
 	Clipping = {
 		title = "Newspaper Clipping",
@@ -35,6 +35,36 @@ local Lore: { [string]: Note } = {
 	RangerLog = {
 		title = "Ranger Station Log",
 		body = "Generator failed again during the storm. Blown fuse - I left the spare in the lookout tower. Fuel can is in the tool shed.\n\nOnce the generator's up, the radio reaches Pinecrest dispatch. They can get the rescue chopper to the helipad in about two minutes.\n\nIf you're reading this and I'm not here: don't wait for me. Turn on the generator, call dispatch, and lock the door.",
+	},
+
+	-- Chapter 1 clues (Investigation.luau)
+	ClueNewspaper = {
+		title = "Pinecrest Gazette",
+		body = "SIX VANISH ON HOLLOW ROAD IN TWO YEARS\n\nState police have again called off the search along Hollow Road, where six travellers have disappeared since 2022. Most were last seen after car trouble on the stretch of highway beside the old Garrett farm.\n\nJason and Michel Garrett, who have run the farm for twenty years, told the Gazette they \"do what we can for folks when the storm takes the road.\"\n\n\"We always take them in,\" said Michel.",
+	},
+	ClueMissing = {
+		title = "Missing Posters",
+		body = "A thick stack of MISSING posters, the same ones from the gas station board.\n\nDale Whitcomb. The Harlan family. Marisol Vega. Deputy Brandt. A dozen more you don't recognise.\n\nEvery face has been crossed out in red marker, one by one, and a date written beside it.\n\nThe last poster is blank. Someone has written today's date on it.",
+	},
+	ClueClothes = {
+		title = "Bloody Jacket",
+		body = "A sheriff's department jacket, stiff with dried blood. The sleeve has been cut away clean, like a joint of meat.\n\nThe name tag is still stitched over the pocket:\n\nDEP. T. BRANDT\nPINECREST SHERIFF'S DEPT.",
+	},
+	CluePhotos = {
+		title = "Family Photos",
+		body = "Photos in cheap frames. Jason and Michel smile in every one of them: at a picnic, by the truck, at the dinner table.\n\nEvery other face has been scratched out with something sharp.\n\nThe newest photo is a polaroid, still curling at the edges. It shows your car, wrapped around the pine on Hollow Road.",
+	},
+	ClueTeeth = {
+		title = "Kitchen Drawer",
+		body = "The drawer is full of teeth.\n\nDozens of them, sorted by size into a cutlery tray. Some still have fillings. A few are small enough to be a child's.\n\nA label taped to the front reads, in neat handwriting: KEEPSAKES.",
+	},
+	ClueFridge = {
+		title = "Freezer Packages",
+		body = "The fridge is packed with white paper parcels, frozen solid, each one labelled in neat marker:\n\nDALE - RIBS\nMARISOL - SHOULDER\nBRANDT - STEW MEAT\nHARLAN (SMALL) - SAUSAGE\n\nThe parcel at the front isn't frozen yet. The label is blank, waiting for a name.",
+	},
+	ClueHatch = {
+		title = "Basement Hatch",
+		body = "A heavy hatch in the kitchen floor, chained shut with a padlock the size of your fist.\n\nCold air seeps up through the cracks. It smells like a butcher's shop.\n\nThe wood around the edge has been scratched, deep and frantic, from the other side.",
 	},
 }
 

@@ -1,5 +1,5 @@
 --!strict
--- Butcher's Hollow - client entry point.
+-- The Cannibal Family - client entry point.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
@@ -23,6 +23,7 @@ local Movement = require(Controllers.Movement)
 local Effects = require(Controllers.Effects)
 local Viewmodel = require(Controllers.Viewmodel)
 local HidingView = require(Controllers.HidingView)
+local KeyframeAnimator = require(Controllers.KeyframeAnimator)
 local Cutscenes = require(Controllers.Cutscenes)
 local Prompts = require(UI.Prompts)
 local HUD = require(UI.HUD)
@@ -39,6 +40,7 @@ Movement.init()
 Effects.init()
 Viewmodel.init()
 HidingView.init()
+KeyframeAnimator.init()
 Prompts.init()
 HUD.init()
 Inventory.init()

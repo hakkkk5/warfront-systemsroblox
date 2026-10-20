@@ -32,7 +32,7 @@ local LINES = {
 	"APM Music & DistroKid via the Roblox creator store",
 	"",
 	"<b>THE FAMILY</b>",
-	"The Butcher - Brother Abel - The Hunter - The Scavenger - Papa",
+	"Jason - Michel - The Hunter - The Scavenger - Papa",
 	"",
 	"",
 	"<i>...they are still hungry.</i>",

@@ -69,7 +69,7 @@ local function musicFor(stage: string): string?
 	if player:GetAttribute("Chased") then
 		return "Chase"
 	end
-	if stage == "HouseEscape" or stage == "Captured" then
+	if stage == "Investigate" or stage == "HouseEscape" or stage == "Captured" then
 		return "House"
 	elseif stage == "Forest" or stage == "Repair" then
 		return "Forest"
@@ -259,7 +259,7 @@ function Effects.init()
 				Effects.setRain(true, true)
 			elseif stage == "Forest" or stage == "Repair" or stage == "Hunt" then
 				Effects.setRain(true, false)
-			elseif stage == "HouseEscape" or stage == "Ending" then
+			elseif stage == "Investigate" or stage == "HouseEscape" or stage == "Ending" then
 				Effects.setRain(false)
 			end
 		end

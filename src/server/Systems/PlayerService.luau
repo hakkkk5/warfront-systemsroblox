@@ -133,7 +133,7 @@ function PlayerService.init()
 		end)
 		if not ok then
 			warn("[PlayerService] teleport failed: " .. tostring(err))
-			player:Kick("Thanks for playing Butcher's Hollow! Rejoin to play again.")
+			player:Kick("Thanks for playing The Cannibal Family! Rejoin to play again.")
 		end
 	end)
 end

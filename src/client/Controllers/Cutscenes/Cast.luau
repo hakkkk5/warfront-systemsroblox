@@ -3,6 +3,7 @@
 -- posing (works on R15 and R6 rigs), hand-moved walking, the cleaver chop,
 -- lanterns, a driver's-eye car cockpit and simple stand-in vehicles.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Util = require(ReplicatedStorage.Shared.Util)
@@ -20,7 +21,7 @@ local part = Stage.part
 
 local ANIMS: { [string]: { [string]: string } } = {
 	R15 = {
-		idle = "rbxassetid://507766666",
+		idle = "rbxassetid://507766951", -- the calm idle; 507766666 looks around
 		walk = "rbxassetid://507777826",
 		slash = "rbxassetid://522635514",
 	},
@@ -77,8 +78,10 @@ end
 
 -- Local clone of a cannibal standing on floorCF (feet level). The root is
 -- anchored and moved by hand; animations and joint poses do the rest.
-function Cast.actor(kind: string, floorCF: CFrame): Actor
-	local templates = ReplicatedStorage:FindFirstChild("CannibalTemplates") or ReplicatedStorage:WaitForChild("CannibalTemplates", 5)
+-- folder: "HostTemplates" for the unmasked, friendly Jason and Michel.
+function Cast.actor(kind: string, floorCF: CFrame, folder: string?): Actor
+	local folderName = folder or "CannibalTemplates"
+	local templates = ReplicatedStorage:FindFirstChild(folderName) or ReplicatedStorage:WaitForChild(folderName, 5)
 	local template = templates and templates:FindFirstChild(kind)
 	local model = if template and template:IsA("Model") then template:Clone() else fallbackFigure()
 	local found = model:FindFirstChild("HumanoidRootPart")
@@ -115,6 +118,13 @@ function Cast.actor(kind: string, floorCF: CFrame): Actor
 		r15 = humanoid.RigType == Enum.HumanoidRigType.R15
 	end
 	model.Parent = Stage.folder()
+	-- R6 actors get the baked idle / walk / run clips from KeyframeAnimator
+	-- (Cast.play forces the clip); R15 ones keep the Animator tracks
+	local baked = not r15
+	if baked then
+		model:SetAttribute("AnimForce", "idle")
+		CollectionService:AddTag(model, "KeyframeAnimated")
+	end
 
 	local tracks: { [string]: AnimationTrack } = {}
 	if humanoid then
@@ -125,6 +135,9 @@ function Cast.actor(kind: string, floorCF: CFrame): Actor
 			animator = created
 		end
 		for name, id in ANIMS[if r15 then "R15" else "R6"] do
+			if baked and name ~= "slash" then
+				continue
+			end
 			local anim = Instance.new("Animation")
 			anim.AnimationId = id
 			local ok, loaded = pcall(function()
@@ -158,6 +171,11 @@ function Cast.actor(kind: string, floorCF: CFrame): Actor
 end
 
 function Cast.play(actor: Actor, name: string, speed: number?)
+	if not actor.r15 and (name == "idle" or name == "walk" or name == "run") then
+		actor.model:SetAttribute("AnimForce", name)
+		actor.model:SetAttribute("AnimRate", speed or 1)
+		return
+	end
 	local chosen = actor.tracks[name]
 	if not chosen then
 		return

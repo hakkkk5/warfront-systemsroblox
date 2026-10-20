@@ -1,5 +1,5 @@
 --!strict
--- Butcher's Hollow - server entry point. Builds the world, then hands over to
+-- The Cannibal Family - server entry point. Builds the world, then hands over to
 -- the story director.
 
 local PhysicsService = game:GetService("PhysicsService")
@@ -32,6 +32,9 @@ local Hiding = require(Systems.Hiding)
 local Cannibals = require(Systems.Cannibals)
 local Story = require(Systems.Story)
 local PlayerService = require(Systems.PlayerService)
+
+-- R6 bodies for everyone, before the lobby loads anyone in
+require(Systems.R6Characters).init()
 
 -- Public servers are the lobby (this call never returns there); party
 -- servers and Studio-after-the-lobby carry on and build the game.
@@ -89,4 +92,4 @@ Cannibals.publishTemplates()
 Story.init(house, sites, world)
 
 workspace:SetAttribute("WorldReady", true)
-print(string.format("[Butcher's Hollow] world ready in %.1fs", os.clock() - started))
+print(string.format("[Cannibal Family] world ready in %.1fs", os.clock() - started))

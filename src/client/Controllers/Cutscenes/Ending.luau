@@ -1,6 +1,6 @@
 --!strict
 -- Ending (~30 s): the rescue helicopter lifts off at dawn, the family steps
--- out of the tree line to watch it go, "You escaped Butcher's Hollow.", then
+-- out of the tree line to watch it go, "You escaped the Cannibal Family.", then
 -- one sack-masked figure left standing in the trees.
 -- data: { helicopter: Model?, pad: CFrame }
 
@@ -192,7 +192,7 @@ return Stage.scene("Ending", function(data: any)
 	end)
 	Stage.zoom(50, 0)
 	at(13.2)
-	Stage.title("You escaped Butcher's Hollow.", { size = 54, color = Theme.Colors.Bone, fadeIn = 1.6, hold = 3.2, fadeOut = 1.2 })
+	Stage.title("You escaped the Cannibal Family.", { size = 54, color = Theme.Colors.Bone, fadeIn = 1.6, hold = 3.2, fadeOut = 1.2 })
 	at(16.8)
 	Audio.loop("HelicopterLoop", false)
 	at(18.4)

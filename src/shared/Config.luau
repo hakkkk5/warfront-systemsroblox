@@ -4,7 +4,7 @@
 
 local Config = {}
 
-Config.GameName = "BUTCHER'S HOLLOW"
+Config.GameName = "THE CANNIBAL FAMILY"
 Config.Tagline = "They are always hungry."
 
 Config.Map = {

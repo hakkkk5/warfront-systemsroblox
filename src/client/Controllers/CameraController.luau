@@ -72,6 +72,17 @@ end
 
 function CameraController.init()
 	UserInputService.MouseDeltaSensitivity = sensitivity
+	-- always follow the newest body: after a death the camera was left on the
+	-- old (destroyed) character and stayed where the player died
+	player.CharacterAdded:Connect(function(character)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			camera.CameraSubject = humanoid
+			if enabled then
+				camera.CameraType = Enum.CameraType.Custom
+			end
+		end
+	end)
 	RunService:BindToRenderStep("HorrorCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 		shakeAmount = math.max(0, shakeAmount - shakeDecay * dt * math.max(shakeAmount, 0.3))
 		if not enabled or camera.CameraType ~= Enum.CameraType.Custom then

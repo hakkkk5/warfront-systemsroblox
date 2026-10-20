@@ -26,7 +26,6 @@ local S = Config.Sites
 export type Info = {
 	sedan: Model,
 	crashTree: CFrame,
-	trapLog: CFrame,
 	truck: Model,
 	truckCF: CFrame,
 	truckSlots: { [string]: BasePart },
@@ -198,10 +197,6 @@ local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 			Transparency = 0.2,
 		})
 	end
-	-- the log the family dragged across the road
-	local logCF = ground(crash.X + 36, crash.Y - 12, rad(78))
-	Build.cylinder(folder, 30, 3.2, logCF * CF(0, 1.5, 0), rgb(60, 46, 34), M.Wood)
-	info.trapLog = logCF
 
 	-- road blocks at both ends of the map
 	for _, x in { -585, 585 } do

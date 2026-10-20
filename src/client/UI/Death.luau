@@ -24,8 +24,8 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 local NAMES: { [string]: string } = {
-	Butcher = "THE BUTCHER",
-	Brother = "BROTHER ABEL",
+	Butcher = "JASON",
+	Brother = "MICHEL",
 	Hunter = "THE HUNTER",
 	Scavenger = "THE SCAVENGER",
 	Papa = "PAPA",
