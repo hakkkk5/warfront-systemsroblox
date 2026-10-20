@@ -33,6 +33,10 @@ local Cannibals = require(Systems.Cannibals)
 local Story = require(Systems.Story)
 local PlayerService = require(Systems.PlayerService)
 
+-- Public servers are the lobby (this call never returns there); party
+-- servers and Studio-after-the-lobby carry on and build the game.
+require(Server.Lobby).run()
+
 local started = os.clock()
 
 for _, group in { "Player", "NPC", "Door" } do

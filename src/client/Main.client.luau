@@ -46,4 +46,5 @@ Notes.init()
 Cutscenes.init()
 Death.init()
 Ending.init()
+require(UI.Lobby).run() -- applies the difficulty; in the lobby it holds here until the game starts
 Menu.init()
