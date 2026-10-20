@@ -4,3 +4,4 @@
 *.rbxlx.lock
 sourcemap.json
 /build/
+node_modules/
