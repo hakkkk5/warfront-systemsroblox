@@ -43,6 +43,8 @@ PALETTE.update({
     "trailer_paint": dict(color=srgb(196, 190, 170), roblox="Metal", rough=0.5, metal=0.2, pattern="dirty"),
     "awning_red": dict(color=srgb(150, 40, 34), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave"),
     "awning_white": dict(color=srgb(214, 206, 188), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave"),
+    "clapboard": dict(color=srgb(176, 168, 148), roblox="WoodPlanks", rough=0.9, metal=0.0, pattern="chipped"),
+    "paint_blue": dict(color=srgb(56, 92, 140), roblox="Metal", rough=0.5, metal=0.2, pattern="chipped"),
 })
 
 # Roblox space (X right, Y up, Z back) -> Blender space (X, -Z, Y). A proper
@@ -100,6 +102,12 @@ def cyl(p, mat, r, length, cf, seg=10, r2=None):
                           radius2=r if r2 is None else r2, depth=length)
     bmesh.ops.transform(bm, matrix=RX(-math.pi / 2), verts=bm.verts)
     return emit(p, mat, bm, cf)
+
+
+def ball(p, mat, r, x, y, z, seg=14, rings=9):
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=rings, radius=r)
+    return emit(p, mat, bm, T(x, y, z))
 
 
 def cyl_between(p, mat, a, b, r, seg=10):
@@ -684,12 +692,109 @@ def build_gas_station():
     # downspouts at the front corners, from the parapet scuppers
     for sx in (x0 + 0.3, x1 - 0.3):
         downspout(p, sx, z0 - 0.45, z0 - 0.45, 12.3, 0.1)
-    # canopy over the pumps: a white lip round its top and collars on the posts
-    for (sx, sz, cx, cz) in ((34.6, 0.3, -14, -20.15), (34.6, 0.3, -14, 4.15), (0.3, 24.6, -31.15, -8), (0.3, 24.6, 3.15, -8)):
-        at(p, "paint_white", (sx, 0.5, sz), cx, 10.65, cz)
-    for (cx, cz) in ((-26, -16), (-26, 0), (-2, -16), (-2, 0)):
-        cyl(p, "concrete", 0.95, 1.4, T(cx, 0.7, cz), seg=14)
-        cyl(p, "paint_red", 0.6, 0.4, T(cx, 1.6, cz), seg=14)
+    # ---- the store itself (the server's plain box is hidden): a core, lap
+    # siding with peeling paint around the windows and door, a back door
+    at(p, "siding", (33.8, 11.9, 17.8), -14, 5.95, 26)
+    faces = (
+        (Face("z", z0, -1), x0, x1, [(-28.3, -19.7, 2.6, 7.4), (-16.4, -11.6, 0, 8.3), (-8.3, 0.3, 2.6, 7.4)], 2.2),
+        (Face("z", z1, 1), x0, x1, [(-6.4, -1.6, 0, 8.3)], 0.3),
+        (Face("x", x0, -1), z0, z1, [(23.6, 28.4, 2.8, 7.2)], 0.3),
+        (Face("x", x1, 1), z0, z1, [], 0.3),
+    )
+    for face, a0, a1, gaps, y in faces:
+        row = 0
+        while y < 11.7:
+            g = [(o0, o1) for (o0, o1, b, t) in gaps if b - 0.3 < y < t + 0.3]
+            band(p, face, "clapboard", a0, a1, y - 0.31, y + 0.31, 0.12 if row % 2 == 0 else 0.17, g)
+            y += 0.55
+            row += 1
+    # paint flaking off to the grey wood
+    for _ in range(36):
+        face, a0, a1, gaps, y0 = faces[rng.randrange(4)]
+        a, y = rng.uniform(a0 + 1, a1 - 1), rng.uniform(y0 + 0.4, 11)
+        if not any(o0 - 0.5 < a < o1 + 0.5 and b - 0.5 < y < t + 0.5 for (o0, o1, b, t) in gaps):
+            face.box(p, "siding", rng.uniform(0.4, 1.6), rng.uniform(0.2, 0.5), 0.06, a, y, 0.15)
+    back = Face("z", z1, 1)
+    back.box(p, "metal_dark", 4.4, 8.2, 0.15, -4, 4.1, 0.0)
+    door_trim(p, back, -4, 4.4, 8.2, mat="trim", pediment=False)
+    side = Face("x", x0, -1)
+    side.box(p, "glass_dark", 4.4, 4.4, 0.1, 26, 5.0, 0.0)
+    window_trim(p, side, 26, 2.8, 7.2, 4.4, mat="aluminium", drip=False)
+    # ice chest and a propane cage against the east wall, tyres by the west wall
+    at(p, "paint_white", (2.2, 3.2, 4.2), 4.3, 1.9, 22.5)
+    at(p, "paint_blue", (2.25, 0.6, 4.25), 4.3, 2.5, 22.5)
+    at(p, "aluminium", (2.3, 0.15, 4.3), 4.3, 3.55, 22.5)
+    cx, cz = 4.6, 30.5
+    for dx in (-1.2, 1.2):
+        for dz in (-2.3, 2.3):
+            at(p, "steel", (0.12, 5.0, 0.12), cx + dx, 2.8, cz + dz)
+    for yy in (0.4, 2.8, 5.2):
+        for dz in (-2.3, 2.3):
+            at(p, "steel", (2.5, 0.1, 0.1), cx, yy, cz + dz)
+        for dx in (-1.2, 1.2):
+            at(p, "steel", (0.1, 0.1, 4.7), cx + dx, yy, cz)
+    for i in range(4):
+        cyl(p, "paint_white", 0.42, 2.0, T(cx + (i % 2 - 0.5) * 1.0, 1.5, cz - 1.5 + i * 1.0), seg=12)
+        ball(p, "paint_white", 0.42, cx + (i % 2 - 0.5) * 1.0, 2.5, cz - 1.5 + i * 1.0)
+    for i in range(4):
+        bp.torus(p, "rubber", 0.95, 0.4, (-33.2, -29.5, 0.45 + i * 0.82), seg=20, tseg=8)
+    cyl(p, "steel", 0.8, 2.6, T(-10, 1.6, 15.4), seg=14)
+    cyl(p, "metal_dark", 0.85, 0.2, T(-10, 2.95, 15.4), seg=14)
+
+    # ---- the canopy over the pumps (the server's slab, band and posts are hidden)
+    cx0, cx1, cz0, cz1 = -31.2, 3.2, -20.2, 4.2
+    at(p, "paint_white", (34.4, 0.8, 24.4), -14, 10.2, -8)
+    for (sx, sz, ccx, ccz) in ((34.8, 0.3, -14, cz0 - 0.15), (34.8, 0.3, -14, cz1 + 0.15), (0.3, 24.8, cx0 - 0.15, -8), (0.3, 24.8, cx1 + 0.15, -8)):
+        at(p, "paint_red", (sx, 1.1, sz), ccx, 9.35, ccz)
+        at(p, "paint_white", (sx + 0.04, 0.14, sz + 0.04), ccx, 9.98, ccz)
+        at(p, "paint_white", (sx + 0.04, 0.14, sz + 0.04), ccx, 8.72, ccz)
+    # panelled ceiling with dark trays round the strip lights hanging below it
+    for i in range(8):
+        for j in range(6):
+            at(p, "aluminium", (4.15, 0.08, 3.95), -29.1 + i * 4.3, 9.62, -18.1 + j * 4.05)
+    for lx in (-24, -14, -4):
+        at(p, "metal_dark", (6.8, 0.22, 1.2), lx, 9.47, -8)
+    # columns: white steel with red kick plates on concrete collars
+    for ccx in (-26, -2):
+        for ccz in (-16, 0):
+            at(p, "paint_white", (1.0, 8.4, 1.0), ccx, 4.9, ccz)
+            at(p, "paint_red", (1.12, 1.2, 1.12), ccx, 1.6, ccz)
+            cyl(p, "concrete", 0.95, 1.0, T(ccx, 0.5, ccz), seg=14)
+    # the island: a curbed slab with yellow edges and bollards at the ends
+    at(p, "concrete", (26.6, 0.7, 5.6), -14, 0.35, -8)
+    for (sx, sz, ccx, ccz) in ((26.8, 0.1, -14, -10.8), (26.8, 0.1, -14, -5.2), (0.1, 5.8, -27.35, -8), (0.1, 5.8, -0.65, -8)):
+        at(p, "paint_yellow", (sx, 0.72, sz), ccx, 0.36, ccz)
+    for bx in (-28.2, 0.2):
+        cyl(p, "paint_yellow", 0.33, 3.2, T(bx, 1.6, -8), seg=10)
+        ball(p, "paint_yellow", 0.33, bx, 3.2, -8)
+    # two old pumps facing the lot, glass globes lit on top
+    for px in (-20, -8):
+        at(p, "concrete", (3.0, 0.5, 2.2), px, 0.95, -8)
+        at(p, "paint_red", (2.4, 4.4, 1.6), px, 3.4, -8)
+        cyl(p, "paint_red", 0.8, 2.4, T(px, 5.6, -8) @ RZ(math.pi / 2), seg=16)
+        at(p, "metal_dark", (0.9, 0.35, 0.9), px, 6.45, -8)
+        ball(p, "lens", 0.6, px, 7.15, -8)
+        at(p, "paint_white", (2.44, 0.3, 1.64), px, 2.3, -8)
+        at(p, "glass_dark", (1.8, 1.1, 0.08), px, 4.45, -8.84)
+        for dx in (-0.45, 0.45):
+            at(p, "paper", (0.7, 0.5, 0.05), px + dx, 3.4, -8.83)
+        hose = [(px + 1.2, 4.8, -8.0), (px + 1.7, 3.0, -8.4), (px + 1.5, 1.4, -8.6), (px + 1.3, 3.3, -8.9)]
+        for a, b in zip(hose, hose[1:]):
+            cyl_between(p, "rubber", a, b, 0.09, seg=6)
+        at(p, "metal_dark", (0.32, 0.7, 0.42), px + 1.3, 3.6, -8.95)
+
+    # ---- a leaning utility pole with wires to the store roof
+    pole = (44.0, 0.0, 24.0)
+    cyl(p, "wood_dark", 0.45, 28.0, T(pole[0], 14.0, pole[2]) @ RZ(0.03), seg=10)
+    at(p, "wood_dark", (6.0, 0.4, 0.4), pole[0] - 0.4, 25.0, pole[2])
+    for dx in (-2.6, 0.0, 2.6):
+        cyl(p, "ceramic", 0.14, 0.5, T(pole[0] - 0.4 + dx, 25.45, pole[2]), seg=8)
+        a = Vector((pole[0] - 0.4 + dx, 25.6, pole[2]))
+        b = Vector((2.6, 12.9, 30.0 + dx * 0.5))
+        mid = (a + b) / 2 - Vector((0, 2.2, 0))
+        beam(p, "metal_dark", a, mid, 0.06, 0.06)
+        beam(p, "metal_dark", mid, b, 0.06, 0.06)
+
     # a few crumbling spots in the walk
     for _ in range(4):
         at(p, "stone_dark", (rng.uniform(0.8, 1.8), 0.08, rng.uniform(0.6, 1.4)), rng.uniform(-30, 2), 0.37, rng.uniform(13.2, 16.6))

@@ -404,6 +404,19 @@ function House.build(parent: Instance): Info
 		box(structure, Vector3.new(5, 0.3, 0.3), x, 3, -33.3, TRIM, M.Wood)
 	end
 
+	-- Blender dressing for the rooms (tools/blender/build_interiors.py):
+	-- wallpaper, wainscot, tiles, crown moulding, the stair runner, blood.
+	-- It only adds to the walls, so each stand-in holds a hidden anchor.
+	for _, meshName in { "FarmhouseInteriorGround", "FarmhouseInteriorUpper" } do
+		local dressing = Build.standIn(structure, meshName)
+		Build.part(dressing, Vector3.new(0.2, 0.2, 0.2), L(0, 0.1, 0), WALL, M.SmoothPlastic, {
+			Transparency = 1,
+			CanCollide = false,
+			CanQuery = false,
+		})
+		Build.markStandIn(dressing, O)
+	end
+
 	------------------------------------------------------------ lights
 	Build.bulb(lights, L(0, 10.5, -14), rgb(255, 180, 110), 0.6, 18, true)
 	Build.bulb(lights, L(2.5, 10.5, 14), rgb(255, 170, 100), 0.45, 14, true)

@@ -7,6 +7,8 @@
 -- Purely visual and done on every client: limb sizes and joint offsets are
 -- changed locally, so the server's physics and hit boxes don't change.
 -- Works on R6 rigs (the family is R6); anything else just gets the eyes.
+-- Rigs wearing Blender bodies (CannibalSkins) swap to their monster parts
+-- (stretched clawed arms, the distorted face) instead of growing spikes.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -14,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 
 local Audio = require(script.Parent.Audio)
 local CameraController = require(script.Parent.CameraController)
+local CannibalSkins = require(script.Parent.CannibalSkins)
 local Effects = require(script.Parent.Effects)
 
 local MonsterForm = {}
@@ -149,6 +152,7 @@ function MonsterForm.apply(model: Model, on: boolean, quiet: boolean?, quick: bo
 	monstrous[model] = on
 	local s = remember(model)
 	local fast = quick == true
+	local skinned = CannibalSkins.setForm(model, on)
 	local torso = partNamed(model, "Torso")
 	local root = partNamed(model, "HumanoidRootPart")
 
@@ -215,7 +219,9 @@ function MonsterForm.apply(model: Model, on: boolean, quiet: boolean?, quick: bo
 				tween(eye, { Size = e.size * 1.6 }, fast)
 			end
 		end
-		extras[model] = grow(model, fast)
+		if not skinned then
+			extras[model] = grow(model, fast)
+		end
 		if not quiet then
 			local head = partNamed(model, "Head")
 			local camera = workspace.CurrentCamera

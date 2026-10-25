@@ -12,6 +12,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local Effects = require(script.Parent.Parent.Controllers.Effects)
+local Settings = require(script.Parent.Parent.Controllers.Settings)
 local Theme = require(script.Parent.Theme)
 local HUD = require(script.Parent.HUD)
 
@@ -229,7 +230,7 @@ function Menu.init()
 		TextSize = 18,
 		TextColor3 = C.BoneDim,
 	})
-	Theme.label(main, "Contains horror themes, violence and blood. Best played alone, at night, with headphones.", {
+	Theme.label(main, "Contains horror themes, violence, blood and flashing lights (Settings > Reduce flashing). Best played alone, at night, with headphones.", {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
 		Size = UDim2.fromOffset(800, 22),
@@ -269,6 +270,11 @@ function Menu.init()
 	end, function(d)
 		settings.volume = math.clamp(settings.volume + d * 0.1, 0, 1)
 		Audio.setMasterVolume(settings.volume)
+	end)
+	stepper(list, "Reduce flashing", 5, function()
+		return if Settings.reduceFlashing then "On" else "Off"
+	end, function()
+		Settings.reduceFlashing = not Settings.reduceFlashing
 	end)
 
 	-- how to play

@@ -20,6 +20,7 @@ local tilt = 0
 local fov = 72
 local shakeAmount = 0
 local shakeDecay = 4
+local punchFov = 0
 local crouchOffset = 0
 local baseFov = 72
 local sensitivity = 0.6
@@ -42,6 +43,11 @@ end
 function CameraController.shake(amount: number, decay: number?)
 	shakeAmount = math.max(shakeAmount, amount)
 	shakeDecay = decay or 4
+end
+
+-- A sudden kick: the view lurches in (FOV) and jolts up, settling fast.
+function CameraController.punch(fovKick: number)
+	punchFov = math.max(punchFov, fovKick)
 end
 
 function CameraController.setBaseFov(value: number)
@@ -85,6 +91,7 @@ function CameraController.init()
 	end)
 	RunService:BindToRenderStep("HorrorCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 		shakeAmount = math.max(0, shakeAmount - shakeDecay * dt * math.max(shakeAmount, 0.3))
+		punchFov = math.max(0, punchFov - dt * math.max(punchFov * 6, 20))
 		if not enabled or camera.CameraType ~= Enum.CameraType.Custom then
 			return
 		end
@@ -121,11 +128,11 @@ function CameraController.init()
 
 		local targetFov = baseFov + (if CameraController.sprinting and moving then 8 else 0)
 		fov = Util.lerp(fov, targetFov, math.min(1, dt * 6))
-		camera.FieldOfView = fov
+		camera.FieldOfView = fov + punchFov
 
 		camera.CFrame = camera.CFrame
 			* CFrame.new(bobX, bobY + breathe, 0)
-			* CFrame.Angles(breathe * 0.5, 0, tilt)
+			* CFrame.Angles(breathe * 0.5 + math.rad(punchFov * 0.12), 0, tilt)
 			* CameraController.shakeOffset()
 	end)
 end

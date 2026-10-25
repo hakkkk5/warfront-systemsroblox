@@ -1,20 +1,24 @@
 --!strict
--- Builds the Blender props (tools/blender/build_props.py -> Shared.Meshes)
--- into MeshParts at runtime with EditableMesh, and swaps them in for the
--- procedural stand-ins the server places.
+-- Swaps the Blender models (tools/blender/build_props.py, build_buildings.py)
+-- in for the procedural stand-ins the server places.
+--
+-- The meshes ship as uploaded mesh assets: tools/blender/export_combined.py
+-- packs them into one .glb that is imported once in Studio, and
+-- tools/roblox/harvest_meshes.luau files the parts under
+-- ReplicatedStorage.MeshAssets.<MeshName>, positioned around the origin each
+-- mesh was modelled at. (Building them at runtime with EditableMesh is not
+-- an option: a client may only hold a handful of those.)
 --
 -- The server tags stand-ins with "BlenderMesh" and a "Mesh" attribute. This
 -- module hides the stand-in parts locally (LocalTransparencyModifier) and
--- shows the Blender mesh in their place. Collisions, prompts and gameplay
--- stay on the server parts, so if EditableMesh is unavailable (e.g. "Allow
--- Mesh / Image APIs" is off in Game Settings > Security) nothing breaks: the
--- procedural props simply stay visible.
+-- shows the mesh in their place. Collisions, prompts and gameplay stay on the
+-- server parts, so a mesh that has not been imported yet simply leaves the
+-- procedural prop visible.
 
-local AssetService = game:GetService("AssetService")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MeshesFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Meshes")
+local MeshCatalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshCatalog"))
 
 local MeshLibrary = {}
 
@@ -40,164 +44,65 @@ local FIT_AXIS: { [string]: string } = {
 	KitchenTable = "X",
 }
 
-type Template = { model: Model, size: Vector3, pivot: string }
+type Template = { model: Model, size: Vector3 }
 
 local templates: { [string]: Template | false } = {}
-local keepAlive: { EditableMesh } = {}
-local disabled = false
 
----------------------------------------------------------------- base64
-
-local ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local decodeMap: { [number]: number } = {}
-for i = 1, #ALPHABET do
-	decodeMap[string.byte(ALPHABET, i)] = i - 1
-end
-
-local function decode(s: string): buffer
-	local len = #s
-	local padding = 0
-	if string.sub(s, -2) == "==" then
-		padding = 2
-	elseif string.sub(s, -1) == "=" then
-		padding = 1
-	end
-	local outLen = (len // 4) * 3 - padding
-	local out = buffer.create(outLen)
-	local o = 0
-	for i = 1, len, 4 do
-		local a, b, c, d = string.byte(s, i, i + 3)
-		local n = bit32.lshift(decodeMap[a] or 0, 18)
-			+ bit32.lshift(decodeMap[b] or 0, 12)
-			+ bit32.lshift(decodeMap[c] or 0, 6)
-			+ (decodeMap[d] or 0)
-		if o < outLen then
-			buffer.writeu8(out, o, bit32.rshift(n, 16))
-		end
-		if o + 1 < outLen then
-			buffer.writeu8(out, o + 1, bit32.band(bit32.rshift(n, 8), 255))
-		end
-		if o + 2 < outLen then
-			buffer.writeu8(out, o + 2, bit32.band(n, 255))
-		end
-		o += 3
-	end
-	return out
-end
-
----------------------------------------------------------------- mesh building
-
-type PartData = {
-	material: string,
-	transparency: number,
-	min: Vector3,
-	max: Vector3,
-	vertexCount: number,
-	triangleCount: number,
-	vertices: string,
-	indices: string,
-}
-
-type MeshData = { name: string, pivot: string, parts: { PartData } }
-
-local function buildPart(data: PartData): MeshPart
-	local mesh = AssetService:CreateEditableMesh({})
-	table.insert(keepAlive, mesh)
-	local vb = decode(data.vertices)
-	local ib = decode(data.indices)
-	local lo, hi = data.min, data.max
-	local span = hi - lo
-	local count = data.vertexCount
-	local vids = table.create(count)
-	local nids = table.create(count)
-	local cids = table.create(count)
-	local uids = table.create(count)
-	for i = 0, count - 1 do
-		local off = i * 16
-		local px = lo.X + buffer.readu16(vb, off) / 65535 * span.X
-		local py = lo.Y + buffer.readu16(vb, off + 2) / 65535 * span.Y
-		local pz = lo.Z + buffer.readu16(vb, off + 4) / 65535 * span.Z
-		local n = Vector3.new(buffer.readi8(vb, off + 6), buffer.readi8(vb, off + 7), buffer.readi8(vb, off + 8))
-		if n.Magnitude < 1e-3 then
-			n = Vector3.yAxis
-		end
-		local color = Color3.fromRGB(buffer.readu8(vb, off + 9), buffer.readu8(vb, off + 10), buffer.readu8(vb, off + 11))
-		local u = buffer.readu16(vb, off + 12) / 65535 * 64
-		local v = buffer.readu16(vb, off + 14) / 65535 * 64
-		vids[i + 1] = mesh:AddVertex(Vector3.new(px, py, pz))
-		nids[i + 1] = mesh:AddNormal(n.Unit)
-		cids[i + 1] = mesh:AddColor(color, 1)
-		uids[i + 1] = mesh:AddUV(Vector2.new(u, v))
-	end
-	for t = 0, data.triangleCount - 1 do
-		local a = buffer.readu16(ib, t * 6) + 1
-		local b = buffer.readu16(ib, t * 6 + 2) + 1
-		local c = buffer.readu16(ib, t * 6 + 4) + 1
-		local face = mesh:AddTriangle(vids[a], vids[b], vids[c])
-		mesh:SetFaceNormals(face, { nids[a], nids[b], nids[c] })
-		mesh:SetFaceColors(face, { cids[a], cids[b], cids[c] })
-		mesh:SetFaceUVs(face, { uids[a], uids[b], uids[c] })
-	end
-
-	local part = AssetService:CreateMeshPartAsync(Content.fromObject(mesh))
-	local ok, material = pcall(function()
-		return (Enum.Material :: any)[data.material]
-	end)
-	part.Material = if ok and material then material else Enum.Material.SmoothPlastic
-	part.Transparency = data.transparency
-	part.Color = Color3.new(1, 1, 1)
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = data.transparency < 0.5
-	part.CFrame = CFrame.new((lo + hi) / 2)
-	return part
-end
+---------------------------------------------------------------- templates
 
 local function buildTemplate(name: string): Template?
-	local moduleScript = MeshesFolder:FindFirstChild(name)
-	if not moduleScript or not moduleScript:IsA("ModuleScript") then
+	local store = ReplicatedStorage:FindFirstChild("MeshAssets")
+	local source = store and store:FindFirstChild(name)
+	if not source then
 		return nil
 	end
-	local data = require(moduleScript) :: any
 	local model = Instance.new("Model")
 	model.Name = name
-	local lo = Vector3.new(math.huge, math.huge, math.huge)
-	local hi = -lo
-	for _, partData in (data :: MeshData).parts do
-		local part = buildPart(partData)
-		part.Parent = model
-		lo = lo:Min(partData.min)
-		hi = hi:Max(partData.max)
+	for _, original in source:GetChildren() do
+		if original:IsA("MeshPart") then
+			local part = original:Clone()
+			-- parts are "<MeshName>_<material>"; the palette names the Roblox material
+			local entry = MeshCatalog[string.sub(part.Name, #name + 2)]
+			if entry then
+				local ok, material = pcall(function()
+					return (Enum.Material :: any)[entry.material]
+				end)
+				if ok and material then
+					part.Material = material
+				end
+				part.Transparency = entry.transparency
+			end
+			part.Color = Color3.new(1, 1, 1) -- vertex colours carry the look
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.CastShadow = part.Transparency < 0.5
+			part.Parent = model
+		end
+	end
+	if #model:GetChildren() == 0 then
+		return nil
 	end
 	model.WorldPivot = CFrame.new()
-	return { model = model, size = hi - lo, pivot = (data :: MeshData).pivot }
+	return { model = model, size = model:GetExtentsSize() }
 end
 
 function MeshLibrary.template(name: string): Template?
-	if disabled then
-		return nil
-	end
 	local cached = templates[name]
 	if cached == false then
 		return nil
 	elseif cached ~= nil then
 		return cached :: Template
 	end
-	local ok, result = pcall(buildTemplate, name)
-	if not ok then
-		warn("[MeshLibrary] EditableMesh unavailable, keeping procedural props: " .. tostring(result))
-		disabled = true
-		templates[name] = false
-		return nil
-	end
+	local result = buildTemplate(name)
 	templates[name] = result or false
 	return result
 end
 
+-- Whether the Blender meshes have been imported into this place.
 function MeshLibrary.available(): boolean
-	return not disabled
+	return ReplicatedStorage:FindFirstChild("MeshAssets") ~= nil
 end
 
 ---------------------------------------------------------------- upgrading stand-ins
@@ -272,7 +177,7 @@ end
 -- Replace a tagged stand-in (Model or BasePart) with its Blender mesh.
 function MeshLibrary.upgrade(target: Instance): Model?
 	local name = target:GetAttribute("Mesh")
-	if typeof(name) ~= "string" then
+	if typeof(name) ~= "string" or target:GetAttribute("SkipMesh") then
 		return nil
 	end
 	local template = MeshLibrary.template(name)
@@ -301,6 +206,11 @@ function MeshLibrary.upgrade(target: Instance): Model?
 	if target:GetAttribute("MeshExact") then
 		-- buildings are modelled at size around the stand-in's pivot
 		scale = 1
+	end
+	local fixed = target:GetAttribute("MeshScale")
+	if typeof(fixed) == "number" then
+		-- body parts are modelled at rig scale 1 around the part's centre
+		scale = fixed
 	end
 	if scale > 0.05 and scale < 50 and math.abs(scale - 1) > 1e-3 then
 		visual:ScaleTo(scale)

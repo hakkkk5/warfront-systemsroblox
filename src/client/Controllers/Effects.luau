@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
+local Settings = require(script.Parent.Settings)
 local Audio = require(script.Parent.Audio)
 local CameraController = require(script.Parent.CameraController)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -44,7 +45,7 @@ end
 
 function Effects.flash(color: Color3, strength: number)
 	flashGrade.TintColor = color
-	flashGrade.Brightness = strength
+	flashGrade.Brightness = strength * Settings.flashScale()
 	Util.tween(flashGrade, 0.6, { Brightness = 0, TintColor = Color3.new(1, 1, 1) })
 end
 

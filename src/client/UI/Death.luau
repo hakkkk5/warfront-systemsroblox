@@ -4,15 +4,13 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Assets = require(ReplicatedStorage.Shared.Assets)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
-local Audio = require(script.Parent.Parent.Controllers.Audio)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
-local Effects = require(script.Parent.Parent.Controllers.Effects)
+local Jumpscare = require(script.Parent.Parent.Controllers.Jumpscare)
 local Viewmodel = require(script.Parent.Parent.Controllers.Viewmodel)
 local Theme = require(script.Parent.Theme)
 local HUD = require(script.Parent.HUD)
@@ -51,53 +49,14 @@ local tipLabel: TextLabel
 local countdown: TextLabel
 local skull: ImageLabel
 
+-- The one who caught you, in your face (Jumpscare.luau); the camera holds
+-- still behind it.
 local function jumpscare(kind: string?)
-	local templates = ReplicatedStorage:FindFirstChild("CannibalTemplates")
-	local template = templates and templates:FindFirstChild(kind or "Butcher") or (templates and templates:FindFirstChild("Butcher"))
-	if not template or not template:IsA("Model") then
-		return
-	end
-	local face = template:Clone()
-	for _, p in face:GetDescendants() do
-		if p:IsA("BasePart") then
-			p.Anchored = true
-			p.CanCollide = false
-		end
-	end
-	local head = face:FindFirstChild("Head") :: BasePart?
-	if not head then
-		face:Destroy()
-		return
-	end
-	face.Parent = workspace
-	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 120, 90)
-	light.Brightness = 3
-	light.Range = 10
-	light.Parent = head
-
 	CameraController.setEnabled(false)
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.FieldOfView = 70
-	local camCF = camera.CFrame
-	local headOffset = face:GetPivot():ToObjectSpace(head.CFrame)
-	local start = os.clock()
-	local conn = RunService.RenderStepped:Connect(function()
-		local t = os.clock() - start
-		local dist = math.max(1.6, 5 - t * 14)
-		local target = camCF * CFrame.new(0, 0, -dist) * CFrame.Angles(0, math.pi, 0)
-		-- place the model so its head sits at the target
-		face:PivotTo(target * headOffset:Inverse() * CFrame.Angles(math.noise(t * 30, 1) * 0.15, math.noise(t * 30, 2) * 0.15, 0))
-		camera.CFrame = camCF * CameraController.shakeOffset()
-		camera.FieldOfView = 70 - math.min(t, 0.4) * 30
-	end)
-	CameraController.shake(2.5, 2)
-	Audio.play("Jumpscare")
-	Audio.play("Scream")
-	Effects.flash(Color3.fromRGB(255, 40, 30), 0.5)
-	task.wait(0.9)
-	conn:Disconnect()
-	face:Destroy()
+	local templates = ReplicatedStorage:FindFirstChild("CannibalTemplates")
+	local known = templates and kind and templates:FindFirstChild(kind)
+	Jumpscare.play(if known then kind else "Butcher", { tail = false, duration = 0.9 })
 end
 
 local function onCaught(kind: string?)

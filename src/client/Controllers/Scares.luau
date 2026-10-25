@@ -8,19 +8,16 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
-local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Audio)
-local CameraController = require(script.Parent.CameraController)
 local Effects = require(script.Parent.Effects)
+local Jumpscare = require(script.Parent.Jumpscare)
 local MonsterForm = require(script.Parent.MonsterForm)
 local HUD = require(script.Parent.Parent.UI.HUD)
 
 local Scares = {}
 
-local player = Players.LocalPlayer
 local folder: Folder
 local busy = false
 
@@ -180,61 +177,9 @@ local function shadow()
 	m:Destroy()
 end
 
--- It's in your face, the lights strobing.
+-- It's in your face, the lights strobing (Jumpscare.luau).
 local function jumpscare()
-	local camera = workspace.CurrentCamera
-	local m = monster()
-	if not m then
-		return
-	end
-	local head = m:FindFirstChild("Head")
-	local base = camera.CFrame
-	stand(m, base.Position - Vector3.new(0, 6, 0) + flat(base.LookVector) * 9, base.Position)
-	local headOffset = if head and head:IsA("BasePart") then head.Position - m:GetPivot().Position else Vector3.new(0, 5, 0)
-	m:SetAttribute("AnimForce", "none")
-
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "Jumpscare"
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 60
-	gui.ResetOnSpawn = false
-	gui.Parent = player:WaitForChild("PlayerGui")
-	local strobe = Instance.new("Frame")
-	strobe.Size = UDim2.fromScale(1, 1)
-	strobe.BorderSizePixel = 0
-	strobe.BackgroundTransparency = 1
-	strobe.Parent = gui
-
-	Audio.play("Jumpscare", nil, 1.3, 1)
-	Audio.play("Scream", nil, 1, 0.7)
-	CameraController.shake(4, 1.6)
-	Effects.flash(Color3.fromRGB(255, 20, 10), 0.7)
-	local colors = { Color3.fromRGB(255, 20, 10), Color3.new(1, 1, 1), Color3.new(0, 0, 0) }
-	local t = 0
-	local frame = 0
-	local conn = RunService.RenderStepped:Connect(function(dt)
-		t += dt
-		local cam = workspace.CurrentCamera.CFrame
-		local d = Util.lerp(8, 1.3, math.min(t / 0.28, 1))
-		-- the head lands just in front of your eyes, facing you
-		local headPos = cam.Position + cam.LookVector * d - Vector3.new(0, 0.3, 0)
-		local facing = CFrame.lookAt(Vector3.zero, flat(cam.Position - headPos))
-		m:PivotTo(CFrame.new(headPos - headOffset) * facing.Rotation)
-		frame += 1
-		if frame % 2 == 0 then
-			strobe.BackgroundColor3 = colors[(frame // 2) % #colors + 1]
-			strobe.BackgroundTransparency = if (frame // 2) % 3 == 2 then 0 else 0.45
-		end
-	end)
-	task.wait(0.75)
-	conn:Disconnect()
-	strobe.BackgroundColor3 = Color3.new(0, 0, 0)
-	strobe.BackgroundTransparency = 0
-	m:Destroy()
-	task.wait(0.25)
-	Util.tween(strobe, 0.5, { BackgroundTransparency = 1 })
-	task.wait(0.55)
-	gui:Destroy()
+	Jumpscare.play(nil, { tail = true })
 end
 
 -- Every light near you stutters and dies for a moment.

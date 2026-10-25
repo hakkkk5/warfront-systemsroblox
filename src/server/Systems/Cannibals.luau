@@ -309,7 +309,7 @@ local function createRig(spec: KindSpec): Model
 	return buildR6(spec)
 end
 
-local function dress(rig: Model, spec: KindSpec): { BasePart }
+local function dress(rig: Model, spec: KindSpec, kind: string): { BasePart }
 	local head = rig:FindFirstChild("Head") :: BasePart
 	local torso = (rig:FindFirstChild("UpperTorso") or rig:FindFirstChild("Torso")) :: BasePart
 	local lower = (rig:FindFirstChild("LowerTorso") or torso) :: BasePart
@@ -410,6 +410,22 @@ local function dress(rig: Model, spec: KindSpec): { BasePart }
 		end
 	end
 
+	-- Clients dress the rig in its Blender body (CannibalSkins, meshes from
+	-- tools/blender/build_monsters.py). That body brings its own mask and
+	-- apron, so the pieces above are costume to hide under it; the weapon and
+	-- lantern are held items, put away when the claws come out.
+	for _, child in gear:GetChildren() do
+		local name = child.Name
+		if name == "Cleaver" or name == "Chainsaw" or name == "Lantern" then
+			child:SetAttribute("Held", true)
+		elseif name ~= "BeltKeys" and name ~= "Eye" then
+			child:SetAttribute("Costume", true)
+		end
+	end
+	rig:SetAttribute("Skin", kind)
+	rig:SetAttribute("SkinScale", spec.height)
+	CollectionService:AddTag(rig, "CannibalSkin")
+
 	return eyes
 end
 
@@ -419,7 +435,7 @@ function Cannibals.publishTemplates()
 	templates.Name = "CannibalTemplates"
 	for kind, spec in KINDS do
 		local rig = createRig(spec)
-		dress(rig, spec)
+		dress(rig, spec, kind)
 		rig.Name = kind
 		for _, p in rig:GetDescendants() do
 			if p:IsA("BasePart") then
@@ -1049,7 +1065,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 	local spec = KINDS[kind]
 	local rig = createRig(spec)
 	rig.Name = spec.display
-	local eyes = dress(rig, spec)
+	local eyes = dress(rig, spec, kind)
 	local humanoid = rig:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = rig:FindFirstChild("HumanoidRootPart") :: BasePart
 	local head = rig:FindFirstChild("Head") :: BasePart

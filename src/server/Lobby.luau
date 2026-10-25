@@ -97,14 +97,19 @@ local function buildSet(parent: Instance): { Party }
 		Build.part(parent, Vector3.new(0.4, 0.05, 16), L(18 + (i - 1) * 13, 0.32, -6), rgb(200, 200, 190), M.SmoothPlastic, { CanCollide = false })
 	end
 
+	-- The station's canopy, pumps, island and store are stand-ins for the
+	-- Blender gas station (build_buildings.py GasStationExterior): clients hide
+	-- them and show the model; they keep the collisions.
+	local shell = Build.standIn(parent, "GasStationExterior")
+
 	-- the pump island under a canopy of buzzing strip lights
 	for _, x in { -26, -2 } do
 		for _, z in { -16, 0 } do
-			Build.post(parent, 9.4, 0.9, L(x, 4.7, z), rgb(200, 196, 186), M.Metal)
+			Build.post(shell, 9.4, 0.9, L(x, 4.7, z), rgb(200, 196, 186), M.Metal)
 		end
 	end
-	Build.part(parent, Vector3.new(34, 1.2, 24), L(-14, 9.9, -8), rgb(220, 216, 206), M.SmoothPlastic)
-	Build.part(parent, Vector3.new(34.4, 0.6, 24.4), L(-14, 9.1, -8), rgb(170, 30, 26), M.SmoothPlastic)
+	Build.part(shell, Vector3.new(34, 1.2, 24), L(-14, 9.9, -8), rgb(220, 216, 206), M.SmoothPlastic)
+	Build.part(shell, Vector3.new(34.4, 0.6, 24.4), L(-14, 9.1, -8), rgb(170, 30, 26), M.SmoothPlastic)
 	for i, x in { -24, -14, -4 } do
 		local strip = Build.part(parent, Vector3.new(6, 0.2, 0.6), L(x, 9.25, -8), rgb(225, 240, 255), M.Neon, { CanCollide = false })
 		local light = Instance.new("PointLight")
@@ -117,18 +122,15 @@ local function buildSet(parent: Instance): { Party }
 			Build.tag(strip, "FlickerLight")
 		end
 	end
-	Build.part(parent, Vector3.new(26, 0.6, 5), L(-14, 0.3, -8), rgb(120, 116, 108), M.Concrete)
+	Build.part(shell, Vector3.new(26, 0.6, 5), L(-14, 0.3, -8), rgb(120, 116, 108), M.Concrete)
 	for _, x in { -20, -8 } do
-		Build.part(parent, Vector3.new(2.6, 5.2, 1.8), L(x, 3.2, -8), rgb(170, 30, 26), M.Metal)
-		Build.part(parent, Vector3.new(2, 1.4, 0.1), L(x, 4.2, -8.95), rgb(20, 24, 22), M.Glass, { CanCollide = false })
+		Build.part(shell, Vector3.new(2.6, 5.2, 1.8), L(x, 3.2, -8), rgb(170, 30, 26), M.Metal)
+		Build.part(shell, Vector3.new(2, 1.4, 0.1), L(x, 4.2, -8.95), rgb(20, 24, 22), M.Glass, { CanCollide = false })
 	end
 	sign(parent, "PINECREST GAS", Vector3.new(16, 2.2, 0.4), L(-14, 11.6, -20.3), rgb(255, 210, 120), true)
 
 	-- the store: lit windows, an OPEN sign, a payphone
-	Build.part(parent, Vector3.new(34, 12, 18), L(-14, 6, 26), rgb(120, 104, 86), M.WoodPlanks)
-	-- flat roof: stand-in for the Blender store front (build_buildings.py:
-	-- parapet, awning, window frames, rooftop units, canopy trim)
-	local shell = Build.standIn(parent, "GasStationExterior")
+	Build.part(shell, Vector3.new(34, 12, 18), L(-14, 6, 26), rgb(120, 104, 86), M.WoodPlanks)
 	Build.part(shell, Vector3.new(36, 1, 20), L(-14, 12.5, 26), rgb(60, 48, 40), M.Slate)
 	Build.markStandIn(shell, ORIGIN)
 	for _, x in { -24, -4 } do
