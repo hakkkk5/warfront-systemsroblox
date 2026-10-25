@@ -23,6 +23,8 @@ local EVENTS = {
 	"Hiding", -- entered / left a hiding spot
 	"Sound", -- play a 2D sound locally
 	"Ending", -- show credits
+	"Struggle", -- syringe fight-back: keys to press
+	"Scare", -- apparitions, jumpscares, random events
 	-- client -> server
 	"RequestPlay",
 	"CutsceneDone",
@@ -31,6 +33,7 @@ local EVENTS = {
 	"RequestHint",
 	"LeaveHiding",
 	"PlayAgain",
+	"StruggleResult",
 }
 
 local folder: Folder

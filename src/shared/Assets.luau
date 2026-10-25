@@ -23,7 +23,7 @@ local Assets = {}
 
 Assets.Models = {
 	CrashedSedan = { id = 73193234568840, length = 16, yaw = 0 },
-	PickupTruck = { id = 116288644494114, length = 18.5, yaw = 180 }, -- the mesh faces +Z; the game expects -Z
+	PickupTruck = { id = 116288644494114, length = 18.5, yaw = -90 }, -- the mesh runs along X with its hood at -X; the game expects the front at -Z
 	EngineBlock = { id = 124503135770719, length = 3.2 },
 	CarBattery = { id = 115821756774757, length = 1.7 },
 	SparkPlugs = { id = 106943413747423, length = 1.3 },

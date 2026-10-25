@@ -171,6 +171,7 @@ export type Cannibal = {
 	lastPos: Vector3,
 	prompt: ProximityPrompt?,
 	nextHunt: number,
+	struggling: boolean,
 }
 
 local folder = Instance.new("Folder")
@@ -702,6 +703,81 @@ function Cannibals.sedate(c: Cannibal, player: Player?)
 	end
 end
 
+---------------------------------------------------------------- the struggle
+-- Trying to inject one that's chasing you starts a fight-back: the client
+-- plays a close-up and shows keys to hit (W A S D, or buttons on a phone).
+-- Hit them all in time and the needle goes in; miss and you get slammed.
+
+local struggleRemote = Net.event("Struggle")
+local resultRemote = Net.event("StruggleResult")
+local pendingStruggles: { [number]: { player: Player, c: Cannibal, started: number, count: number, window: number, done: boolean, success: boolean } } = {}
+local nextStruggleId = 0
+
+local STRUGGLE_KEYS = { "W", "A", "S", "D" }
+
+function Cannibals.struggle(c: Cannibal, player: Player)
+	if c.struggling or not c.alive or c.state == "Sedated" then
+		return
+	end
+	local _, humanoid, root = playerParts(player)
+	if not humanoid or not root or humanoid.Health <= 0 then
+		return
+	end
+	c.struggling = true
+	stop(c)
+	player:SetAttribute("Struggling", true)
+	local difficulty = workspace:GetAttribute("Difficulty")
+	local count = if difficulty == "Easy" then 4 elseif difficulty == "Hard" then 6 elseif difficulty == "Nightmare" then 7 else 5
+	local window = if difficulty == "Easy" then 1.5 elseif difficulty == "Hard" then 1.0 elseif difficulty == "Nightmare" then 0.85 else 1.2
+	local keys = {}
+	for i = 1, count do
+		local key = STRUGGLE_KEYS[math.random(#STRUGGLE_KEYS)]
+		if i > 1 and key == keys[i - 1] and math.random() < 0.6 then
+			key = STRUGGLE_KEYS[math.random(#STRUGGLE_KEYS)]
+		end
+		keys[i] = key
+	end
+	nextStruggleId += 1
+	local id = nextStruggleId
+	local entry = { player = player, c = c, started = os.clock(), count = count, window = window, done = false, success = false }
+	pendingStruggles[id] = entry
+	-- face each other, close
+	local toPlayer = Util.flat(root.Position - c.root.Position)
+	if toPlayer.Magnitude > 0.1 then
+		c.root.CFrame = CFrame.lookAt(c.root.Position, c.root.Position + toPlayer.Unit)
+	end
+	soundRemote:FireAllClients("Growl", c.head.Position)
+	struggleRemote:FireClient(player, { id = id, keys = keys, window = window, cannibal = c.model, kind = c.kind })
+
+	local deadline = os.clock() + count * window + 4
+	while not entry.done and os.clock() < deadline and player.Parent do
+		task.wait(0.05)
+	end
+	pendingStruggles[id] = nil
+	player:SetAttribute("Struggling", nil)
+	c.struggling = false
+	if not c.alive then
+		return
+	end
+	if entry.success and Inventory.remove(player, "Syringe") then
+		Cannibals.sedate(c, player)
+		Interact.notify(player, c.spec.display .. " goes down. The syringe is empty.", "item")
+	else
+		-- slammed: hurt, thrown back, and it comes straight back at you
+		local _, h2, r2 = playerParts(player)
+		if h2 and r2 and h2.Health > 0 then
+			player:SetAttribute("LastAttacker", c.kind)
+			h2:TakeDamage(c.spec.damage * 0.8)
+			hurtRemote:FireClient(player, c.spec.damage * 0.8, c.root.Position)
+			r2.AssemblyLinearVelocity += Util.flat(r2.Position - c.root.Position).Unit * 45 + Vector3.new(0, 14, 0)
+		end
+		c.attackReady = os.clock() + 1.5
+		c.detection[player] = 1
+		c.lastSeenTime = os.clock()
+		startChase(c, player)
+	end
+end
+
 local function wake(c: Cannibal)
 	c.humanoid.PlatformStand = false
 	c.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -778,6 +854,9 @@ end
 
 local function think(c: Cannibal, dt: number)
 	local now = os.clock()
+	if c.struggling then
+		return -- locked in a syringe struggle with someone
+	end
 	if c.state == "Sedated" then
 		if now >= c.sedatedUntil then
 			wake(c)
@@ -1057,6 +1136,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		lastPos = root.Position,
 		prompt = nil,
 		nextHunt = 0,
+		struggling = false,
 	}
 	rig:SetAttribute("Kind", kind)
 	rig:SetAttribute("State", "Patrol")
@@ -1076,13 +1156,25 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		hold = 0.5,
 		distance = 6.5,
 		canUse = function(player)
-			return Cannibals.trySedate(c, player)
+			if not Inventory.has(player, "Syringe") then
+				return false, "You need a sedative syringe."
+			end
+			if c.state == "Sedated" or c.struggling then
+				return false, nil
+			end
+			return true
 		end,
 		onUse = function(player)
-			local ok = Cannibals.trySedate(c, player)
+			local ok, message = Cannibals.trySedate(c, player)
 			if ok and Inventory.remove(player, "Syringe") then
+				-- sneaked up from behind: straight in
 				Cannibals.sedate(c, player)
 				Interact.notify(player, spec.display .. " collapses.", "item")
+			elseif c.state == "Chase" or c.state == "Grab" then
+				-- face to face: fight for it
+				task.spawn(Cannibals.struggle, c, player)
+			elseif message then
+				Interact.notify(player, message, "warn")
 			end
 		end,
 	})
@@ -1197,6 +1289,19 @@ function Cannibals.retreatFrom(position: Vector3, radius: number)
 end
 
 function Cannibals.init()
+	resultRemote.OnServerEvent:Connect(function(player, id, success)
+		if typeof(id) ~= "number" then
+			return
+		end
+		local entry = pendingStruggles[id]
+		if not entry or entry.player ~= player or entry.done then
+			return
+		end
+		-- no faster than a person can hit the keys, no slower than the windows allow
+		local elapsed = os.clock() - entry.started
+		entry.success = success == true and elapsed >= entry.count * 0.18 and elapsed <= entry.count * entry.window + 3.5
+		entry.done = true
+	end)
 	task.spawn(function()
 		while true do
 			refreshLosFilter()

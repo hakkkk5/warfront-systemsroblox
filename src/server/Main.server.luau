@@ -91,6 +91,7 @@ AssetService.publishItemModels({
 Cannibals.publishTemplates()
 
 Story.init(house, sites, world)
+require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
 
 workspace:SetAttribute("WorldReady", true)
 print(string.format("[Cannibal Family] world ready in %.1fs", os.clock() - started))
