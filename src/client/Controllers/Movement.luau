@@ -45,22 +45,32 @@ function Movement.isCrouching(): boolean
 	return crouching
 end
 
+function Movement.toggleCrouch()
+	crouching = not crouching
+end
+
+-- Held Shift / L3, or the touch HUD's Run latch (UI TouchControls).
+function Movement.setSprint(on: boolean)
+	wantSprint = on
+end
+
+function Movement.wantsSprint(): boolean
+	return wantSprint
+end
+
 function Movement.init()
+	-- phones get their buttons from UI TouchControls
 	ContextActionService:BindAction("Sprint", function(_, state)
 		wantSprint = state == Enum.UserInputState.Begin
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3)
-	ContextActionService:SetTitle("Sprint", "Run")
-	ContextActionService:SetPosition("Sprint", UDim2.new(1, -170, 1, -170))
+	end, false, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3)
 
 	ContextActionService:BindAction("Crouch", function(_, state)
 		if state == Enum.UserInputState.Begin then
-			crouching = not crouching
+			Movement.toggleCrouch()
 		end
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
-	ContextActionService:SetTitle("Crouch", "Crouch")
-	ContextActionService:SetPosition("Crouch", UDim2.new(1, -240, 1, -110))
+	end, false, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		local character = player.Character

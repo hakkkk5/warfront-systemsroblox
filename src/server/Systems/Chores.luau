@@ -21,11 +21,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local Signal = require(ReplicatedStorage.Shared.Signal)
 local Build = require(script.Parent.Parent.World.Build)
 local Interact = require(script.Parent.Interact)
 local Pickups = require(script.Parent.Pickups)
 
 local Chores = {}
+
+-- fired for each chore done (Rewards pays everyone in the house)
+Chores.Completed = Signal.new() :: Signal.Signal<string>
 
 local rgb = Color3.fromRGB
 local M = Enum.Material
@@ -91,6 +95,7 @@ local function complete(id: string, line: string?, speaker: string?)
 		say(speaker or "You", line, 4)
 	end
 	Interact.notifyAll(string.format("%s (%d/%d)", LABELS[id], count(), #ORDER), "item")
+	Chores.Completed:Fire(id)
 	changed()
 	if count() >= #ORDER then
 		task.delay(3, onAllDone)

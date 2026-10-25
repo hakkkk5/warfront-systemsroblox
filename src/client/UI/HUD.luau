@@ -74,6 +74,25 @@ function HUD.setVisible(v: boolean)
 	root.Visible = v
 end
 
+-- Seconds until the next hint can be asked for.
+function HUD.hintCooldown(): number
+	return math.max(0, hintReady - os.clock())
+end
+
+-- Asks the server where to go (H, or the touch HUD's Hint button).
+function HUD.requestHint()
+	if not HUD.visible then
+		return
+	end
+	local wait = HUD.hintCooldown()
+	if wait > 0 then
+		HUD.toast(string.format("Hint ready in %ds", math.ceil(wait)), "warn")
+	else
+		hintReady = os.clock() + Config.Player.HintCooldown
+		Net.event("RequestHint"):FireServer()
+	end
+end
+
 function HUD.chapterCard(chapter: string, title: string)
 	local card = Theme.frame(gui, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -442,18 +461,11 @@ function HUD.init()
 	end)
 
 	ContextActionService:BindAction("Hint", function(_, state)
-		if state == Enum.UserInputState.Begin and HUD.visible then
-			if os.clock() < hintReady then
-				HUD.toast(string.format("Hint ready in %ds", math.ceil(hintReady - os.clock())), "warn")
-			else
-				hintReady = os.clock() + Config.Player.HintCooldown
-				Net.event("RequestHint"):FireServer()
-			end
+		if state == Enum.UserInputState.Begin then
+			HUD.requestHint()
 		end
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.H, Enum.KeyCode.DPadUp)
-	ContextActionService:SetTitle("Hint", "Hint")
-	ContextActionService:SetPosition("Hint", UDim2.new(1, -100, 1, -290))
+	end, false, Enum.KeyCode.H, Enum.KeyCode.DPadUp)
 
 	RunService.RenderStepped:Connect(function(dt: number)
 		updateGoal()

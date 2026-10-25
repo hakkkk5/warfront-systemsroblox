@@ -10,6 +10,8 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
 local R6Characters = require(script.Parent.R6Characters)
+local Profiles = require(script.Parent.Profiles)
+local Store = require(script.Parent.Store)
 local Story = require(script.Parent.Story)
 
 local PlayerService = {}
@@ -40,6 +42,7 @@ local function setupCharacter(player: Player, character: Model)
 
 	humanoid.Died:Connect(function()
 		local killer = player:GetAttribute("LastAttacker")
+		Profiles.record(player, "deaths")
 		Net.event("Caught"):FireClient(player, killer)
 		Hiding.leave(player, true)
 		Cannibals.forgetPlayer(player)
@@ -109,6 +112,7 @@ function PlayerService.init()
 			return
 		end
 		playing[player] = true
+		Store.grantPerks(player) -- what they stocked up on in the lobby store
 		PlayerService.spawn(player)
 		Story.begin()
 	end)
@@ -124,6 +128,7 @@ function PlayerService.init()
 	end)
 
 	Net.event("PlayAgain").OnServerEvent:Connect(function(player)
+		Profiles.save(player) -- the lobby server reads it next
 		local ok, err = pcall(function()
 			TeleportService:TeleportAsync(game.PlaceId, { player })
 		end)

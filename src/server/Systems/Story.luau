@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Signal = require(ReplicatedStorage.Shared.Signal)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Build = require(script.Parent.Parent.World.Build)
 local Props = require(script.Parent.Parent.World.Props)
@@ -27,6 +28,9 @@ local HouseLights = require(script.Parent.HouseLights)
 local Investigation = require(script.Parent.Investigation)
 
 local Story = {}
+
+-- fired once when the survivors reach the helicopter (Rewards pays out)
+Story.Ended = Signal.new() :: Signal.Signal<>
 
 export type Stage =
 	"Waiting"
@@ -919,6 +923,7 @@ end
 
 local function startEnding()
 	setStage("Ending")
+	Story.Ended:Fire()
 	playCutscene("Ending", { helicopter = helicopter, pad = sites.helipad }, 60)
 	Cannibals.clear()
 	Net.event("Ending"):FireAllClients()

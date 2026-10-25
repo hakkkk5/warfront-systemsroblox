@@ -140,7 +140,15 @@ Music comes from licensed APM and DistroKid tracks in the Creator Store. Sound e
 | TAB or I | Inventory and journal |
 | H | Hint (25 s cooldown) |
 
-Touch and gamepad bindings are included.
+Gamepad bindings are included. On phones and tablets `UI/TouchControls` puts big Run (tap to latch), Crouch, Light, Bag and Hint buttons in an arc around the jump button, shown only while playing. Menus, the inventory and notes shrink to fit small screens (`Theme.autoScale`).
+
+## Lobby, Teeth and the store
+
+The lobby has a web-style menu (`UI/LobbyMenu`): Play, Store, Records, Settings and Invite, with a Teeth counter.
+
+- **Teeth** are earned by playing (amounts in `shared/StoreCatalog.Rewards`): escaping (×1.5 on Hard, ×2 on Nightmare), reading a note for the first time each night, sedating one of the family, and household chores.
+- **Store**: starting perks (spare battery, bandage, sedative syringe), stocked up to a cap. One of each stocked perk goes in your bag when a night starts (`Systems/Store`).
+- **Saved data** (`Systems/Profiles`): Teeth, perks, escapes, deaths and settings, kept in the `CannibalFamilyProfiles_v1` DataStore. It is saved a few seconds after a change, on leave and shutdown, and right before teleports. To test it in Studio, turn on *Game Settings > Security > Enable Studio Access to API Services*; without it, progress lasts for the session only. A profile that fails to load is never saved, so a DataStore outage can't wipe it.
 
 ## Project layout
 

@@ -15,6 +15,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Audio = require(script.Parent.Audio)
 local CameraController = require(script.Parent.CameraController)
 local Effects = require(script.Parent.Effects)
+local Settings = require(script.Parent.Settings)
 
 local ChaseFX = {}
 
@@ -208,7 +209,7 @@ end
 ---------------------------------------------------------------- adrenaline
 
 local function adrenaline(on: boolean)
-	CameraController.setBaseFov(if on then 84 else 72)
+	CameraController.setBaseFov(Settings.get("fov") + (if on then 12 else 0))
 	if on then
 		Audio.play("Heartbeat", nil, 0.9, 1.3)
 		Effects.flash(RED, 0.4)

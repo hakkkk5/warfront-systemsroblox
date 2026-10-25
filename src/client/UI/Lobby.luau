@@ -1,14 +1,14 @@
 --!strict
 -- Lobby screen: how to form a party, the party panel (members, difficulty,
--- countdown, start), friend invites and notices. Lobby.run() is called by
--- Main before the title menu: in a game server it only applies the
--- difficulty and returns; in a lobby server it runs the lobby and returns
--- only if this server turns into the game (Studio).
+-- countdown, start), notices and the menu (LobbyMenu: store, records,
+-- settings, invites). Lobby.run() is called by Main before the title menu:
+-- in a game server it only applies the difficulty and returns; in a lobby
+-- server it runs the lobby and returns only if this server turns into the
+-- game (Studio).
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SocialService = game:GetService("SocialService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
@@ -17,6 +17,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Effects = require(script.Parent.Parent.Controllers.Effects)
 local HUD = require(script.Parent.HUD)
+local LobbyMenu = require(script.Parent.LobbyMenu)
 local Theme = require(script.Parent.Theme)
 local Tutorial = require(script.Parent.Tutorial)
 
@@ -41,7 +42,7 @@ type PartyState = {
 	leaving: boolean,
 }
 
-local function build(gui: ScreenGui, action: RemoteEvent): (state: PartyState?) -> ()
+local function build(gui: Frame, action: RemoteEvent): (state: PartyState?) -> ()
 	-- title and how-to (top left)
 	local header = Theme.frame(gui, {
 		Position = UDim2.fromOffset(28, 26),
@@ -67,28 +68,10 @@ local function build(gui: ScreenGui, action: RemoteEvent): (state: PartyState?) 
 		TextColor3 = C.BoneDim,
 	})
 
-	-- invite (bottom left)
-	local invite = Theme.button(gui, "Invite friends", {
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 28, 1, -28),
-		Size = UDim2.fromOffset(190, 44),
-		TextSize = 20,
-	})
-	invite.Activated:Connect(function()
-		local ok, canInvite = pcall(function()
-			return SocialService:CanSendGameInviteAsync(player)
-		end)
-		if ok and canInvite then
-			pcall(function()
-				SocialService:PromptGameInvite(player)
-			end)
-		end
-	end)
-
-	-- notices (top centre)
+	-- notices (top centre, under the menu's nav bar)
 	local noticeLabel = Theme.label(gui, "", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 30),
+		Position = UDim2.new(0.5, 0, 0, 84),
 		Size = UDim2.new(0.6, 0, 0, 30),
 		TextSize = 20,
 		TextColor3 = C.Bone,
@@ -275,7 +258,7 @@ local VENDING = {
 }
 
 -- Centred reading panel; a Modal close button frees the mouse in first person.
-local function readPanel(gui: ScreenGui, heading: string, body: string)
+local function readPanel(gui: Frame, heading: string, body: string)
 	local old = gui:FindFirstChild("ReadPanel")
 	if old then
 		old:Destroy()
@@ -382,7 +365,14 @@ function Lobby.run()
 	player.CameraMinZoomDistance = 6
 	player.CameraMode = Enum.CameraMode.Classic
 	local gui = Theme.screen("Lobby", 20)
-	local render = build(gui, actionRemote)
+	-- clear of the Roblox top bar and notches, laid out for 1000 x 620 and
+	-- scaled down to fit phones
+	gui.IgnoreGuiInset = false
+	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+	local canvas = Theme.canvas(gui, Vector2.new(1000, 620))
+	local render = build(canvas, actionRemote)
+	local menu = LobbyMenu.build(canvas)
+	local inParty = false
 	-- look at the trucks whenever we spawn
 	local function faceTrucks()
 		task.wait(0.3)
@@ -404,9 +394,9 @@ function Lobby.run()
 		ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 			local action = prompt:GetAttribute("LobbyAction")
 			if action == "howto" then
-				readPanel(gui, "How to play", HOW_TO)
+				readPanel(canvas, "How to play", HOW_TO)
 			elseif action == "missing" then
-				readPanel(gui, "Missing persons", MISSING)
+				readPanel(canvas, "Missing persons", MISSING)
 			elseif action == "payphone" then
 				answerPayphone()
 			elseif action == "vending" then
@@ -414,7 +404,13 @@ function Lobby.run()
 			end
 		end),
 		stateRemote.OnClientEvent:Connect(function(state: any)
-			render(if typeof(state) == "table" then state else nil)
+			local party = if typeof(state) == "table" then state else nil
+			-- stepping into a truck closes the menu so the party panel shows
+			if party and not inParty then
+				menu.close()
+			end
+			inParty = party ~= nil
+			render(party)
 		end),
 		noticeRemote.OnClientEvent:Connect(function(text: any)
 			if typeof(text) == "string" then
@@ -430,6 +426,7 @@ function Lobby.run()
 	for _, c in connections do
 		c:Disconnect()
 	end
+	menu.destroy()
 	gui:Destroy()
 	player.CameraMode = Enum.CameraMode.LockFirstPerson
 	player.CameraMinZoomDistance = 0.5

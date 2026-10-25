@@ -17,13 +17,17 @@ local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
+local Items = require(ReplicatedStorage.Shared.Items)
 local Session = require(ReplicatedStorage.Shared.Session)
+local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Build = require(script.Parent.World.Build)
 local LightingSetup = require(script.Parent.World.Lighting)
 local Props = require(script.Parent.World.Props)
+local AssetService = require(script.Parent.Systems.AssetService)
 local Cannibals = require(script.Parent.Systems.Cannibals)
 local R6Characters = require(script.Parent.Systems.R6Characters)
+local Profiles = require(script.Parent.Systems.Profiles)
 
 local Lobby = {}
 
@@ -425,6 +429,10 @@ local function launch(party: Party)
 		return
 	end
 	task.spawn(function()
+		-- write their Teeth and perks first: the game server loads them on arrival
+		for _, member in members do
+			Profiles.save(member)
+		end
 		local options = Instance.new("TeleportOptions")
 		options.ShouldReserveServer = true
 		options:SetTeleportData({ difficulty = party.difficulty })
@@ -586,6 +594,15 @@ function Lobby.run()
 	Lighting.Brightness = 0.9
 	Lighting.ExposureCompensation = 0.25
 	Lighting.OutdoorAmbient = rgb(40, 44, 56)
+	-- previews for the store's perk cards (client LobbyMenu)
+	local previews: { string } = {}
+	for _, perk in StoreCatalog.list() do
+		local def = Items.get(perk.item)
+		if def then
+			table.insert(previews, def.model)
+		end
+	end
+	AssetService.publishItemModels(previews)
 	local remotes = makeRemotes()
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"

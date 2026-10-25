@@ -12,9 +12,9 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local Effects = require(script.Parent.Parent.Controllers.Effects)
-local Settings = require(script.Parent.Parent.Controllers.Settings)
 local Theme = require(script.Parent.Theme)
 local HUD = require(script.Parent.HUD)
+local SettingsPage = require(script.Parent.SettingsPage)
 
 local Menu = {}
 
@@ -31,13 +31,6 @@ local playButton: TextButton
 local renderConn: RBXScriptConnection? = nil
 
 Menu.isOpen = false
-
-local settings = {
-	sensitivity = 0.6,
-	brightness = 0,
-	fov = 72,
-	volume = 1,
-}
 
 local function groundAt(x: number, z: number): number
 	local params = RaycastParams.new()
@@ -77,35 +70,6 @@ local function showPage(name: string?)
 	main.Visible = name == nil
 end
 
-local function stepper(parent: Instance, label: string, order: number, get: () -> string, change: (number) -> ())
-	local row = Theme.frame(parent, {
-		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundTransparency = 1,
-		LayoutOrder = order,
-	})
-	Theme.label(row, label, {
-		Size = UDim2.new(0.5, 0, 1, 0),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextSize = 20,
-	})
-	local value = Theme.label(row, get(), {
-		Position = UDim2.new(0.62, 0, 0, 0),
-		Size = UDim2.new(0.2, 0, 1, 0),
-		TextSize = 20,
-		Font = Theme.Fonts.UIBold,
-	})
-	local minus = Theme.button(row, "-", { Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.fromOffset(40, 36) })
-	local plus = Theme.button(row, "+", { Position = UDim2.new(0.84, 0, 0, 4), Size = UDim2.fromOffset(40, 36) })
-	minus.Activated:Connect(function()
-		change(-1)
-		value.Text = get()
-	end)
-	plus.Activated:Connect(function()
-		change(1)
-		value.Text = get()
-	end)
-end
-
 local function panel(name: string, title: string): Frame
 	local p = Theme.frame(gui, {
 		Name = name,
@@ -120,6 +84,7 @@ local function panel(name: string, title: string): Frame
 	Theme.stroke(p, C.Blood, 1.5)
 	Theme.padding(p, 26)
 	Util.create("UISizeConstraint", { MaxSize = Vector2.new(600, 520), Parent = p })
+	Theme.autoScale(p, Vector2.new(600, 520))
 	Theme.label(p, title, {
 		Size = UDim2.new(1, 0, 0, 46),
 		TextSize = 40,
@@ -182,10 +147,8 @@ function Menu.init()
 	gui = Theme.screen("Menu", 30)
 	Theme.vignette(gui, Color3.new(0, 0, 0), 0.4, 1)
 
-	main = Theme.frame(gui, {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-	})
+	-- laid out for at least 960 x 640 and scaled down to fit phones
+	main = Theme.canvas(gui, Vector2.new(960, 640))
 	local title = Theme.label(main, Config.GameName, {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0.14),
@@ -246,36 +209,7 @@ function Menu.init()
 		Size = UDim2.new(1, 0, 1, -130),
 		BackgroundTransparency = 1,
 	})
-	Util.create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
-	stepper(list, "Mouse sensitivity", 1, function()
-		return string.format("%.1f", settings.sensitivity)
-	end, function(d)
-		settings.sensitivity = math.clamp(settings.sensitivity + d * 0.1, 0.1, 2)
-		CameraController.setSensitivity(settings.sensitivity)
-	end)
-	stepper(list, "Brightness", 2, function()
-		return string.format("%+d", math.round(settings.brightness * 20))
-	end, function(d)
-		settings.brightness = math.clamp(settings.brightness + d * 0.05, -0.2, 0.3)
-		Effects.brightness = settings.brightness
-	end)
-	stepper(list, "Field of view", 3, function()
-		return tostring(settings.fov)
-	end, function(d)
-		settings.fov = math.clamp(settings.fov + d * 4, 60, 96)
-		CameraController.setBaseFov(settings.fov)
-	end)
-	stepper(list, "Volume", 4, function()
-		return string.format("%d%%", math.round(settings.volume * 100))
-	end, function(d)
-		settings.volume = math.clamp(settings.volume + d * 0.1, 0, 1)
-		Audio.setMasterVolume(settings.volume)
-	end)
-	stepper(list, "Reduce flashing", 5, function()
-		return if Settings.reduceFlashing then "On" else "Off"
-	end, function()
-		Settings.reduceFlashing = not Settings.reduceFlashing
-	end)
+	SettingsPage.fill(list)
 
 	-- how to play
 	local h = panel("How", "How to survive")

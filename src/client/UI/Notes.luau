@@ -77,6 +77,7 @@ function Notes.init()
 	})
 	Util.create("UISizeConstraint", { MaxSize = Vector2.new(560, 700), Parent = paper })
 	Util.create("UIAspectRatioConstraint", { AspectRatio = 520 / 620, Parent = paper })
+	Theme.autoScale(paper, Vector2.new(560, 680))
 	Util.create("UIGradient", {
 		Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromRGB(235, 225, 196)),

@@ -134,6 +134,45 @@ function Theme.padding(parent: Instance, px: number)
 	})
 end
 
+-- Fits UI laid out for `design` (pixels) on small screens such as phones: a
+-- UIScale that shrinks `object` until `design` fits its ScreenGui (it never
+-- grows it). With `canvas`, the object is a full-screen frame that is also
+-- resized by 1 / scale, so its children lay out on a virtual screen at least
+-- `design` big that still covers the real one. Parent the object first.
+function Theme.autoScale(object: GuiObject, design: Vector2, canvas: boolean?): UIScale
+	local scale = Util.create("UIScale", { Parent = object })
+	local screen = object:FindFirstAncestorWhichIsA("LayerCollector") :: ScreenGui
+	local camera = workspace.CurrentCamera
+	local function update()
+		-- a disabled ScreenGui keeps a stale size, so use the viewport then
+		local size = if screen.Enabled then screen.AbsoluteSize else camera.ViewportSize
+		if size.X <= 0 or size.Y <= 0 then
+			return
+		end
+		local s = math.clamp(math.min(size.X / design.X, size.Y / design.Y), 0.5, 1)
+		scale.Scale = s
+		if canvas then
+			object.Size = UDim2.fromScale(1 / s, 1 / s)
+		end
+	end
+	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(update)
+	screen:GetPropertyChangedSignal("Enabled"):Connect(update)
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+	update()
+	return scale
+end
+
+-- A full-screen, see-through frame scaled with Theme.autoScale(canvas).
+function Theme.canvas(parent: Instance, design: Vector2): Frame
+	local canvas = Theme.frame(parent, {
+		Name = "Canvas",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+	})
+	Theme.autoScale(canvas, design, true)
+	return canvas
+end
+
 -- Soft vignette made from four edge gradients (no image assets needed).
 function Theme.vignette(parent: Instance, color: Color3, depth: number, zindex: number): Frame
 	local holder = Theme.frame(parent, {

@@ -33,6 +33,10 @@ local Cannibals = require(Systems.Cannibals)
 local Story = require(Systems.Story)
 local PlayerService = require(Systems.PlayerService)
 
+-- saved Teeth / perks / records and the store, on lobby and game servers alike
+require(Systems.Profiles).init()
+require(Systems.Store).init()
+
 -- R6 bodies for everyone, before the lobby loads anyone in
 require(Systems.R6Characters).init()
 
@@ -106,6 +110,7 @@ mark("templates")
 
 Story.init(house, sites, world)
 require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
+require(Systems.Rewards).init() -- Teeth for escaping, sedating, chores
 
 workspace:SetAttribute("WorldReady", true)
 print(string.format("[Cannibal Family] world ready in %.1fs (%s)", os.clock() - started, table.concat(marks, ", ")))

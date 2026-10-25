@@ -6,9 +6,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Items = require(ReplicatedStorage.Shared.Items)
 local Lore = require(ReplicatedStorage.Shared.Lore)
 local Net = require(ReplicatedStorage.Shared.Net)
+local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
 local AssetService = require(script.Parent.AssetService)
 local Interact = require(script.Parent.Interact)
 local Inventory = require(script.Parent.Inventory)
+local Profiles = require(script.Parent.Profiles)
 
 local Pickups = {}
 
@@ -111,6 +113,7 @@ function Pickups.note(noteId: string, cf: CFrame, parent: Instance): Model
 		onUse = function(player)
 			soundRemote:FireClient(player, "PageTurn")
 			noteRemote:FireClient(player, noteId)
+			Profiles.awardOnce(player, "note:" .. noteId, StoreCatalog.Rewards.note, "Read: " .. note.title)
 		end,
 	})
 	return model

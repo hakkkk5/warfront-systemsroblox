@@ -26,6 +26,7 @@ local EVENTS = {
 	"Struggle", -- syringe fight-back: keys to press
 	"Scare", -- apparitions, jumpscares, random events
 	"ChaseFX", -- spikes and falling trees during the chase
+	"StoreResult", -- lobby store: purchase outcome
 	-- client -> server
 	"RequestPlay",
 	"CutsceneDone",
@@ -35,6 +36,8 @@ local EVENTS = {
 	"LeaveHiding",
 	"PlayAgain",
 	"StruggleResult",
+	"StoreBuy", -- lobby store: buy a perk
+	"SaveSettings", -- settings kept with the profile
 }
 
 local folder: Folder

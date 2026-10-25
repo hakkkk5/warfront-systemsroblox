@@ -208,11 +208,16 @@ function AssetService.spawn(name: string, cf: CFrame, parent: Instance, rng: Uti
 end
 
 -- Copies item models into ReplicatedStorage so the client can show them in
--- the view model and inventory previews.
+-- the view model and inventory previews. Adds to (and replaces in) the folder
+-- the lobby published for the store, when Studio turns the lobby into the game.
 function AssetService.publishItemModels(names: { string })
-	local folder = Instance.new("Folder")
+	local folder = ReplicatedStorage:FindFirstChild("ItemModels") or Instance.new("Folder")
 	folder.Name = "ItemModels"
 	for _, name in names do
+		local old = folder:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
 		local m = AssetService.create(name)
 		for _, p in m:GetDescendants() do
 			if p:IsA("BasePart") then

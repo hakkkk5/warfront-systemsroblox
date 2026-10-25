@@ -125,9 +125,10 @@ local function run()
 	}
 
 	local gui = Theme.screen("Tutorial", 6)
+	-- on phones the right side holds the touch buttons, so the card goes top centre
 	local card = Theme.frame(gui, {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -24, 0.55, 0),
+		AnchorPoint = if touch then Vector2.new(0.5, 0) else Vector2.new(1, 0.5),
+		Position = if touch then UDim2.new(0.5, 0, 0, 118) else UDim2.new(1, -24, 0.55, 0),
 		Size = UDim2.fromOffset(330, 96),
 		BackgroundColor3 = C.Panel,
 		BackgroundTransparency = 1,

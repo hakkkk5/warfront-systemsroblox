@@ -180,9 +180,7 @@ function Viewmodel.init()
 			Viewmodel.toggle()
 		end
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
-	ContextActionService:SetTitle("Flashlight", "Light")
-	ContextActionService:SetPosition("Flashlight", UDim2.new(1, -100, 1, -230))
+	end, false, Enum.KeyCode.F, Enum.KeyCode.ButtonY) -- phones: UI TouchControls
 
 	Net.event("Recharge").OnClientEvent:Connect(function(amount: number)
 		Viewmodel.battery = math.min(100, Viewmodel.battery + amount)

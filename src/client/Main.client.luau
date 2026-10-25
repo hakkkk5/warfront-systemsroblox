@@ -37,6 +37,8 @@ local Struggle = require(UI.Struggle)
 local Death = require(UI.Death)
 local Ending = require(UI.Ending)
 local Menu = require(UI.Menu)
+local SettingsPage = require(UI.SettingsPage)
+local TouchControls = require(UI.TouchControls)
 
 MeshLibrary.init()
 Audio.init()
@@ -58,5 +60,7 @@ Struggle.init()
 Cutscenes.init()
 Death.init()
 Ending.init()
+SettingsPage.init() -- applies the saved settings once the profile loads
+TouchControls.init()
 require(UI.Lobby).run() -- applies the difficulty; in the lobby it holds here until the game starts
 Menu.init()

@@ -45,7 +45,9 @@ local readNotes: { string } = {}
 Inventory.isOpen = false
 Inventory.onNoteSelected = nil :: ((string) -> ())?
 
-local function itemModel(id: string): Model?
+-- A fresh preview model of an item (for ViewportFrames); nil until the
+-- server has published ItemModels.
+function Inventory.itemModel(id: string): Model?
 	local def = Items.get(id)
 	local folder = ReplicatedStorage:FindFirstChild("ItemModels")
 	if not def or not folder then
@@ -86,7 +88,7 @@ local function setDetail(id: string?)
 	useButton.Visible = def.usable == true
 	equipButton.Visible = def.equippable == true
 	equipButton.Text = if equipped == id then "Put away" else "Hold"
-	local vp = Theme.viewport(detailView, itemModel(id), { Size = UDim2.fromScale(1, 1) })
+	local vp = Theme.viewport(detailView, Inventory.itemModel(id), { Size = UDim2.fromScale(1, 1) })
 	vp:SetAttribute("Spin", true)
 end
 
@@ -108,7 +110,7 @@ local function render()
 		if entry then
 			local def = Items.get(entry.id)
 			if def then
-				local vp = Theme.viewport(slot, itemModel(entry.id), {
+				local vp = Theme.viewport(slot, Inventory.itemModel(entry.id), {
 					Size = UDim2.new(1, -8, 1, -8),
 					Position = UDim2.fromOffset(4, 4),
 				})
@@ -256,7 +258,7 @@ function Inventory.init()
 	Theme.corner(panel, 8)
 	Theme.stroke(panel, C.Blood, 1.5)
 	Util.create("UISizeConstraint", { MaxSize = Vector2.new(900, 600), Parent = panel })
-	Util.create("UIScale", { Parent = panel })
+	Theme.autoScale(panel, Vector2.new(860, 560))
 
 	Util.create("ImageLabel", {
 		BackgroundTransparency = 1,
@@ -402,9 +404,7 @@ function Inventory.init()
 			end
 		end
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.Tab, Enum.KeyCode.I, Enum.KeyCode.ButtonSelect)
-	ContextActionService:SetTitle("Inventory", "Bag")
-	ContextActionService:SetPosition("Inventory", UDim2.new(1, -170, 1, -290))
+	end, false, Enum.KeyCode.Tab, Enum.KeyCode.I, Enum.KeyCode.ButtonSelect) -- phones: UI TouchControls
 
 	-- spin previews
 	RunService.RenderStepped:Connect(function()
