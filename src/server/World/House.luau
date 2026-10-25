@@ -471,10 +471,11 @@ function House.build(parent: Instance): Info
 	rocker.Parent = furniture
 	for i = 0, 2 do
 		local x = -26 + i * 7
-		box(furniture, Vector3.new(1.2, 1.6, 0.8), x, 8.5, -23.2, rgb(214, 206, 190), M.SmoothPlastic)
+		local mount = standIn("DeerSkull", x, 7.7, -23.2, 180)
+		box(mount, Vector3.new(1.2, 1.6, 0.8), x, 8.5, -23.2, rgb(214, 206, 190), M.SmoothPlastic)
 		for _, s in { -1, 1 } do
-			box(furniture, Vector3.new(0.2, 2.4, 0.2), x + s * 0.9, 9.8, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
-			box(furniture, Vector3.new(0.8, 0.2, 0.2), x + s * 1.3, 10.6, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
+			box(mount, Vector3.new(0.2, 2.4, 0.2), x + s * 0.9, 9.8, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
+			box(mount, Vector3.new(0.8, 0.2, 0.2), x + s * 1.3, 10.6, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
 		end
 	end
 	-- bookshelf on the west wall (it used to sit inside the fireplace)
@@ -647,17 +648,20 @@ function House.build(parent: Instance): Info
 	box(dresser, Vector3.new(4, 4, 0.2), -12, U + 5.6, -23.4, rgb(160, 170, 175), M.Glass, { Reflectance = 0.5 })
 
 	------------------------------------------------------------ kid's room (NE, upstairs)
-	box(furniture, Vector3.new(4, 1.6, 7), 27.5, U + 0.8, -10, rgb(110, 90, 70), M.Wood)
-	box(furniture, Vector3.new(3.6, 0.6, 6.6), 27.5, U + 1.9, -10, rgb(140, 150, 170), M.Fabric)
-	local toyChest = box(furniture, Vector3.new(4, 2.2, 2.4), 26, U + 1.1, -22, rgb(140, 60, 50), M.Wood)
+	local kidsBed = standIn("KidsBed", 27.5, U, -10, 0)
+	box(kidsBed, Vector3.new(4, 1.6, 7), 27.5, U + 0.8, -10, rgb(110, 90, 70), M.Wood)
+	box(kidsBed, Vector3.new(3.6, 0.6, 6.6), 27.5, U + 1.9, -10, rgb(140, 150, 170), M.Fabric)
+	local chestModel = standIn("ToyChest", 26, U, -22, 180)
+	local toyChest = box(chestModel, Vector3.new(4, 2.2, 2.4), 26, U + 1.1, -22, rgb(140, 60, 50), M.Wood)
 	toyChest.Name = "ToyChest"
 	-- a row of dolls watching the door
 	for i = 0, 4 do
 		local x = 10 + i * 2.2
-		Build.ball(furniture, 0.9, L(x, U + 2.9, -23.1), rgb(230, 210, 196), M.SmoothPlastic)
-		box(furniture, Vector3.new(0.9, 1.4, 0.6), x, U + 1.95, -23.1, rgb(120 + i * 20, 80, 90), M.Fabric)
-		box(furniture, Vector3.new(0.12, 0.12, 0.05), x - 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
-		box(furniture, Vector3.new(0.12, 0.12, 0.05), x + 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
+		local doll = standIn("Doll", x, U + 1.35, -23.1, 180)
+		Build.ball(doll, 0.9, L(x, U + 2.9, -23.1), rgb(230, 210, 196), M.SmoothPlastic)
+		box(doll, Vector3.new(0.9, 1.4, 0.6), x, U + 1.95, -23.1, rgb(120 + i * 20, 80, 90), M.Fabric)
+		box(doll, Vector3.new(0.12, 0.12, 0.05), x - 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
+		box(doll, Vector3.new(0.12, 0.12, 0.05), x + 0.18, U + 3, -23.55, rgb(0, 0, 0), M.SmoothPlastic)
 	end
 	box(furniture, Vector3.new(11.5, 0.3, 1.4), 14.4, U + 1.2, -23.1, TRIM, M.Wood)
 	local nightLight = box(furniture, Vector3.new(0.6, 0.6, 0.2), 30, U + 1.5, -1, rgb(120, 160, 255), M.Neon)
@@ -666,10 +670,12 @@ function House.build(parent: Instance): Info
 	nl.Brightness = 0.6
 	nl.Range = 12
 	nl.Parent = nightLight
-	local closet = box(furniture, Vector3.new(3, 9, 5), 30.4, U + 4.5, -4, rgb(200, 190, 170), M.Wood)
+	-- the kid's closet wears the Blender wardrobe
+	local closetModel = standIn("Wardrobe", 30.4, U, -4, 90)
+	local closet = box(closetModel, Vector3.new(3, 9, 5), 30.4, U + 4.5, -4, rgb(200, 190, 170), M.Wood)
 	closet.Name = "Closet"
 	closet.CanCollide = false
-	box(furniture, Vector3.new(0.2, 8.6, 4.6), 28.85, U + 4.4, -4, rgb(180, 170, 150), M.WoodPlanks, { CanCollide = false })
+	box(closetModel, Vector3.new(0.2, 8.6, 4.6), 28.85, U + 4.4, -4, rgb(180, 170, 150), M.WoodPlanks, { CanCollide = false })
 	Hiding.add(closet, L(30.3, U + 3, -4) * ANG(0, rad(90), 0), L(26, U + 3, -4) * ANG(0, rad(90), 0), "Closet")
 
 	------------------------------------------------------------ bathroom (SW, upstairs)
@@ -677,8 +683,8 @@ function House.build(parent: Instance): Info
 	box(tub, Vector3.new(8, 2.6, 3.6), -26, U + 1.3, 21.6, rgb(220, 216, 206), M.Marble)
 	-- the bath is full, and the water isn't water
 	box(furniture, Vector3.new(7.2, 0.2, 2.8), -26, U + 2.1, 21.6, rgb(60, 14, 12), M.Glass, { Transparency = 0.1, Reflectance = 0.3 })
-	box(furniture, Vector3.new(2, 2, 2.4), -9, U + 1, 22, rgb(220, 216, 206), M.Marble)
-	box(furniture, Vector3.new(3, 3, 2), -31, U + 1.5, 8, rgb(200, 196, 186), M.Marble)
+	box(standIn("Toilet", -9, U, 22, 0), Vector3.new(2, 2, 2.4), -9, U + 1, 22, rgb(220, 216, 206), M.Marble)
+	box(standIn("BathroomSink", -31, U, 8, -90), Vector3.new(3, 3, 2), -31, U + 1.5, 8, rgb(200, 196, 186), M.Marble)
 	box(furniture, Vector3.new(0.2, 3, 2.6), -31.4, U + 5.6, 8, rgb(150, 160, 165), M.Glass, { Reflectance = 0.5 })
 	Build.stain(furniture, L(-20, U + 0.05, 15), Vector2.new(1.4, 2.4), rng)
 

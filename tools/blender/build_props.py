@@ -1285,6 +1285,132 @@ def build_grandfather_clock():
     return p
 
 
+def build_deer_skull():
+    """European mount: a bleached deer skull with a rack of antlers on a dark
+    shield, hung on the wall (front +Y, back flat to the wall)."""
+    p = Prop("DeerSkull")
+    shield = box(p, "wood_dark", (1.3, 0.14, 1.7), (0, -0.4, 0.85), bev=0.1, seg=3)
+    displace(shield, 0.01, 6.0)
+    # cranium against the shield, the snout running out and down
+    for y, z, r, sx, sz in ((-0.18, 1.15, 0.34, 0.9, 0.85), (0.1, 1.02, 0.25, 0.75, 0.7), (0.34, 0.9, 0.18, 0.62, 0.6), (0.56, 0.8, 0.12, 0.6, 0.55)):
+        skull = sphere(p, "ceramic", r, (0, y, z), (sx, 1.25, sz), seg=16, rings=10)
+        displace(skull, 0.015, 9.0, seed=y)
+    for x in (-0.17, 0.17):
+        sphere(p, "metal_dark", 0.085, (x, 0.0, 1.2), (1.0, 0.6, 0.8), seg=10, rings=6)
+        sphere(p, "metal_dark", 0.03, (x * 0.35, 0.66, 0.79), seg=8, rings=5)
+    # antlers: a main beam each side curling up and forward, with tines
+    for s in (-1, 1):
+        beam = [(s * 0.14, -0.1, 1.4), (s * 0.42, -0.12, 1.75), (s * 0.62, -0.02, 2.25), (s * 0.58, 0.14, 2.8), (s * 0.42, 0.24, 3.15)]
+        tube(p, "ceramic", beam, 0.07, seg=8, taper=[1.0, 0.85, 0.7, 0.5, 0.3])
+        for (a, b) in (((s * 0.47, -0.1, 1.85), (s * 0.4, 0.2, 2.2)), ((s * 0.6, 0.0, 2.35), (s * 0.85, 0.12, 2.8)), ((s * 0.6, 0.08, 2.6), (s * 0.4, 0.3, 2.95))):
+            tube(p, "ceramic", [a, b], 0.045, seg=6, taper=[1.0, 0.35])
+    return p
+
+
+def build_toilet():
+    """An old cistern toilet, seat up, ringed with grime (front +Y)."""
+    p = Prop("Toilet")
+    bowl = lathe(None, None, [(0.0, 0.0), (0.42, 0.0), (0.36, 0.25), (0.42, 0.7), (0.66, 1.2), (0.7, 1.45), (0.6, 1.5), (0.5, 1.2), (0.0, 1.0)], seg=24, loc=(0, 0.25, 0))
+    bowl.scale = (1.0, 1.25, 1.0)
+    p.add(bowl, "enamel")
+    sphere(p, "metal_dark", 0.42, (0, 0.3, 1.3), (1.0, 1.25, 0.2), seg=16, rings=8)
+    torus(p, "wood_old", 0.55, 0.07, (0, 0.3, 1.55), seg=24, tseg=6)
+    box(p, "wood_old", (1.2, 0.08, 1.4), (0, -0.62, 2.05), (math.radians(-12), 0, 0), bev=0.03)
+    box(p, "enamel", (1.7, 0.7, 1.1), (0, -0.85, 2.0), bev=0.06)
+    box(p, "enamel", (1.8, 0.78, 0.12), (0, -0.85, 2.6), bev=0.03)
+    cyl(p, "chrome", 0.04, 0.35, (0.6, -0.48, 2.3), (0, math.radians(90), 0), seg=8)
+    cyl(p, "chrome", 0.07, 0.9, (0, -0.68, 1.35), seg=10)
+    box(p, "blood", (0.35, 0.02, 0.22), (0.25, 0.79, 1.1), (0, 0, math.radians(20)))
+    return p
+
+
+def build_bathroom_sink():
+    """A pedestal basin with old brass taps and a cracked splashback (front +Y)."""
+    p = Prop("BathroomSink")
+    p.add(lathe(None, None, [(0.0, 0.0), (0.45, 0.0), (0.38, 0.15), (0.24, 0.5), (0.2, 1.6), (0.32, 2.2), (0.0, 2.2)], seg=20, loc=(0, 0.1, 0)), "enamel")
+    basin = lathe(None, None, [(0.0, 2.2), (0.5, 2.15), (1.0, 2.5), (1.15, 2.85), (1.05, 2.9), (0.9, 2.6), (0.0, 2.45)], seg=28, loc=(0, 0.1, 0))
+    basin.scale = (1.3, 0.85, 1.0)
+    p.add(basin, "enamel")
+    box(p, "enamel", (2.9, 0.18, 0.9), (0, -0.85, 3.1), bev=0.04)
+    for x in (-0.45, 0.45):
+        cyl(p, "brass", 0.07, 0.4, (x, -0.55, 3.05), seg=10)
+        cyl(p, "brass", 0.14, 0.08, (x, -0.55, 3.28), seg=8)
+    tube(p, "brass", [(0, -0.6, 2.9), (0, -0.55, 3.3), (0, -0.2, 3.35), (0, -0.05, 3.1)], 0.05, seg=6)
+    box(p, "blood", (0.6, 0.02, 0.25), (0.3, 0.42, 2.7), (0, 0, math.radians(-25)))
+    return p
+
+
+def build_kids_bed():
+    """A child's wooden bed with a spindle headboard, a patchwork quilt and a
+    worn teddy bear on the pillow (long along Y, headboard at -Y)."""
+    p = Prop("KidsBed")
+    W, L = 4.0, 7.0
+    for x in (-W / 2 + 0.15, W / 2 - 0.15):
+        for y, h in ((-L / 2 + 0.15, 3.4), (L / 2 - 0.15, 2.2)):
+            p.add(lathe(None, None, turned_leg(h, 0.16), seg=10, loc=(x, y, 0)), "paint_white")
+    box(p, "paint_white", (W - 0.3, 0.16, 0.3), (0, -L / 2 + 0.15, 3.1))
+    box(p, "paint_white", (W - 0.3, 0.16, 0.3), (0, L / 2 - 0.15, 1.9))
+    for i in range(7):
+        box(p, "paint_white", (0.1, 0.1, 1.4), (-1.5 + i * 0.5, -L / 2 + 0.15, 2.25))
+    for x in (-W / 2 + 0.15, W / 2 - 0.15):
+        box(p, "paint_white", (0.18, L - 0.3, 0.4), (x, 0, 0.75))
+    mattress = box(p, "linen", (W - 0.5, L - 0.5, 0.6), (0, 0, 1.2), bev=0.2, seg=3)
+    displace(mattress, 0.04, 1.0)
+    quilt = box(p, "quilt", (W - 0.3, L * 0.6, 0.2), (0, L * 0.15, 1.6), bev=0.15, seg=3)
+    displace(quilt, 0.08, 0.9, seed=2)
+    pillow = box(p, "cloth_white", (2.2, 1.0, 0.4), (0, -L / 2 + 0.9, 1.65), bev=0.2, seg=3)
+    displace(pillow, 0.05, 1.4, seed=3)
+    # the bear, slumped over
+    sphere(p, "burlap_clean", 0.42, (0.5, -L / 2 + 1.3, 2.1), (1.0, 0.9, 1.1), seg=14, rings=8)
+    sphere(p, "burlap_clean", 0.3, (0.55, -L / 2 + 1.25, 2.65), seg=14, rings=8)
+    for x in (0.35, 0.75):
+        sphere(p, "burlap_clean", 0.1, (x, -L / 2 + 1.25, 2.92), seg=8, rings=5)
+        sphere(p, "metal_dark", 0.04, (x * 0.85 + 0.08, -L / 2 + 1.0, 2.7), seg=6, rings=4)
+    box(p, "blood", (0.3, 0.02, 0.4), (0.2, -L / 2 + 1.05, 2.15))
+    return p
+
+
+def build_toy_chest():
+    """A painted toy chest, its lid propped open on a doll's arm (front +Y)."""
+    p = Prop("ToyChest")
+    W, D, H = 4.0, 2.4, 2.0
+    box(p, "paint_red", (W, D, H), (0, 0, H / 2), bev=0.06)
+    for z in (0.35, H - 0.35):
+        box(p, "paint_white", (W + 0.04, D + 0.04, 0.16), (0, 0, z))
+    lid = box(p, "paint_red", (W, D, 0.2), (0, 0, 0), bev=0.05)
+    lid.location = (0, -D / 2 + 1.12, H + 0.4)
+    lid.rotation_euler = (math.radians(-22), 0, 0)
+    for i, mat in enumerate(("paint_yellow", "paint_white", "paint_olive")):
+        box(p, mat, (0.45, 0.45, 0.45), (-1.2 + i * 0.6, D / 2 - 0.15, 0.9 + (i % 2) * 0.1), bev=0.04)
+    tube(p, "ceramic", [(1.2, 0.3, H - 0.1), (1.25, 0.35, H + 0.4), (1.3, 0.5, H + 0.75)], 0.07, seg=6)
+    for x in (-W / 2 + 0.3, W / 2 - 0.3):
+        cyl(p, "brass", 0.1, 0.06, (x, -D / 2 - 0.02, H - 0.25), (math.radians(90), 0, 0), seg=8)
+    return p
+
+
+def build_doll():
+    """A porcelain doll sitting with its legs out, face cracked (front +Y)."""
+    p = Prop("Doll")
+    rng = random.Random(5)
+    p.add(lathe(None, None, [(0.0, 0.0), (0.42, 0.0), (0.46, 0.3), (0.32, 0.75), (0.2, 1.05), (0.0, 1.1)], seg=16), "quilt")
+    for x in (-0.14, 0.14):
+        tube(p, "ceramic", [(x, 0.05, 0.12), (x, 0.45, 0.1), (x, 0.75, 0.08)], 0.07, seg=6)
+        cyl(p, "metal_dark", 0.08, 0.12, (x, 0.8, 0.08), (math.radians(90), 0, 0), seg=8)
+    for s in (-1, 1):
+        tube(p, "ceramic", [(s * 0.22, 0.0, 0.95), (s * 0.34, 0.1, 0.65), (s * 0.3, 0.25, 0.45)], 0.05, seg=6)
+    head = sphere(p, "ceramic", 0.32, (0, 0.02, 1.38), (1.0, 0.95, 1.05), seg=18, rings=12)
+    displace(head, 0.006, 12.0)
+    sphere(p, "wood_dark", 0.34, (0, -0.05, 1.47), (1.05, 1.0, 0.85), seg=16, rings=8)
+    for x in (-0.11, 0.11):
+        sphere(p, "metal_dark", 0.06, (x, 0.28, 1.42), (1.0, 0.5, 1.1), seg=8, rings=5)
+    box(p, "blood", (0.12, 0.02, 0.03), (0, 0.31, 1.27))
+    # cracks running across the face
+    for _ in range(3):
+        a = rng.uniform(-0.6, 0.6)
+        box(p, "metal_dark", (0.012, 0.02, rng.uniform(0.12, 0.22)), (rng.uniform(-0.15, 0.15), 0.3, rng.uniform(1.3, 1.5)), (0, a, 0))
+    return p
+
+
 BUILDERS = {
     "Sofa": build_sofa,
     "Fireplace": build_fireplace,
@@ -1302,6 +1428,12 @@ BUILDERS = {
     "Dresser": build_dresser,
     "Bathtub": build_bathtub,
     "GrandfatherClock": build_grandfather_clock,
+    "DeerSkull": build_deer_skull,
+    "Toilet": build_toilet,
+    "BathroomSink": build_bathroom_sink,
+    "KidsBed": build_kids_bed,
+    "ToyChest": build_toy_chest,
+    "Doll": build_doll,
     "Flashlight": build_flashlight,
     "Cleaver": build_cleaver,
     "Chainsaw": build_chainsaw,

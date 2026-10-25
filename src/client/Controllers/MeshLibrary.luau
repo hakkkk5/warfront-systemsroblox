@@ -18,6 +18,7 @@
 -- procedural prop visible.
 
 local CollectionService = game:GetService("CollectionService")
+local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MeshCatalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshCatalog"))
@@ -44,6 +45,10 @@ local FIT_AXIS: { [string]: string } = {
 	DiningTable = "X",
 	CoffeeTable = "X",
 	KitchenTable = "X",
+	Toilet = "Z",
+	KidsBed = "Z",
+	ToyChest = "X",
+	BathroomSink = "X",
 }
 
 type Template = { model: Model, size: Vector3 }
@@ -234,16 +239,26 @@ function MeshLibrary.upgrade(target: Instance): Model?
 			end
 		end
 	elseif anchor then
-		-- anchored stand-ins can still be moved by the server (helicopter)
-		table.insert(list, anchor:GetPropertyChangedSignal("CFrame"):Connect(function()
+		-- anchored stand-ins can still be moved (the helicopter, held items):
+		-- keep the visual where it sits relative to the anchor
+		local offset = anchor.CFrame:ToObjectSpace(visual:GetPivot())
+		local a: BasePart = anchor
+		table.insert(list, a:GetPropertyChangedSignal("CFrame"):Connect(function()
 			if visual.Parent then
-				local cf = if target:IsA("BasePart") then target.CFrame else (target :: Model):GetPivot()
-				visual:PivotTo(cf)
+				visual:PivotTo(a.CFrame * offset)
 			end
 		end))
 	end
 	visual.Parent = target
 	setHidden(target, true)
+	if target:GetAttribute("MeshHidden") then
+		-- put away (CannibalSkins hides a monster's weapon): stay hidden
+		for _, p in visual:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.LocalTransparencyModifier = 1
+			end
+		end
+	end
 	connections[target] = list
 	return visual
 end
@@ -265,11 +280,27 @@ function MeshLibrary.init()
 	CollectionService:GetInstanceRemovedSignal("BlenderMesh"):Connect(function(inst)
 		connections[inst] = nil
 	end)
-	-- build lazily across a few frames so the menu doesn't hitch
+	-- fetch the meshes in the background so they don't pop in one by one
 	task.spawn(function()
-		for _, inst in CollectionService:GetTagged("BlenderMesh") do
+		local store = ReplicatedStorage:FindFirstChild("MeshAssets")
+		if store then
+			pcall(function()
+				ContentProvider:PreloadAsync({ store })
+			end)
+		end
+	end)
+	-- swap what's already there a batch a frame, buildings first, so the
+	-- menu doesn't hitch and the houses don't wait behind every rock
+	task.spawn(function()
+		local tagged = CollectionService:GetTagged("BlenderMesh")
+		table.sort(tagged, function(a, b)
+			return (a:GetAttribute("MeshExact") == true) and not (b:GetAttribute("MeshExact") == true)
+		end)
+		for i, inst in tagged do
 			onTagged(inst)
-			task.wait()
+			if i % 12 == 0 then
+				task.wait()
+			end
 		end
 	end)
 end

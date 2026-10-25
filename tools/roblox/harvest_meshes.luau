@@ -27,6 +27,12 @@ local function findImport(): (Instance?, BasePart?)
 end
 
 local root, marker = findImport()
+if root and not root:IsA("Model") then
+	-- the marker isn't inside an imported model: don't sweep the workspace
+	local message = "MeshOrigin is not inside an imported Model; nothing filed."
+	print(message)
+	return message
+end
 if not root or not marker then
 	local message = "No import found: Import 3D a CannibalFamilyMeshes .glb first."
 	print(message)

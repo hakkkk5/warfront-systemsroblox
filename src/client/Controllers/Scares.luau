@@ -31,7 +31,8 @@ local WHISPERS = {
 	"...we found your friends...",
 }
 
-local function monster(kind: string?): Model?
+-- plain: no Blender body or meshes, so the shadow can paint the rig black
+local function monster(kind: string?, plain: boolean?): Model?
 	local templates = ReplicatedStorage:FindFirstChild("CannibalTemplates")
 	if not templates then
 		return nil
@@ -60,6 +61,15 @@ local function monster(kind: string?): Model?
 	if humanoid then
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	end
+	if plain then
+		m:SetAttribute("Skin", nil)
+		CollectionService:RemoveTag(m, "CannibalSkin")
+		for _, d in m:GetDescendants() do
+			if d:GetAttribute("Mesh") then
+				d:SetAttribute("SkipMesh", true)
+			end
+		end
 	end
 	m.Parent = folder
 	MonsterForm.apply(m, true, true, true)
@@ -90,11 +100,16 @@ local function stand(m: Model, floor: Vector3, toward: Vector3)
 end
 
 local function vanish(m: Model)
+	-- flicker between gone and as it was (parts under a Blender mesh stay hidden)
+	local original: { [BasePart]: number } = {}
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			original[d] = d.LocalTransparencyModifier
+		end
+	end
 	for i = 1, 4 do
-		for _, d in m:GetDescendants() do
-			if d:IsA("BasePart") then
-				d.LocalTransparencyModifier = if i % 2 == 1 then 1 else 0
-			end
+		for d, value in original do
+			d.LocalTransparencyModifier = if i % 2 == 1 then 1 else value
 		end
 		task.wait(0.06)
 	end
@@ -152,7 +167,7 @@ local function shadow()
 	local dir = if math.random() < 0.5 then 1 else -1
 	local from = center - right * 22 * dir
 	local to = center + right * 22 * dir
-	local m = monster()
+	local m = monster(nil, true)
 	if not m then
 		return
 	end

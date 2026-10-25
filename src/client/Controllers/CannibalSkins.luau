@@ -30,7 +30,6 @@ local SLOTS: { [string]: string } = {
 }
 
 local dressed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
-local heldHidden: { [Model]: { [BasePart]: number } } = setmetatable({}, { __mode = "k" }) :: any
 
 -- The mask, eye holes and apron the server built; the glowing eyes stay.
 local function hideCostume(model: Model)
@@ -50,30 +49,15 @@ local function hideCostume(model: Model)
 	end
 end
 
--- The weapon and lantern, hidden while the claws are out (and their own
--- Blender visuals with them), restored as they were.
+-- The weapon and lantern, put away while the claws are out. MeshHidden keeps
+-- an item's Blender visual hidden even if it only arrives later (MeshLibrary).
 local function setHeld(model: Model, hidden: boolean)
-	if hidden then
-		local saved = heldHidden[model] or {}
-		heldHidden[model] = saved
-		for _, d in model:GetDescendants() do
-			if d:GetAttribute("Held") then
-				for _, p in Util.parts(d) do
-					if saved[p] == nil then
-						saved[p] = p.LocalTransparencyModifier
-					end
-					p.LocalTransparencyModifier = 1
-				end
-			end
-		end
-	else
-		local saved = heldHidden[model]
-		heldHidden[model] = nil
-		if saved then
-			for p, value in saved do
-				if p.Parent then
-					p.LocalTransparencyModifier = value
-				end
+	for _, d in model:GetDescendants() do
+		if d:GetAttribute("Held") then
+			d:SetAttribute("MeshHidden", if hidden then true else nil)
+			-- with its mesh in, only the mesh toggles; the stand-in stays hidden
+			for _, p in Util.parts(d:FindFirstChild("BlenderVisual") or d) do
+				p.LocalTransparencyModifier = if hidden then 1 else 0
 			end
 		end
 	end
@@ -126,14 +110,6 @@ function CannibalSkins.setForm(model: Model, monster: boolean): boolean
 		end
 	end
 	setHeld(model, monster)
-	if monster then
-		-- items whose own visual is still on its way (a fresh clone)
-		task.defer(function()
-			if heldHidden[model] then
-				setHeld(model, true)
-			end
-		end)
-	end
 	return true
 end
 

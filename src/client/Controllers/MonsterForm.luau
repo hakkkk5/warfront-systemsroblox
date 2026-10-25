@@ -35,9 +35,10 @@ type Saved = {
 	eyes: { [BasePart]: { size: Vector3, transparency: number } },
 }
 
-local saved: { [Model]: Saved } = {}
-local extras: { [Model]: { Instance } } = {}
-local monstrous: { [Model]: boolean } = {}
+-- weak: scare and cutscene clones are transformed directly and then destroyed
+local saved: { [Model]: Saved } = setmetatable({}, { __mode = "k" }) :: any
+local extras: { [Model]: { Instance } } = setmetatable({}, { __mode = "k" }) :: any
+local monstrous: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local gaits: { [Model]: { walk: any, run: any } } = setmetatable({}, { __mode = "k" }) :: any
 local tracked: { [Model]: boolean } = {}
 
