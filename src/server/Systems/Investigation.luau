@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Build = require(script.Parent.Parent.World.Build)
 local Hosts = require(script.Parent.Hosts)
+local Chores = require(script.Parent.Chores)
 local HouseLights = require(script.Parent.HouseLights)
 local Interact = require(script.Parent.Interact)
 
@@ -117,6 +118,9 @@ local function talk(_player: Player, name: string)
 	local o = opts
 	if not o or not active then
 		return
+	end
+	if Chores.onTalk(name) then
+		return -- handed Jason his beer
 	end
 	local n = foundCount()
 	local tier = if n >= 4 then 3 elseif n >= 2 then 2 else 1
@@ -358,6 +362,40 @@ local function done(): boolean
 		and foundCount() >= NEEDED
 end
 
+-- Supper's ready: the reveal plays once someone walks into the dining room
+-- (or after a while anyway).
+local dinnerCalled = false
+local function callDinner()
+	local o = opts
+	if dinnerCalled or not active or not o then
+		return
+	end
+	dinnerCalled = true
+	o.say("Jason", "Supper's ready! Everybody to the dining room. Now.", 4.5)
+	o.changed()
+	task.spawn(function()
+		local deadline = os.clock() + 120
+		while active and os.clock() < deadline do
+			task.wait(0.5)
+			for _, player in Players:GetPlayers() do
+				local character = player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root and root:IsA("BasePart") then
+					local v = origin:PointToObjectSpace(root.Position)
+					if v.Y < 12 and v.X > 5 and v.X < 32 and v.Z < 0 and v.Z > -24 then
+						deadline = 0
+					end
+				end
+			end
+		end
+		if active then
+			Chores.stop()
+			active = false
+			o.onComplete()
+		end
+	end)
+end
+
 local function checkComplete()
 	local o = opts
 	if completed or not active or not o or not done() then
@@ -367,9 +405,11 @@ local function checkComplete()
 	task.spawn(function()
 		task.wait(4.5)
 		o.say("You", "Whatever they're hiding is under that hatch... and Jason keeps a ring of keys on his belt.", 5)
-		task.wait(5)
-		active = false
-		o.onComplete()
+		task.wait(5.5)
+		if active then
+			-- part 2: "Make Yourself At Home"
+			Chores.start(o.say, o.changed, callDinner)
+		end
 	end)
 end
 
@@ -408,6 +448,7 @@ end
 function Investigation.prepare(houseOrigin: CFrame, parent: Instance)
 	origin = houseOrigin
 	buildClues(parent)
+	Chores.build(houseOrigin, parent)
 end
 
 function Investigation.start(parent: Instance, options: Options)
@@ -490,6 +531,17 @@ function Investigation.objectives(): { Objective }
 	local function add(text: string, isDone: boolean)
 		table.insert(list, { text = text, done = isDone })
 	end
+	if completed then
+		-- part 2: the hosts' little requests, then supper
+		if dinnerCalled then
+			add("Go to the dining room for supper", false)
+			return list
+		end
+		for _, o in Chores.objectives() do
+			table.insert(list, o)
+		end
+		return list
+	end
 	add("Explore the living room", visited.living == true)
 	add("Explore the kitchen", visited.kitchen == true)
 	add("Explore upstairs", visited.upstairs == true)
@@ -502,6 +554,13 @@ end
 
 function Investigation.hintTargets(): { Vector3 }
 	local list: { Vector3 } = {}
+	if completed then
+		if dinnerCalled then
+			table.insert(list, (origin * CF(18, 3, -12)).Position)
+			return list
+		end
+		return Chores.hintTargets()
+	end
 	if foundCount() < NEEDED then
 		for _, c in clues do
 			if not c.found then

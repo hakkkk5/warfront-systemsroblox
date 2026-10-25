@@ -58,6 +58,18 @@ local Lore: { [string]: Note } = {
 		title = "Kitchen Drawer",
 		body = "The drawer is full of teeth.\n\nDozens of them, sorted by size into a cutlery tray. Some still have fillings. A few are small enough to be a child's.\n\nA label taped to the front reads, in neat handwriting: KEEPSAKES.",
 	},
+	FridgeNote = {
+		title = "Note on the Fridge",
+		body = "Held up by a magnet shaped like a pig:\n\nSUPPER AT 7 O'CLOCK SHARP.\nNO EXCEPTIONS. NOT FOR GUESTS EITHER.\n\n- Mama\n\n(Someone has drawn a little clock face underneath, both hands pointing at the 7.)",
+	},
+	ChildNote = {
+		title = "Folded Drawing",
+		body = "A crayon drawing, folded into a tiny square.\n\nA house. Under the house, a row of stick people lying down in the dark. Their mouths are open.\n\nWritten very carefully:\n\nTHE PEOPLE UNDER THE FLOOR CRY AT NIGHT.\nPAPA SAYS THEY ARE SUPPER.\nI DONT WANT TO BE SUPPER.",
+	},
+	RingNote = {
+		title = "Wedding Ring",
+		body = "A gold wedding band from the bottom of the bathtub, slick with something red.\n\nEngraved on the inside:\n\nDALE & MARISOL - FOREVER - 2019\n\nThe same names that were crossed out on the missing posters.",
+	},
 	TomTally = {
 		title = "Scratched Note",
 		body = "Written in pencil on the back of a seed packet, pressed flat under the tally marks:\n\nDAY 14. Ranger T. Ellis, Pinecrest. They grabbed me at the station when the generator died. The fuse is still in the lookout tower - if anyone gets this, the station radio WORKS.\n\nThey take one of us upstairs every few days. The big one hums when he sharpens.\n\nThey always come down at night. I can hear the hatch.",

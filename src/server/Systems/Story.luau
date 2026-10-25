@@ -547,9 +547,52 @@ end
 
 ---------------------------------------------------------------- chapter transitions
 
+-- After the reveal the two of them start outside, circling the house. They
+-- come in once they know where you are (a noise, a glimpse through a window)
+-- or after a while, crashing in through the back.
 local function spawnHouseCannibals()
-	local butcher = Cannibals.spawn("Butcher", CFrame.new(house.groundPatrol[1]), { patrol = house.groundPatrol })
-	Cannibals.spawn("Brother", CFrame.new(house.upperPatrol[1]), { patrol = house.upperPatrol })
+	local outside: { Vector3 } = {}
+	for _, p in { Vector2.new(0, -37), Vector2.new(-41, -24), Vector2.new(-43, 22), Vector2.new(0, 35), Vector2.new(43, 22), Vector2.new(41, -24) } do
+		local w = house.origin * CFrame.new(p.X, 0, p.Y)
+		table.insert(outside, Vector3.new(w.X, Terrain.groundY(w.X, w.Z), w.Z))
+	end
+	local otherWay: { Vector3 } = {}
+	for i = #outside, 1, -1 do
+		table.insert(otherWay, outside[i])
+	end
+	local butcher = Cannibals.spawn("Butcher", CFrame.new(outside[1]), { patrol = outside })
+	local brother = Cannibals.spawn("Brother", CFrame.new(otherWay[2]), { patrol = otherWay })
+	local difficulty = workspace:GetAttribute("Difficulty")
+	local wait = if difficulty == "Easy" then 75 elseif difficulty == "Hard" then 40 elseif difficulty == "Nightmare" then 25 else 55
+	task.spawn(function()
+		local deadline = os.clock() + wait
+		while stage == "HouseEscape" and os.clock() < deadline do
+			task.wait(0.5)
+			local alerted = false
+			for _, c in { butcher, brother } do
+				if c.alive and c.state ~= "Patrol" and c.state ~= "Idle" then
+					alerted = true
+				end
+			end
+			if alerted then
+				break
+			end
+		end
+		if stage ~= "HouseEscape" then
+			return
+		end
+		local backDoor = (house.origin * CFrame.new(1, 4, 23)).Position
+		soundRemote:FireAllClients("Impact", backDoor)
+		soundRemote:FireAllClients("DoorOpen", backDoor)
+		soundRemote:FireAllClients("Growl", backDoor)
+		Story.say("You", "The back door just crashed in... they're inside the house.", 4)
+		if butcher.alive then
+			Cannibals.relocate(butcher, CFrame.new(house.groundPatrol[1]), house.groundPatrol)
+		end
+		if brother.alive then
+			Cannibals.relocate(brother, CFrame.new(house.upperPatrol[1]), house.upperPatrol)
+		end
+	end)
 	return butcher
 end
 
