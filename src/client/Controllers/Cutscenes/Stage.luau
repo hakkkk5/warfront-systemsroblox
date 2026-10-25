@@ -35,6 +35,8 @@ local LIMITS: { [string]: number } = {
 	TheyKnow = 26,
 	TruckFound = 12.5,
 	Drive = 68,
+	DoorLock = 25,
+	DoorBreak = 14,
 	Radio = 27,
 	Ending = 56,
 }

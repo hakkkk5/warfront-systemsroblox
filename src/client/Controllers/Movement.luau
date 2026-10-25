@@ -95,7 +95,14 @@ function Movement.init()
 		if hurt < 0.35 then
 			speed *= 0.85
 		end
-		humanoid.WalkSpeed = Util.lerp(humanoid.WalkSpeed, if Movement.locked then 0 else speed, math.min(1, dt * 8))
+		-- the chase after the explosion: pure adrenaline, no stamina limit
+		if player:GetAttribute("Adrenaline") == true and not crouching then
+			speed = if moving then 30 else P.WalkSpeed
+			Movement.stamina = P.StaminaMax
+			Movement.exhausted = false
+		end
+		local frozen = Movement.locked or player:GetAttribute("Struggling") == true
+		humanoid.WalkSpeed = Util.lerp(humanoid.WalkSpeed, if frozen then 0 else speed, math.min(1, dt * 8))
 
 		CameraController.sprinting = canSprint
 		CameraController.crouching = crouching

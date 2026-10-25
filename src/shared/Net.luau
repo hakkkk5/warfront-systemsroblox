@@ -25,6 +25,7 @@ local EVENTS = {
 	"Ending", -- show credits
 	"Struggle", -- syringe fight-back: keys to press
 	"Scare", -- apparitions, jumpscares, random events
+	"ChaseFX", -- spikes and falling trees during the chase
 	-- client -> server
 	"RequestPlay",
 	"CutsceneDone",

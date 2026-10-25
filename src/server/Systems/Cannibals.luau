@@ -172,6 +172,7 @@ export type Cannibal = {
 	prompt: ProximityPrompt?,
 	nextHunt: number,
 	struggling: boolean,
+	speedMult: number, -- the chase director pushes it to keep up
 }
 
 local folder = Instance.new("Folder")
@@ -460,7 +461,7 @@ end
 ---------------------------------------------------------------- movement
 
 local function moveTo(c: Cannibal, goal: Vector3, speed: number)
-	c.humanoid.WalkSpeed = speed
+	c.humanoid.WalkSpeed = speed * c.speedMult
 	local now = os.clock()
 	local needPath = c.moveGoal == nil
 		or (c.moveGoal :: Vector3 - goal).Magnitude > 5
@@ -1137,6 +1138,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		prompt = nil,
 		nextHunt = 0,
 		struggling = false,
+		speedMult = 1,
 	}
 	rig:SetAttribute("Kind", kind)
 	rig:SetAttribute("State", "Patrol")

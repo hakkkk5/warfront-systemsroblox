@@ -16,6 +16,7 @@ local Props = require(script.Parent.Parent.World.Props)
 local Terrain = require(script.Parent.Parent.World.Terrain)
 local Cannibals = require(script.Parent.Cannibals)
 local Cellar = require(script.Parent.Cellar)
+local Chase = require(script.Parent.Chase)
 local Doors = require(script.Parent.Doors)
 local AssetService = require(script.Parent.AssetService)
 local Interact = require(script.Parent.Interact)
@@ -182,7 +183,8 @@ local function objectives(): { Objective }
 	elseif stage == "Drive" then
 		add("Drive!", false)
 	elseif stage == "Hunt" then
-		add("RUN. Reach the ranger station to the north-east", false)
+		add("RUN! Follow the marker to the ranger station", false)
+		add("Dodge the red circles and the falling trees", false)
 	elseif stage == "Power" then
 		add("Find a fuse (fire lookout tower)", flags.fuseIn or Inventory.holder("Fuse") ~= nil)
 		add("Find fuel (tool shed)", flags.fueled or Inventory.holder("GasCan") ~= nil)
@@ -209,7 +211,13 @@ local function goal(): (Vector3?, string?)
 		end
 	elseif stage == "Forest" then
 		return sites.truckCF.Position, "The old truck"
-	elseif stage == "Hunt" or stage == "Radio" or stage == "Survive" then
+	elseif stage == "Hunt" then
+		local next = Chase.goal()
+		if next then
+			return next, "RUN!"
+		end
+		return sites.station.center, "Ranger station"
+	elseif stage == "Radio" or stage == "Survive" then
 		return sites.station.center, "Ranger station"
 	elseif stage == "Extraction" then
 		return sites.helipad.Position, "Helipad"
@@ -615,6 +623,57 @@ local function enterRepair()
 	Story.say("You", "The engine's gone... battery, plugs, a wheel. And that butcher had keys on his belt.", 5)
 end
 
+-- End of the chase: in through the station door, slam it, bolt it. The
+-- monster pounds on it and then goes quiet... for now.
+local enterPower: () -> () = function() end
+local function reachStation()
+	if stage ~= "Hunt" then
+		return
+	end
+	local door = sites.station.door
+	Cannibals.setPaused(true)
+	Doors.setOpen(door, false)
+	playCutscene("DoorLock", { door = door.hinge, center = sites.station.center }, 28)
+	teleportAll(sites.checkpoints.Station, false)
+	Cannibals.setPaused(false)
+	-- it lost you behind the door; they all fall back to circling the station
+	for _, c in Cannibals.all() do
+		c.speedMult = 1
+	end
+	enterPower()
+end
+
+-- The siege: the monster smashes the station door in.
+local function breakStationDoor()
+	local door = sites.station.door
+	local inward = (sites.station.center - door.center).Unit
+	door.locked = true -- it's gone, there's nothing left to open
+	for _, entry in door.parts do
+		local p = entry.part
+		p.Anchored = false
+		p.CanCollide = true
+		p.AssemblyLinearVelocity = inward * 55 + Vector3.new(math.random(-8, 8), 18, math.random(-8, 8))
+		p.AssemblyAngularVelocity = Vector3.new(math.random(-6, 6), math.random(-6, 6), math.random(-6, 6))
+		task.delay(8, function()
+			p:Destroy()
+		end)
+	end
+	if door.prompt then
+		(door.prompt :: ProximityPrompt).Enabled = false
+	end
+	soundRemote:FireAllClients("Explosion", door.center)
+	soundRemote:FireAllClients("Growl", door.center)
+	Story.say("You", "THE DOOR! It's coming through the door!", 3.5)
+	local butcher = Cannibals.find("Butcher")
+	local outside = door.center - inward * 6
+	if butcher then
+		Cannibals.relocate(butcher, CFrame.new(Vector3.new(outside.X, Terrain.groundY(outside.X, outside.Z), outside.Z)), { sites.station.center })
+		butcher.hunting = true
+	else
+		Cannibals.spawn("Butcher", CFrame.new(Vector3.new(outside.X, Terrain.groundY(outside.X, outside.Z), outside.Z)), { hunting = true })
+	end
+end
+
 function Story.startDrive()
 	if stage ~= "Repair" and stage ~= "Forest" then
 		return
@@ -646,12 +705,24 @@ function Story.startDrive()
 	teleportAll(Story.checkpoint(), false)
 	local target = Players:GetPlayers()[1]
 	local base = sites.wreck
-	Cannibals.spawn("Papa", onGround(base * CFrame.new(0, 0, 55)), { hunting = true, chase = target })
+	-- Jason comes out of the fire as the monster and runs you down to the
+	-- ranger station (Chase.luau); the rest of the family is out in the trees
+	local butcher = Cannibals.spawn("Butcher", onGround(base * CFrame.new(0, 0, 28)), { hunting = true, chase = target })
+	Cannibals.spawn("Papa", onGround(base * CFrame.new(0, 0, 70)), { hunting = true })
 	Cannibals.spawn("Kin", onGround(base * CFrame.new(-40, 0, 40)), { hunting = true })
-	Cannibals.spawn("Kin", onGround(base * CFrame.new(45, 0, 30)), { hunting = true })
+	Story.say("You", "It's coming out of the fire... RUN! The ranger station - past the lookout tower!", 4)
+	local waypoints: { Vector3 } = {}
+	for _, p in { Vector2.new(330, 230), Vector2.new(280, 330), Vector2.new(340, 420), Vector2.new(420, 405), Vector2.new(470, 382) } do
+		table.insert(waypoints, Vector3.new(p.X, Terrain.groundY(p.X, p.Y), p.Y))
+	end
+	Chase.start(world, waypoints, sites.station.door.center, butcher, function()
+		task.spawn(reachStation)
+	end, function()
+		Story.broadcast()
+	end)
 end
 
-local function enterPower()
+enterPower = function()
 	setStage("Power")
 	Story.say("You", "Ranger station... no power. The log said the fuse is in the tower, fuel in the shed.", 5)
 	for _, c in Cannibals.all() do
@@ -812,6 +883,13 @@ function Story.startSurvive()
 	playCutscene("Radio", { radio = sites.station.radio.CFrame }, 30)
 	setStage("Survive")
 	flags.surviveEnds = os.clock() + Config.SurviveDuration
+	-- a few seconds of quiet, then it comes through the door
+	task.delay(7, function()
+		if (stage :: Stage) == "Survive" then
+			playCutscene("DoorBreak", { door = sites.station.door.hinge, center = sites.station.center }, 16)
+			breakStationDoor()
+		end
+	end)
 	local papa = Cannibals.find("Papa")
 	if papa then
 		papa.hunting = true
@@ -929,7 +1007,7 @@ local function watcher()
 				enterRepair()
 			end
 		elseif stage == "Hunt" then
-			if anyPlayerWithin(sites.station.center, 48) then
+			if not Chase.running() and anyPlayerWithin(sites.station.center, 48) then
 				enterPower()
 			end
 		elseif stage == "Extraction" then
