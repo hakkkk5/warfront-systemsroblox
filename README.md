@@ -61,7 +61,7 @@ A local Claude session connected to the Roblox Studio MCP can run the same line 
 **Before publishing:**
 
 1. **Publish the place from the Roblox account `@hakaaannnnnnnn` (user 1864017860).** The ForgeGUI meshes are owned by that account, and `InsertService:LoadAsset` only loads models the experience owner owns. If you publish elsewhere, the game still works, but those props fall back to their part-built versions.
-2. In **Game Settings → Security**, turn on **Allow Mesh / Image APIs**. The Blender props are rebuilt at runtime with `EditableMesh`; without this setting the part-built versions are shown instead.
+2. Make sure the place holds **ReplicatedStorage.MeshAssets** (the imported Blender models, see "Blender models" below). It lives in the place file, not in the Rojo project, so a fresh `rojo build` or bake doesn't have it; without it the part-built versions are shown instead.
 3. Recommended: set **Max Players** to 1 for the intended experience. Co-op for 2–4 players works: objectives are shared and cutscenes play for everyone.
 4. Optional: in Studio, select Terrain and enable **Decoration** for animated grass.
 
@@ -80,22 +80,33 @@ A local Claude session connected to the Roblox Studio MCP can run the same line 
 
 The ids, target sizes and an optional `yaw` correction live in `src/shared/Assets.luau`. If a mesh comes in facing the wrong way, change its `yaw`.
 
-### Blender props
+### Blender models
 
-`tools/blender/build_props.py` models 28 props in Blender: lantern, cleaver, chainsaw, sack mask, generator, radio, jerry can, barrel, crate, chairs, body bag, cage, gravestones, dead trees, rocks, helicopter, campfire, tent, key, fuse, batteries, bandage and note. Each prop has:
+Everything below is modelled in Blender with Python, with wear, rust, blood and moss painted into vertex colours. Each model gets a GLB (`assets/blender/glb/`) and a preview render (`assets/blender/previews/`).
 
-- **Geometry:** turned, bevelled and swept shapes, with wear, rust, blood and moss painted procedurally into vertex colours.
-- **A GLB file:** `assets/blender/glb/`.
-- **A preview render:** `assets/blender/previews/`.
-- **Packed mesh data for the game:** `src/shared/Meshes/`. `src/client/Controllers/MeshLibrary.luau` turns it into MeshParts at runtime, so nothing has to be uploaded.
+- `tools/blender/build_props.py`: the props and furniture (lantern, cleaver, chainsaw, sack mask, generator, sofa, beds, stove, ...).
+- `tools/blender/build_buildings.py`: building exteriors modelled at their exact size around each building's origin (the farmhouse, ranger station, barn, tool shed, trailer, lookout tower roof and the lobby gas station).
+- `tools/blender/build_interiors.py`: the farmhouse rooms (wallpaper, wainscot, tiles, stair runner, blood).
+- `tools/blender/build_monsters.py`: the six cannibals' bodies, one mesh per R6 part, near-human and monster.
+
+The game uses them as **uploaded mesh assets** (a client may only build a handful of meshes at runtime):
+
+1. `tools/blender/export_combined.py` packs models into one `.glb` (`BH_OUT` names it, `-- Name ...` picks models).
+2. In Studio, **Import 3D** that file.
+3. Run `tools/roblox/harvest_meshes.luau` in the command bar. It files the parts under `ReplicatedStorage.MeshAssets.<Name>` and undoes the importer's turn and scale.
+4. Save the place.
+
+`src/client/Controllers/MeshLibrary.luau` swaps the meshes in for the server's part-built stand-ins (tag `BlenderMesh`, attribute `Mesh`); `CannibalSkins` dresses the cannibals. Anything not imported keeps its part-built look.
 
 To regenerate (Blender 4.2+ or `pip install bpy`):
 
 ```sh
-python tools/blender/build_props.py            # everything
-python tools/blender/build_props.py Lantern    # one prop
-BH_RENDER=0 python tools/blender/build_props.py  # skip preview renders
+blender -b --factory-startup -P tools/blender/build_props.py            # everything
+blender -b --factory-startup -P tools/blender/build_props.py -- Lantern # one prop
+BH_RENDER=0 blender -b --factory-startup -P tools/blender/build_monsters.py  # skip preview renders
 ```
+
+The terrain is baked into the place (`workspace.TerrainBaked`) so a match starts in a few seconds; regenerate it by running `Terrain.generate()` in Studio and saving.
 
 **Optional:** you can import any GLB with **File → Import 3D** and drop the result into `ServerStorage.CustomModels` under the same name, such as `Generator`. `AssetService` then uses your imported model instead of the generated one.
 
@@ -135,16 +146,20 @@ Touch and gamepad bindings are included.
 
 ```
 default.project.json        Rojo project (also sets lighting, first-person camera, spawning)
-src/shared/                 Config, Assets, Items, Lore, Net, Util, Signal, Meshes/ (Blender data)
+src/shared/                 Config, Assets, Items, Lore, Net, Util, Signal, Meshes/ (Blender model
+                            names), MeshCatalog (their materials)
 src/server/Main.server.luau builds the world, then starts the story
 src/server/World/           Terrain, House, Sites, Forest, Props, Lighting, Build helpers
 src/server/Systems/         Story, Cannibals, Inventory, Interact, Doors, Hiding, Pickups,
                             AssetService, PlayerService
 src/client/Main.client.luau client bootstrap
 src/client/Controllers/     Camera, Movement, Viewmodel (flashlight), Effects, Audio,
-                            Cutscenes, HidingView, MeshLibrary
+                            Cutscenes, HidingView, MeshLibrary, CannibalSkins, MonsterForm,
+                            Scares, Jumpscare, ChaseFX, Settings
 src/client/UI/              Menu, HUD, Prompts, Inventory, Notes, Death, Ending, Theme
-tools/blender/              Blender prop builder
+tools/blender/              Blender builders (props, buildings, interiors, monsters) and
+                            export_combined.py
+tools/roblox/               harvest_meshes.luau (files an Import 3D into MeshAssets)
 ```
 
 Gameplay tuning (speeds, stamina, detection, sedation time, survive timer, map layout) is in `src/shared/Config.luau`.

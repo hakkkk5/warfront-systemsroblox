@@ -66,9 +66,6 @@ def bundle():
                     continue
                 full = os.path.join(dirpath, name)
                 rel = os.path.relpath(full, os.path.join(ROOT, "src"))
-                # packed Blender meshes are client-only and large
-                if "Meshes" in rel.split(os.sep) and name != "init.luau":
-                    continue
                 path = module_path(rel)
                 if not path:
                     continue

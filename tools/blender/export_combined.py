@@ -4,13 +4,15 @@ Packs every Blender mesh into one file for a single Roblox Studio import.
 Roblox only lets a client build a handful of meshes at runtime (EditableMesh
 has a tiny client memory budget), so the game ships its Blender models as
 uploaded mesh assets instead. This script merges assets/blender/glb/*.glb
-(written by build_props.py / build_buildings.py) into
+(written by build_props.py, build_buildings.py, build_interiors.py and
+build_monsters.py) into
 
-    assets/blender/CannibalFamilyMeshes.glb
+    assets/blender/CannibalFamilyMeshes.glb   (BH_OUT renames it)
 
 with one object per mesh part, named "<MeshName>_<material>", every mesh
-around the same origin it was modelled at, plus a 1-stud cube called
-"MeshOrigin" at that origin. Import it once in Studio (Import 3D); then
+around the same origin it was modelled at, plus two 1-stud cubes:
+"MeshOrigin" at that origin and "MeshAxisX" 10 studs along +X, which tell
+how the importer moved and turned the scene. Import it in Studio; then
 tools/roblox/harvest_meshes.luau (run in the command bar or through the
 Studio MCP) uses MeshOrigin to undo any move or scale the importer applied
 and files the parts under ReplicatedStorage.MeshAssets.<MeshName>.

@@ -30,6 +30,7 @@ local catalog: { [string]: Entry } = {
 	charred = { material = "Wood", transparency = 0 },
 	chrome = { material = "Metal", transparency = 0 },
 	clapboard = { material = "WoodPlanks", transparency = 0 },
+	clapboard_farm = { material = "WoodPlanks", transparency = 0 },
 	claw = { material = "SmoothPlastic", transparency = 0 },
 	cloth_white = { material = "Fabric", transparency = 0 },
 	concrete = { material = "Concrete", transparency = 0 },

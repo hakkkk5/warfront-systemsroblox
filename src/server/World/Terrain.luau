@@ -310,8 +310,10 @@ function Terrain.generate()
 				Vector3.new(x0 + nx * RES, BASE_Y + ny * RES, z0 + nz * RES)
 			)
 			terrain:WriteVoxels(region, RES, materials, occupancy)
+			-- a breath between chunks so the server keeps ticking (players
+			-- saw a frozen game while the whole map was built in one go)
+			task.wait()
 		end
-		task.wait()
 	end
 end
 

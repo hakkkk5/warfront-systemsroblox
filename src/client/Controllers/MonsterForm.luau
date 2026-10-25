@@ -38,6 +38,7 @@ type Saved = {
 local saved: { [Model]: Saved } = {}
 local extras: { [Model]: { Instance } } = {}
 local monstrous: { [Model]: boolean } = {}
+local gaits: { [Model]: { walk: any, run: any } } = setmetatable({}, { __mode = "k" }) :: any
 local tracked: { [Model]: boolean } = {}
 
 local function withY(cf: CFrame, y: number): CFrame
@@ -153,6 +154,21 @@ function MonsterForm.apply(model: Model, on: boolean, quiet: boolean?, quick: bo
 	local s = remember(model)
 	local fast = quick == true
 	local skinned = CannibalSkins.setForm(model, on)
+	-- the stretched legs cover more ground a stride: slow the gait to match,
+	-- or the feet skate
+	if on then
+		local g = { walk = model:GetAttribute("AnimWalkRef"), run = model:GetAttribute("AnimRunRef") }
+		gaits[model] = g
+		model:SetAttribute("AnimWalkRef", (tonumber(g.walk) or 10) * LEG * 0.8)
+		model:SetAttribute("AnimRunRef", (tonumber(g.run) or 19) * LEG * 0.8)
+	else
+		local g = gaits[model]
+		if g then
+			model:SetAttribute("AnimWalkRef", g.walk)
+			model:SetAttribute("AnimRunRef", g.run)
+			gaits[model] = nil
+		end
+	end
 	local torso = partNamed(model, "Torso")
 	local root = partNamed(model, "HumanoidRootPart")
 

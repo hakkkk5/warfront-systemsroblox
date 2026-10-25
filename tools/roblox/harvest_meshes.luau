@@ -79,11 +79,8 @@ for _, part in root:GetDescendants() do
 			part.CanCollide = false
 			part.CanQuery = false
 			part.CanTouch = false
-			-- visuals only: skip building physics hulls (settable here, not at runtime)
-			pcall(function()
-				part.CollisionFidelity = Enum.CollisionFidelity.Box
-				part.RenderFidelity = Enum.RenderFidelity.Automatic
-			end)
+			-- (CollisionFidelity is left alone: changing it on a big batch makes
+			-- Studio rebuild every hull at once and can hang it)
 			part.Parent = group
 			group.WorldPivot = CFrame.new()
 			filed += 1

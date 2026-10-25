@@ -44,6 +44,7 @@ PALETTE.update({
     "awning_red": dict(color=srgb(150, 40, 34), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave"),
     "awning_white": dict(color=srgb(214, 206, 188), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave"),
     "clapboard": dict(color=srgb(176, 168, 148), roblox="WoodPlanks", rough=0.9, metal=0.0, pattern="chipped"),
+    "clapboard_farm": dict(color=srgb(124, 120, 104), roblox="WoodPlanks", rough=0.9, metal=0.0, pattern="chipped"),
     "paint_blue": dict(color=srgb(56, 92, 140), roblox="Metal", rough=0.5, metal=0.2, pattern="chipped"),
 })
 
@@ -389,6 +390,33 @@ def build_farmhouse():
         band(p, face, "trim", -span, span, 11.9, 12.9, 0.25)
         band(p, face, "trim", -span, span, 0.0, 0.7, 0.3, doors)
     corner_boards(p, "trim", 32.7, 24.7, 0, 24.6)
+
+    # the walls themselves: lap siding over all four faces on both floors, cut
+    # round every window and door (the server's flat siding layer is hidden).
+    # Openings: (centre, width, bottom, top) per floor, as House.luau cuts them.
+    def wins(*centres):
+        return [(c, 4.6, 3.8, 8.7) for c in centres]
+
+    siding = (
+        (Face("z", -24.5, -1), 32.7, {0.0: [(0, 5.4, -1, 9.2)] + wins(-20, -12, 12, 22), 13.0: wins(-20, -12, 12, 22)}),
+        (Face("z", 24.5, 1), 32.7, {0.0: [(2.5, 5.0, -1, 9.2)] + wins(-20, 20), 13.0: wins(-18, 18)}),
+        (Face("x", -32.5, -1), 24.7, {0.0: wins(-6, 12), 13.0: wins(-12, 12)}),
+        (Face("x", 32.5, 1), 24.7, {0.0: wins(-12, 12), 13.0: wins(-12, 12)}),
+    )
+    for face, half, floors in siding:
+        for y0, ops in floors.items():
+            # from the water table (ground) or the belly band (upper) to the
+            # belly band or the frieze
+            y, top, row = y0 + (1.0 if y0 == 0 else 0.2), y0 + (11.75 if y0 == 0 else 10.6), 0
+            while y < top:
+                gaps = [(c - w / 2, c + w / 2) for (c, w, b, t) in ops if y0 + b - 0.3 < y < y0 + t + 0.3]
+                band(p, face, "clapboard_farm", -half, half, y - 0.31, y + 0.31, 0.12 if row % 2 == 0 else 0.17, gaps)
+                y += 0.55
+                row += 1
+            for _ in range(14):
+                a, yy = rng.uniform(-half + 1, half - 1), rng.uniform(y0 + 1.2, top - 0.5)
+                if not any(c - w / 2 - 0.6 < a < c + w / 2 + 0.6 and y0 + b - 0.6 < yy < y0 + t + 0.6 for (c, w, b, t) in ops):
+                    face.box(p, "siding", rng.uniform(0.5, 2.2), rng.uniform(0.25, 0.6), 0.05, a, yy, 0.16)
 
     # chimney: brick stack with a corbelled top and two clay pots
     cx, cz = -30, -12

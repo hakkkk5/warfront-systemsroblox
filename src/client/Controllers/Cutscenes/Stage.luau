@@ -19,6 +19,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Audio)
 local Effects = require(script.Parent.Parent.Effects)
 local MeshLibrary = require(script.Parent.Parent.MeshLibrary)
+local Settings = require(script.Parent.Parent.Settings)
 local Theme = require(script.Parent.Parent.Parent.UI.Theme)
 
 local Stage = {}
@@ -83,6 +84,13 @@ local aborting = false
 local sceneClock = 0
 local sceneId = 0
 local running = false
+
+-- the film look every scene shares (see begin): a cold, crushed grade, a
+-- dark vignette and a lens that pulls focus onto whatever is in frame
+local grade: ColorCorrectionEffect? = nil
+local vignette: Frame? = nil
+local focus = 30
+local lensSaved: { [string]: number }? = nil
 
 ---------------------------------------------------------------- timeline
 
@@ -437,6 +445,9 @@ local function ensureGui()
 		ZIndex = 9,
 	})
 	layer = Theme.frame(screen, { Name = "Layer", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 10 })
+	local v = Theme.vignette(screen, ink, 0.3, 1)
+	v.Visible = false
+	vignette = v
 	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 		if barsOn then
 			setBars(barFraction(), 0)
@@ -480,7 +491,7 @@ function Stage.blink(close: number, hold: number, open: number, openTo: number?)
 end
 
 function Stage.flashWhite(duration: number)
-	white.BackgroundTransparency = 0
+	white.BackgroundTransparency = if Settings.reduceFlashing then 0.65 else 0
 	Util.tween(white, duration, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 end
 
@@ -656,7 +667,53 @@ local function render(dt: number): CFrame
 	if hideCharacters then
 		hideAllCharacters()
 	end
+	-- auto focus: pull focus to whatever sits in the middle of the frame
+	local lens = game:GetService("Lighting"):FindFirstChild("Depth")
+	if lens and lens:IsA("DepthOfFieldEffect") then
+		local view = camCF.Value
+		local hit = workspace:Raycast(view.Position, view.LookVector * 160)
+		local target = if hit then (hit.Position - view.Position).Magnitude else 80
+		focus += (target - focus) * math.min(1, dt * 3.5)
+		lens.FocusDistance = focus
+		lens.InFocusRadius = math.clamp(focus * 0.35, 2.5, 30)
+	end
 	return camCF.Value * sway
+end
+
+-- The shared film look, on for the length of a scene.
+local function filmLook(on: boolean)
+	local lens = game:GetService("Lighting"):FindFirstChild("Depth")
+	if on then
+		grade = Util.create("ColorCorrectionEffect", {
+			Name = "CutsceneGrade",
+			Contrast = 0.14,
+			Saturation = -0.2,
+			TintColor = rgb(228, 238, 255),
+			Parent = camera,
+		})
+		if lens and lens:IsA("DepthOfFieldEffect") then
+			lensSaved = { far = lens.FarIntensity, near = lens.NearIntensity, focus = lens.FocusDistance, radius = lens.InFocusRadius }
+			lens.FarIntensity = 0.4
+			lens.NearIntensity = 0.45
+		end
+		if vignette then
+			vignette.Visible = true
+		end
+		swayAmount = 0.25 -- a hand on the camera; scenes can still set their own
+	else
+		if grade then
+			grade:Destroy()
+			grade = nil
+		end
+		local s = lensSaved
+		if s and lens and lens:IsA("DepthOfFieldEffect") then
+			lens.FarIntensity, lens.NearIntensity, lens.FocusDistance, lens.InFocusRadius = s.far, s.near, s.focus, s.radius
+		end
+		lensSaved = nil
+		if vignette then
+			vignette.Visible = false
+		end
+	end
 end
 
 ---------------------------------------------------------------- splines
@@ -755,6 +812,7 @@ local function begin(kit: any)
 	blurValue.Value = 0
 	swayAmount = 0
 	hideCharacters = true
+	filmLook(true)
 	Stage.folder()
 	stopFollow = kit.follow(render)
 end
@@ -817,6 +875,7 @@ local function cleanup()
 	layer:ClearAllChildren()
 	white.BackgroundTransparency = 1
 	Stage.eyes(1, 0)
+	filmLook(false)
 	swayAmount = 0
 	blurValue.Value = 0
 	Effects.blurOverride = nil

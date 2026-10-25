@@ -7,7 +7,6 @@
 -- Reduce flashing (Settings) keeps the lunge and the sound but trades the
 -- strobe and the negative for one soft red pulse.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -17,6 +16,7 @@ local CameraController = require(script.Parent.CameraController)
 local Effects = require(script.Parent.Effects)
 local MeshLibrary = require(script.Parent.MeshLibrary)
 local Settings = require(script.Parent.Settings)
+local Theme = require(script.Parent.Parent.UI.Theme)
 
 local Jumpscare = {}
 
@@ -25,7 +25,6 @@ export type Options = {
 	duration: number?, -- how long the face stays in your face
 }
 
-local player = Players.LocalPlayer
 local RED = Color3.fromRGB(255, 20, 10)
 local WHITE = Color3.new(1, 1, 1)
 local BLACK = Color3.new(0, 0, 0)
@@ -99,16 +98,9 @@ function Jumpscare.play(kind: string?, opts: Options?)
 	local duration = o.duration or 0.75
 	local face = buildFace(kind or pickKind())
 
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "Jumpscare"
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 60
-	gui.ResetOnSpawn = false
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.fromScale(1, 1)
-	bg.BorderSizePixel = 0
-	bg.BackgroundTransparency = 1
-	bg.Parent = gui
+	-- above every other screen (Menu and Struggle are 30): nothing gets in front
+	local gui = Theme.screen("Jumpscare", 60)
+	local bg = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
 	local vp = Instance.new("ViewportFrame")
 	vp.Size = UDim2.fromScale(1, 1)
 	vp.BackgroundTransparency = 1
@@ -123,13 +115,7 @@ function Jumpscare.play(kind: string?, opts: Options?)
 	if face then
 		face.Parent = vp
 	end
-	local wash = Instance.new("Frame")
-	wash.Size = UDim2.fromScale(1, 1)
-	wash.BorderSizePixel = 0
-	wash.BackgroundColor3 = RED
-	wash.BackgroundTransparency = 1
-	wash.Parent = gui
-	gui.Parent = player:WaitForChild("PlayerGui")
+	local wash = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = RED, BackgroundTransparency = 1 })
 
 	-- the screech: the jumpscare sting under a scream pushed up and distorted
 	Audio.play("Jumpscare", nil, 1.3, 1)

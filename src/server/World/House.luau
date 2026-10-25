@@ -149,11 +149,12 @@ function House.build(parent: Instance): Info
 		Build.wall(structure, O, a, b, y0, h, 1, openings, color or WALL, mat or M.Plaster)
 	end
 	local function exterior(a: Vector2, b: Vector2, y0: number, h: number, openings: { Build.Opening })
-		-- weathered siding outside, plaster inside
+		-- weathered siding outside, plaster inside; the siding layer stands in
+		-- for the Blender clapboard (FarmhouseExterior) and is hidden under it
 		local alongX = math.abs(b.Y - a.Y) < 1e-3
 		local outward = if alongX then Vector2.new(0, if a.Y < 0 then -0.6 else 0.6) else Vector2.new(if a.X < 0 then -0.6 else 0.6, 0)
 		Build.wall(structure, O, a, b, y0, h, 1, openings, WALL_DIRTY, M.Plaster)
-		Build.wall(structure, O, a + outward, b + outward, y0, h, 0.2, openings, EXTERIOR, M.WoodPlanks)
+		Build.wall(shell, O, a + outward, b + outward, y0, h, 0.2, openings, EXTERIOR, M.WoodPlanks)
 	end
 
 	-- ground floor exterior

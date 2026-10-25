@@ -51,15 +51,21 @@ end
 
 function Effects.lightning()
 	local original = Lighting.Brightness
-	Lighting.Brightness = 3
 	Effects.flash(Color3.fromRGB(200, 215, 255), 0.35)
-	task.delay(0.08, function()
-		Lighting.Brightness = original
-		task.wait(0.1)
-		Lighting.Brightness = 2
-		task.wait(0.06)
-		Lighting.Brightness = original
-	end)
+	if Settings.reduceFlashing then
+		-- one soft brighten instead of the flicker
+		Lighting.Brightness = original + 0.6
+		Util.tween(Lighting, 0.6, { Brightness = original })
+	else
+		Lighting.Brightness = 3
+		task.delay(0.08, function()
+			Lighting.Brightness = original
+			task.wait(0.1)
+			Lighting.Brightness = 2
+			task.wait(0.06)
+			Lighting.Brightness = original
+		end)
+	end
 	task.delay(math.random(15, 40) / 10, function()
 		Audio.play("Thunder", nil, 0.8)
 		CameraController.shake(0.4, 2)

@@ -11,7 +11,9 @@
 --
 -- The server tags stand-ins with "BlenderMesh" and a "Mesh" attribute. This
 -- module hides the stand-in parts locally (LocalTransparencyModifier) and
--- shows the mesh in their place. Collisions, prompts and gameplay stay on the
+-- shows the mesh in their place: fitted to the stand-in's size (FIT_AXIS),
+-- unscaled at its pivot (MeshExact, buildings), or at a given scale
+-- (MeshScale, the cannibals' body parts). SkipMesh turns a stand-in off. Collisions, prompts and gameplay stay on the
 -- server parts, so a mesh that has not been imported yet simply leaves the
 -- procedural prop visible.
 

@@ -41,6 +41,14 @@ require(Systems.R6Characters).init()
 require(Server.Lobby).run()
 
 local started = os.clock()
+-- how long each build step took, printed with "world ready"
+local marks: { string } = {}
+local last = started
+local function mark(name: string)
+	local now = os.clock()
+	table.insert(marks, string.format("%s %.1fs", name, now - last))
+	last = now
+end
 
 for _, group in { "Player", "NPC", "Door" } do
 	pcall(function()
@@ -57,8 +65,10 @@ Cannibals.init()
 LightingSetup.apply()
 
 AssetService.preload()
+mark("assets")
 if workspace:GetAttribute("TerrainBaked") ~= true then
 	Terrain.generate()
+	mark("terrain")
 end
 
 local world = Instance.new("Folder")
@@ -67,9 +77,12 @@ world.Parent = workspace
 
 Forest.boundary(world)
 local house = House.build(world)
+mark("house")
 require(World.HidingSpots).build(house, world) -- more places to hide in the house
 local sites = Sites.build(world)
+mark("sites")
 Forest.build(world)
+mark("forest")
 
 AssetService.publishItemModels({
 	"Flashlight",
@@ -89,9 +102,10 @@ AssetService.publishItemModels({
 	"Note",
 })
 Cannibals.publishTemplates()
+mark("templates")
 
 Story.init(house, sites, world)
 require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
 
 workspace:SetAttribute("WorldReady", true)
-print(string.format("[Cannibal Family] world ready in %.1fs", os.clock() - started))
+print(string.format("[Cannibal Family] world ready in %.1fs (%s)", os.clock() - started, table.concat(marks, ", ")))

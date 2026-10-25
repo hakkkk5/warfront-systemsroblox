@@ -13,7 +13,9 @@
 -- nothing changes and the rig keeps its old look.
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Util = require(ReplicatedStorage.Shared.Util)
 local MeshLibrary = require(script.Parent.MeshLibrary)
 
 local CannibalSkins = {}
@@ -30,19 +32,6 @@ local SLOTS: { [string]: string } = {
 local dressed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local heldHidden: { [Model]: { [BasePart]: number } } = setmetatable({}, { __mode = "k" }) :: any
 
-local function partsOf(root: Instance): { BasePart }
-	local list: { BasePart } = {}
-	if root:IsA("BasePart") then
-		table.insert(list, root)
-	end
-	for _, d in root:GetDescendants() do
-		if d:IsA("BasePart") then
-			table.insert(list, d)
-		end
-	end
-	return list
-end
-
 -- The mask, eye holes and apron the server built; the glowing eyes stay.
 local function hideCostume(model: Model)
 	for _, d in model:GetDescendants() do
@@ -52,7 +41,7 @@ local function hideCostume(model: Model)
 				d:SetAttribute("SkipMesh", true)
 				MeshLibrary.remove(d)
 			end
-			for _, p in partsOf(d) do
+			for _, p in Util.parts(d) do
 				if p.Name ~= "Eye" then
 					p.LocalTransparencyModifier = 1
 				end
@@ -69,7 +58,7 @@ local function setHeld(model: Model, hidden: boolean)
 		heldHidden[model] = saved
 		for _, d in model:GetDescendants() do
 			if d:GetAttribute("Held") then
-				for _, p in partsOf(d) do
+				for _, p in Util.parts(d) do
 					if saved[p] == nil then
 						saved[p] = p.LocalTransparencyModifier
 					end
@@ -106,10 +95,7 @@ function CannibalSkins.apply(model: Model): boolean
 		local part = model:FindFirstChild(name)
 		if part and part:IsA("BasePart") then
 			part:SetAttribute("MeshScale", if typeof(scale) == "number" then scale else 1)
-			-- keep a form already chosen (MonsterForm may have run first)
-			if part:GetAttribute("Mesh") == nil then
-				part:SetAttribute("Mesh", kind .. slot)
-			end
+			part:SetAttribute("Mesh", kind .. slot)
 			CollectionService:AddTag(part, "BlenderMesh")
 		end
 	end
@@ -149,10 +135,6 @@ function CannibalSkins.setForm(model: Model, monster: boolean): boolean
 		end)
 	end
 	return true
-end
-
-function CannibalSkins.isDressed(model: Model): boolean
-	return dressed[model] == true
 end
 
 function CannibalSkins.init()
