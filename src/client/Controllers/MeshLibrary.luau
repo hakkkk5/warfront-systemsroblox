@@ -298,6 +298,10 @@ function MeshLibrary.upgrade(target: Instance): Model?
 	visual.Name = "BlenderVisual"
 	local axis = FIT_AXIS[name] or "Y"
 	local scale = axisValue(targetSize, axis) / math.max(axisValue(template.size, axis), 1e-3)
+	if target:GetAttribute("MeshExact") then
+		-- buildings are modelled at size around the stand-in's pivot
+		scale = 1
+	end
 	if scale > 0.05 and scale < 50 and math.abs(scale - 1) > 1e-3 then
 		visual:ScaleTo(scale)
 	end

@@ -126,7 +126,11 @@ local function buildSet(parent: Instance): { Party }
 
 	-- the store: lit windows, an OPEN sign, a payphone
 	Build.part(parent, Vector3.new(34, 12, 18), L(-14, 6, 26), rgb(120, 104, 86), M.WoodPlanks)
-	Build.part(parent, Vector3.new(36, 1, 20), L(-14, 12.5, 26), rgb(60, 48, 40), M.Slate)
+	-- flat roof: stand-in for the Blender store front (build_buildings.py:
+	-- parapet, awning, window frames, rooftop units, canopy trim)
+	local shell = Build.standIn(parent, "GasStationExterior")
+	Build.part(shell, Vector3.new(36, 1, 20), L(-14, 12.5, 26), rgb(60, 48, 40), M.Slate)
+	Build.markStandIn(shell, ORIGIN)
 	for _, x in { -24, -4 } do
 		local window = Build.part(parent, Vector3.new(8, 4.4, 0.3), L(x, 5, 16.9), rgb(255, 214, 150), M.Neon, { Transparency = 0.35 })
 		local light = Instance.new("SurfaceLight")

@@ -90,7 +90,8 @@ local function invisible(parent: Instance, size: Vector3, cf: CFrame, name: stri
 end
 
 ---------------------------------------------------------------- simple walkable shell
-type ShedOptions = { doorWidth: number?, holes: boolean?, windows: boolean?, roofColor: Color3? }
+-- mesh: the Blender exterior (build_buildings.py) that replaces the roof
+type ShedOptions = { doorWidth: number?, holes: boolean?, windows: boolean?, roofColor: Color3?, mesh: string? }
 
 -- Rectangular building with plank walls, a door gap on the front (-Z) wall and
 -- a gable roof. Returns the local-to-world origin.
@@ -114,13 +115,18 @@ local function shed(
 	local roof = o.roofColor or rgb(48, 44, 40)
 	local rh = w * 0.3
 	local roofSize = Vector3.new(w + 2, rh, d / 2 + 1)
+	local shell = if o.mesh then Build.standIn(parent, o.mesh) else nil
+	local roofParent: Instance = shell or parent
 	if o.holes then
 		-- broken roof: only a few panels survive
-		Build.wedge(parent, Vector3.new(w * 0.45, rh, d / 2 + 1), origin * CF(-w * 0.25, h + rh / 2, -d / 4 - 0.25), roof, M.CorrodedMetal)
-		Build.wedge(parent, Vector3.new(w * 0.6, rh, d / 2 + 1), origin * CF(w * 0.18, h + rh / 2, d / 4 + 0.25) * ANG(0, math.pi, 0), roof, M.CorrodedMetal)
+		Build.wedge(roofParent, Vector3.new(w * 0.45, rh, d / 2 + 1), origin * CF(-w * 0.25, h + rh / 2, -d / 4 - 0.25), roof, M.CorrodedMetal)
+		Build.wedge(roofParent, Vector3.new(w * 0.6, rh, d / 2 + 1), origin * CF(w * 0.18, h + rh / 2, d / 4 + 0.25) * ANG(0, math.pi, 0), roof, M.CorrodedMetal)
 	else
-		Build.wedge(parent, roofSize, origin * CF(0, h + rh / 2, -d / 4 - 0.25), roof, M.RoofShingles)
-		Build.wedge(parent, roofSize, origin * CF(0, h + rh / 2, d / 4 + 0.25) * ANG(0, math.pi, 0), roof, M.RoofShingles)
+		Build.wedge(roofParent, roofSize, origin * CF(0, h + rh / 2, -d / 4 - 0.25), roof, M.RoofShingles)
+		Build.wedge(roofParent, roofSize, origin * CF(0, h + rh / 2, d / 4 + 0.25) * ANG(0, math.pi, 0), roof, M.RoofShingles)
+	end
+	if shell then
+		Build.markStandIn(shell, origin)
 	end
 	-- foundation skirt so slopes never leave a gap underneath
 	Build.part(parent, Vector3.new(w, 6, d), origin * CF(0, -3.9, 0), rgb(60, 56, 52), M.Cobblestone)
@@ -291,7 +297,7 @@ local function buildBarn(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "Barn")
 	local origin = siteCF("Barn", 0, 0, rad(20))
 	origin = origin + Vector3.new(0, 0.5, 0)
-	shed(folder, origin, 30, 40, 16, rgb(96, 40, 32), { doorWidth = 12, holes = true })
+	shed(folder, origin, 30, 40, 16, rgb(96, 40, 32), { doorWidth = 12, holes = true, mesh = "BarnExterior" })
 	-- hay, stalls, chains, the engine on a hoist
 	for i = 0, 5 do
 		Build.part(folder, Vector3.new(4, 2.4, 2.6), origin * CF(-11 + (i % 3) * 4.2, 1.2 + (i // 3) * 2.4, 16), rgb(170, 140, 70), M.Grass)
@@ -372,7 +378,10 @@ local function buildTrailer(parent: Instance, info: Info, rng: Util.Rng)
 	local w, d, h = 10, 26, 8
 	local paint = rgb(196, 190, 170)
 	Build.part(folder, Vector3.new(w, 0.6, d), origin * CF(0, -0.3, 0), rgb(80, 74, 66), M.WoodPlanks)
-	Build.part(folder, Vector3.new(w + 0.4, 0.5, d + 0.4), origin * CF(0, h + 0.25, 0), paint, M.Metal)
+	-- the flat roof stands in for the Blender camper shell (build_buildings.py)
+	local shell = Build.standIn(folder, "TrailerExterior")
+	Build.part(shell, Vector3.new(w + 0.4, 0.5, d + 0.4), origin * CF(0, h + 0.25, 0), paint, M.Metal)
+	Build.markStandIn(shell, origin)
 	Build.wall(folder, origin, Vector2.new(-w / 2, -d / 2), Vector2.new(w / 2, -d / 2), 0, h, 0.4, { { at = 0, width = 4, bottom = 3, top = 6 } }, paint, M.Metal)
 	Build.wall(folder, origin, Vector2.new(-w / 2, d / 2), Vector2.new(w / 2, d / 2), 0, h, 0.4, {}, paint, M.Metal)
 	Build.wall(folder, origin, Vector2.new(-w / 2, -d / 2), Vector2.new(-w / 2, d / 2), 0, h, 0.4, { { at = -6, width = 4, bottom = 3.5, top = 6.5 }, { at = 6, width = 4, bottom = 3.5, top = 6.5 } }, paint, M.Metal)
@@ -498,15 +507,18 @@ local function buildStation(parent: Instance, info: Info, rng: Util.Rng)
 	Build.wall(folder, origin, Vector2.new(-8, -d / 2), Vector2.new(-8, d / 2), 0, h, 0.6, { { at = -4, width = 5, bottom = 0, top = 9 } }, rgb(120, 100, 76), M.WoodPlanks)
 	Build.wall(folder, origin, Vector2.new(8, -d / 2), Vector2.new(8, d / 2), 0, h, 0.6, { { at = -4, width = 5, bottom = 0, top = 9 } }, rgb(120, 100, 76), M.WoodPlanks)
 	Build.wall(folder, origin, Vector2.new(8, 4), Vector2.new(w / 2, 4), 0, h, 0.6, { { at = 12, width = 5, bottom = 0, top = 9 } }, rgb(120, 100, 76), M.WoodPlanks)
-	-- roof
-	Build.wedge(folder, Vector3.new(w + 4, 7, d / 2 + 2), origin * CF(0, h + 4, -d / 4 - 0.5), rgb(54, 66, 52), M.CorrodedMetal)
-	Build.wedge(folder, Vector3.new(w + 4, 7, d / 2 + 2), origin * CF(0, h + 4, d / 4 + 0.5) * ANG(0, math.pi, 0), rgb(54, 66, 52), M.CorrodedMetal)
+	-- roof, porch roof and posts: stand-ins for the Blender log-cabin exterior
+	-- (build_buildings.py), which also lays logs over the walls
+	local shell = Build.standIn(folder, "RangerStationExterior")
+	Build.wedge(shell, Vector3.new(w + 4, 7, d / 2 + 2), origin * CF(0, h + 4, -d / 4 - 0.5), rgb(54, 66, 52), M.CorrodedMetal)
+	Build.wedge(shell, Vector3.new(w + 4, 7, d / 2 + 2), origin * CF(0, h + 4, d / 4 + 0.5) * ANG(0, math.pi, 0), rgb(54, 66, 52), M.CorrodedMetal)
 	-- porch
 	Build.part(folder, Vector3.new(18, 0.6, 7), origin * CF(0, -0.3, -d / 2 - 3.5), rgb(100, 78, 54), M.WoodPlanks)
 	for _, x in { -8.5, 8.5 } do
-		Build.part(folder, Vector3.new(0.6, 10, 0.6), origin * CF(x, 5, -d / 2 - 6.5), rgb(70, 54, 40), M.Wood)
+		Build.part(shell, Vector3.new(0.6, 10, 0.6), origin * CF(x, 5, -d / 2 - 6.5), rgb(70, 54, 40), M.Wood)
 	end
-	Build.part(folder, Vector3.new(19, 0.6, 8), origin * CF(0, 10.2, -d / 2 - 3.5), rgb(54, 66, 52), M.CorrodedMetal)
+	Build.part(shell, Vector3.new(19, 0.6, 8), origin * CF(0, 10.2, -d / 2 - 3.5), rgb(54, 66, 52), M.CorrodedMetal)
+	Build.markStandIn(shell, origin)
 	sign(folder, "PINECREST RANGER STATION", site.X + 0, site.Y + 0, site)
 	local door = Doors.create(folder, origin * CF(-2.4, 0, -d / 2), 4.8, 9, { name = "StationDoor", swing = -1, color = rgb(60, 80, 60) })
 
@@ -551,7 +563,7 @@ local function buildStation(parent: Instance, info: Info, rng: Util.Rng)
 		light.Range = 22
 		light.Brightness = 1.6
 		light.Color = rgb(255, 228, 190)
-		light.Shadows = true
+		light.Shadows = p.X == 0 and p.Z == 0 -- one shadow caster is plenty in a small room
 		light.Enabled = false
 		light.Parent = lamp
 		table.insert(lights, light)
@@ -626,7 +638,10 @@ local function buildTower(parent: Instance, info: Info)
 	end
 	Build.part(folder, Vector3.new(13, 3.4, 0.4), base * CF(0, h + 2.1, 6.2), legColor, M.Wood)
 	Build.part(folder, Vector3.new(8, 3.4, 0.4), base * CF(-2.5, h + 2.1, -6.2), legColor, M.Wood)
-	Build.part(folder, Vector3.new(14, 0.6, 14), base * CF(0, h + 8.5, 0), rgb(54, 66, 52), M.CorrodedMetal)
+	-- flat cab roof: stand-in for the Blender hipped tin roof
+	local roof = Build.standIn(folder, "LookoutTowerRoof")
+	Build.part(roof, Vector3.new(14, 0.6, 14), base * CF(0, h + 8.5, 0), rgb(54, 66, 52), M.CorrodedMetal)
+	Build.markStandIn(roof, base)
 	for _, x in { -6, 6 } do
 		for _, z in { -6, 6 } do
 			Build.part(folder, Vector3.new(0.4, 8, 0.4), base * CF(x, h + 4.5, z), legColor, M.Wood)
@@ -647,7 +662,7 @@ end
 local function buildToolShed(parent: Instance, info: Info, rng: Util.Rng)
 	local folder = Build.folder(parent, "ToolShed")
 	local origin = siteCF("Shed", 0, 0, rad(150)) + Vector3.new(0, 0.5, 0)
-	shed(folder, origin, 12, 10, 9, rgb(84, 70, 54), { doorWidth = 4.5 })
+	shed(folder, origin, 12, 10, 9, rgb(84, 70, 54), { doorWidth = 4.5, mesh = "ToolShedExterior" })
 	Build.part(folder, Vector3.new(10, 0.4, 2.4), origin * CF(0, 3, 3.4), rgb(100, 76, 50), M.Wood)
 	for i = 0, 3 do
 		Build.part(folder, Vector3.new(0.2, 3.2, 0.3), origin * CF(-4 + i * 2.4, 6, 4.5), rgb(120, 120, 120), M.Metal, { CanCollide = false })

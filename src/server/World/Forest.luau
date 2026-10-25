@@ -103,8 +103,9 @@ function Forest.build(parent: Instance)
 		task.wait()
 	end
 
-	-- undergrowth on a finer grid
-	local small = 13
+	-- undergrowth on a finer grid (15 studs: dense enough to hide in, a third
+	-- fewer parts than 13 for slower devices to stream and draw)
+	local small = 15
 	for gx = -half, half, small do
 		for gz = -half, half, small do
 			local x = gx + rng:NextNumber(0, small)

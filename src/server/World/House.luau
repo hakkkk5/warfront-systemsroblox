@@ -120,13 +120,17 @@ function House.build(parent: Instance): Info
 	box(structure, Vector3.new(64, 1, 48), 0, 24.5, 0, rgb(80, 70, 58), M.WoodPlanks)
 
 	------------------------------------------------------------ roof
+	-- roof, chimney and the porch roof and posts stand in for the Blender
+	-- exterior (tools/blender/build_buildings.py), which also adds the trim,
+	-- gutters and gable siding; these parts keep the collisions
+	local shell = Build.standIn(structure, "FarmhouseExterior")
 	local roofColor = rgb(44, 40, 38)
-	Build.wedge(structure, Vector3.new(69, 11, 27), L(0, 30.5, -12.5), roofColor, M.RoofShingles)
-	Build.wedge(structure, Vector3.new(69, 11, 27), L(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
-	box(structure, Vector3.new(69, 0.6, 1.2), 0, 36.1, 0, rgb(34, 30, 28), M.Wood)
+	Build.wedge(shell, Vector3.new(69, 11, 27), L(0, 30.5, -12.5), roofColor, M.RoofShingles)
+	Build.wedge(shell, Vector3.new(69, 11, 27), L(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
+	box(shell, Vector3.new(69, 0.6, 1.2), 0, 36.1, 0, rgb(34, 30, 28), M.Wood)
 	-- chimney over the living room fireplace
-	box(structure, Vector3.new(4, 18, 4), -30, 28, -12, rgb(96, 50, 40), M.Brick)
-	local chimneyTop = box(structure, Vector3.new(4.4, 0.6, 4.4), -30, 37.3, -12, rgb(70, 66, 62), M.Concrete)
+	box(shell, Vector3.new(4, 18, 4), -30, 28, -12, rgb(96, 50, 40), M.Brick)
+	local chimneyTop = box(shell, Vector3.new(4.4, 0.6, 4.4), -30, 37.3, -12, rgb(70, 66, 62), M.Concrete)
 	local smoke = Instance.new("Smoke")
 	smoke.Color = rgb(60, 58, 56)
 	smoke.Opacity = 0.12
@@ -294,9 +298,10 @@ function House.build(parent: Instance): Info
 		box(structure, Vector3.new(8, foundation * (1 - i / 4) + 0.2, 1.4), 0, -foundation + (foundation * (1 - i / 4)) / 2 - 0.4, -33 - i * 1.2, rgb(70, 56, 40), M.WoodPlanks)
 	end
 	for _, x in { -9.5, 9.5 } do
-		box(structure, Vector3.new(0.6, 11, 0.6), x, 5.5, -33, TRIM, M.Wood)
+		box(shell, Vector3.new(0.6, 11, 0.6), x, 5.5, -33, TRIM, M.Wood)
 	end
-	box(structure, Vector3.new(21, 0.6, 10), 0, 11.3, -29, rgb(52, 46, 42), M.RoofShingles)
+	box(shell, Vector3.new(21, 0.6, 10), 0, 11.3, -29, rgb(52, 46, 42), M.RoofShingles)
+	Build.markStandIn(shell, O)
 	Build.bulb(lights, L(0, 9.8, -26.5), rgb(255, 196, 130), 0.9, 16, true)
 	local porchChair = Props.Chair(false)
 	porchChair:PivotTo(L(-6, 0, -28) * ANG(0, rad(200), 0))

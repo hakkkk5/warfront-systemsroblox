@@ -39,6 +39,8 @@ function Build.part(
 	p.Material = material
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
+	-- nothing listens to .Touched on world parts; skipping touch pairs saves physics time
+	p.CanTouch = false
 	apply(p, extra)
 	p.Parent = parent
 	return p
@@ -111,6 +113,22 @@ function Build.model(parent: Instance, name: string): Model
 	m.Name = name
 	m.Parent = parent
 	return m
+end
+
+-- Holds the parts a Blender building exterior replaces (roof wedges, flat
+-- porch roofs, box posts; tools/blender/build_buildings.py). Build them into
+-- it, then call Build.markStandIn with the building's origin: clients hide
+-- these and place the mesh there unscaled. The parts keep the collisions.
+function Build.standIn(parent: Instance, meshName: string): Model
+	return Build.model(parent, meshName)
+end
+
+function Build.markStandIn(model: Model, origin: CFrame)
+	-- set last: a pivotless model re-centres when its first part arrives
+	model.WorldPivot = origin
+	model:SetAttribute("Mesh", model.Name)
+	model:SetAttribute("MeshExact", true)
+	CollectionService:AddTag(model, "BlenderMesh")
 end
 
 function Build.folder(parent: Instance, name: string): Folder
@@ -210,7 +228,7 @@ function Build.candle(parent: Instance, cf: CFrame, height: number?)
 	light.Color = Color3.fromRGB(255, 150, 70)
 	light.Brightness = 0.9
 	light.Range = 9
-	light.Shadows = true
+	light.Shadows = false
 	light.Parent = flame
 	CollectionService:AddTag(flame, "Candle")
 end

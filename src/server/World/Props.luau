@@ -91,9 +91,8 @@ function Props.DeadTree(rng: Util.Rng): Model
 		local yaw = rng:NextNumber(0, math.pi * 2)
 		local pitch = rng:NextNumber(20, 55)
 		local branch = CF(0, by, 0) * ANG(0, yaw, 0) * ANG(0, 0, rad(pitch)) * CF(len / 2, 0, 0)
+		-- clients swap in the Blender dead tree, so the stand-in skips the twigs
 		Build.cylinder(m, len, rng:NextNumber(0.35, 0.6), branch, bark, M.Wood, { CanCollide = false })
-		local twig = branch * CF(len / 2, 0, 0) * ANG(0, rng:NextNumber(-0.8, 0.8), rad(rng:NextNumber(-30, 40))) * CF(len * 0.3, 0, 0)
-		Build.cylinder(m, len * 0.6, 0.22, twig, bark, M.Wood, { CanCollide = false })
 	end
 	return finish(m, if rng:NextNumber() > 0.5 then "DeadTree" else "DeadTree2")
 end
@@ -102,10 +101,12 @@ function Props.Bush(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Bush"
 	local green = rgb(rng:NextInteger(30, 42), rng:NextInteger(42, 52), rng:NextInteger(26, 32))
-	for _ = 1, rng:NextInteger(3, 5) do
-		local s = rng:NextNumber(2.2, 4.2)
-		Build.ball(m, s, CF(rng:NextNumber(-1.6, 1.6), s * 0.32, rng:NextNumber(-1.6, 1.6)), green, M.LeafyGrass, {
+	-- two or three big balls read as a bush; there are thousands, so keep it cheap
+	for _ = 1, rng:NextInteger(2, 3) do
+		local s = rng:NextNumber(2.6, 4.6)
+		Build.ball(m, s, CF(rng:NextNumber(-1.4, 1.4), s * 0.32, rng:NextNumber(-1.4, 1.4)), green, M.LeafyGrass, {
 			CanCollide = false,
+			CanQuery = false,
 			CastShadow = false,
 		})
 	end
@@ -147,13 +148,19 @@ end
 function Props.Mushrooms(rng: Util.Rng): Model
 	local m = Instance.new("Model")
 	m.Name = "Mushrooms"
-	for _ = 1, rng:NextInteger(3, 6) do
+	for _ = 1, rng:NextInteger(2, 4) do
 		local x, z = rng:NextNumber(-0.8, 0.8), rng:NextNumber(-0.8, 0.8)
 		local h = rng:NextNumber(0.25, 0.6)
 		Build.post(m, h, 0.12, CF(x, h / 2, z), rgb(210, 200, 180), M.SmoothPlastic)
 		P(m, Vector3.new(0.45, 0.14, 0.45), CF(x, h, z), rgb(150, 110, 70), M.SmoothPlastic)
 	end
 	noCollide(m)
+	for _, d in m:GetChildren() do
+		if d:IsA("BasePart") then
+			d.CanQuery = false
+			d.CastShadow = false
+		end
+	end
 	return finish(m)
 end
 
@@ -461,7 +468,7 @@ function Props.Lantern(): Model
 	light.Color = rgb(255, 160, 80)
 	light.Brightness = 1.6
 	light.Range = 18
-	light.Shadows = true
+	light.Shadows = false
 	light.Parent = glass
 	Build.tag(glass, "Candle")
 	noCollide(m)

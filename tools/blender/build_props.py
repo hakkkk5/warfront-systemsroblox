@@ -1349,6 +1349,9 @@ def finalize(prop):
                 hi[i] = max(hi[i], v.co[i])
     if prop.pivot == "bottom":
         offset = Vector((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z))
+    elif prop.pivot == "origin":
+        # modelled in place around its game origin (build_buildings.py)
+        offset = Vector((0, 0, 0))
     else:
         offset = Vector((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -(lo.z + hi.z) / 2))
     for ob in prop.objects:
