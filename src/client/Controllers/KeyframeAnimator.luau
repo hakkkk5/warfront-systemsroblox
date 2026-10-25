@@ -14,6 +14,7 @@
 --                                   (cutscenes), "none" to stop writing
 --   AnimRate                        playback rate while forced
 --   AnimBusy                        true while an Animator action plays
+--   AnimLegsOnly                    true to animate only the legs
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -260,9 +261,15 @@ local function step(rig: Rig, dt: number, camPos: Vector3)
 	if previous then
 		rig.previousTime += dt
 	end
+	-- AnimLegsOnly: walk with the legs while the arms hold a pose (carrying)
+	local legsOnly = attr(rig.model, "AnimLegsOnly") == true
 	for j, joint in clip.joints do
 		local motor = rig.motors[joint]
 		if motor then
+			if legsOnly and joint ~= "Left Leg" and joint ~= "Right Leg" then
+				motor.Transform = CFrame.identity
+				continue
+			end
 			local cf = sample(clip, rig.time, j)
 			if previous then
 				cf = sample(previous, rig.previousTime, j):Lerp(cf, rig.blend)

@@ -122,6 +122,15 @@ local defs: { [string]: ItemDef } = {
 		icon = Assets.Images.Wrench,
 		questItem = true,
 	},
+	BoltCutters = {
+		id = "BoltCutters",
+		name = "Bolt Cutters",
+		description = "Long-handled bolt cutters. They'll bite through a padlock or a chain.",
+		model = "BoltCutters",
+		icon = Assets.Images.Wrench,
+		tint = Color3.fromRGB(220, 70, 60),
+		questItem = true,
+	},
 	GasCan = {
 		id = "GasCan",
 		name = "Fuel Can",
@@ -142,6 +151,7 @@ Items.Order = {
 	"Battery",
 	"Bandage",
 	"HouseKey",
+	"BoltCutters",
 	"TruckKeys",
 	"Engine",
 	"CarBattery",

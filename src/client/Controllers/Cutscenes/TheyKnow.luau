@@ -1,10 +1,11 @@
 --!strict
 -- TheyKnow (~16 s): the end of Chapter 1. From the hall you watch Jason and
--- Michel whisper by the front door. They know what you found. They turn,
--- the eyes close for a heartbeat, and the friendly couple are gone: two
--- masked butchers stand in their place.
+-- Michel whisper by the front door, over your shoulder. They know what you
+-- found. They turn, the bulb dies for a heartbeat, and the friendly couple
+-- are gone: two masked butchers stand in their place. You run.
 -- data: { camera, jason, michel: CFrame }
 
+local Util = require(game:GetService("ReplicatedStorage").Shared.Util)
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
 local CameraController = require(script.Parent.Parent.CameraController)
 local Effects = require(script.Parent.Parent.Effects)
@@ -47,8 +48,16 @@ return Stage.scene("TheyKnow", function(data: any)
 	Cast.pose(jason, "neck", Cast.neck(jason, -0.25, 0, 0), 0)
 	Cast.pose(michel, "neck", Cast.neck(michel, -0.3, 0, 0), 0)
 
-	Stage.cut(cam, 55)
-	Stage.move(cam * CF(0, -0.2, -2.6), 11, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	-- you, at the end of the hall, watching them over your shoulder
+	local forward = Util.flat(cam.LookVector)
+	forward = if forward.Magnitude > 1e-3 then forward.Unit else Vector3.new(0, 0, -1)
+	local standAt = cam.Position + forward * 2.2 + cam.RightVector * 0.9 - UP * 4.6
+	local me = Cast.me(CFrame.lookAt(standAt, standAt + forward))
+	Cast.play(me, "idle")
+	Cast.pose(me, "waist", Cast.waist(me, 0.15, -0.2), 0) -- leaning round the corner
+
+	Stage.cut(cam * CF(1.3, 0.4, 2.4), 55)
+	Stage.move(cam * CF(1.1, 0.2, 0.9), 11, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 	Stage.sway(0.3)
 	Stage.resetClock()
 	Stage.fadeTo(0, 0.6)
@@ -75,9 +84,15 @@ return Stage.scene("TheyKnow", function(data: any)
 	HUD.subtitle("Jason", "Find them.", 2.2)
 	at(11.6)
 
-	-- blink, and the masks are on
-	Stage.eyes(0, 0.12)
-	sleep(0.3)
+	-- the bulb dies for a heartbeat, and the masks are on
+	Stage.sfx("FlashlightClick", nil, bulb.Position, 1, 0.8)
+	light.Enabled = false
+	bulb.Material = Enum.Material.SmoothPlastic
+	Stage.fadeTo(0.85, 0.08)
+	sleep(0.35)
+	light.Enabled = true
+	bulb.Material = Enum.Material.Neon
+	Stage.fadeTo(0, 0.06)
 	local butcherCF = jason.root.CFrame - UP * jason.lift
 	local brotherCF = michel.root.CFrame - UP * michel.lift
 	jason.model:Destroy()
@@ -89,7 +104,7 @@ return Stage.scene("TheyKnow", function(data: any)
 	Cast.pose(butcher, "rightShoulder", Cast.arm(butcher, true, 1.9, 0.2), 0)
 	light.Color = rgb(255, 120, 90)
 	Stage.zoom(46, 0)
-	Stage.eyes(1, 0.08)
+	Cast.pose(me, "waist", Cast.waist(me, -0.15, 0), 0.15) -- you flinch back
 	Stage.sfx("Jumpscare", "Growl", butcherCF.Position, 0.9, 1)
 	Stage.sfx("Growl", nil, butcherCF.Position, 1, 0.85)
 	CameraController.shake(1.4, 3)
@@ -104,12 +119,19 @@ return Stage.scene("TheyKnow", function(data: any)
 		light.Brightness = 1.1
 	end)
 	sleep(0.6)
-	-- the Butcher starts down the hall
+	-- the Butcher starts down the hall; you turn and run past the camera
 	Stage.go(function()
 		local toward = Vector3.new(camPos.X, butcherCF.Y, camPos.Z)
 		local step = butcherCF.Position + (toward - butcherCF.Position).Unit * 3
 		Cast.walk(butcher, { step }, 6)
 	end)
+	Stage.go(function()
+		Cast.pose(me, "waist", CFrame.identity, 0.2)
+		local base = me.root.Position - UP * me.lift
+		Cast.face(me, base - forward * 10, 0.3)
+		Cast.walk(me, { base - forward * 6 + cam.RightVector * 1.8 }, 16, { anim = 1.1 })
+	end)
+	Stage.zoom(60, 1)
 	sleep(1.5)
 	Stage.setBlack(1)
 	Stage.sfx("Impact", nil, nil, 0.8, 0.6)
@@ -117,4 +139,5 @@ return Stage.scene("TheyKnow", function(data: any)
 	Stage.stopCamera()
 	butcher.model:Destroy()
 	brother.model:Destroy()
+	me.model:Destroy()
 end)

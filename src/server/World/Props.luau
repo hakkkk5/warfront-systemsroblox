@@ -370,6 +370,21 @@ function Props.Fuse(): Model
 	return finish(m)
 end
 
+-- Long-handled bolt cutters (opens the cellar padlock and the chains).
+function Props.BoltCutters(): Model
+	local m = Instance.new("Model")
+	m.Name = "BoltCutters"
+	local steel = rgb(110, 110, 112)
+	for _, side in { -1, 1 } do
+		P(m, Vector3.new(0.12, 0.12, 2.4), CF(side * 0.12, 0.08, 0.3) * ANG(0, rad(side * 4), 0), steel, M.Metal)
+		P(m, Vector3.new(0.18, 0.18, 1.1), CF(side * 0.2, 0.08, 1.2) * ANG(0, rad(side * 4), 0), rgb(170, 30, 24), M.Plastic)
+		P(m, Vector3.new(0.22, 0.14, 0.5), CF(side * 0.06, 0.08, -1.05) * ANG(0, rad(-side * 10), 0), rgb(60, 60, 62), M.Metal)
+	end
+	Build.cylinder(m, 0.16, 0.16, CF(0, 0.08, -0.75), rgb(80, 80, 82), M.Metal)
+	noCollide(m)
+	return finish(m)
+end
+
 function Props.GasCan(): Model
 	local m = Instance.new("Model")
 	m.Name = "GasCan"

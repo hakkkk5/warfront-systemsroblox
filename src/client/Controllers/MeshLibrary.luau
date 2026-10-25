@@ -31,6 +31,13 @@ local FIT_AXIS: { [string]: string } = {
 	Chainsaw = "Z",
 	Helicopter = "Z",
 	Bandage = "Max",
+	-- farmhouse furniture with parts sticking up (stove pipe, tap, cushions)
+	Sofa = "X",
+	Stove = "X",
+	Bathtub = "X",
+	DiningTable = "X",
+	CoffeeTable = "X",
+	KitchenTable = "X",
 }
 
 type Template = { model: Model, size: Vector3, pivot: string }

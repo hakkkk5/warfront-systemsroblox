@@ -58,6 +58,10 @@ local Lore: { [string]: Note } = {
 		title = "Kitchen Drawer",
 		body = "The drawer is full of teeth.\n\nDozens of them, sorted by size into a cutlery tray. Some still have fillings. A few are small enough to be a child's.\n\nA label taped to the front reads, in neat handwriting: KEEPSAKES.",
 	},
+	TomTally = {
+		title = "Scratched Note",
+		body = "Written in pencil on the back of a seed packet, pressed flat under the tally marks:\n\nDAY 14. Ranger T. Ellis, Pinecrest. They grabbed me at the station when the generator died. The fuse is still in the lookout tower - if anyone gets this, the station radio WORKS.\n\nThey take one of us upstairs every few days. The big one hums when he sharpens.\n\nThey always come down at night. I can hear the hatch.",
+	},
 	ClueFridge = {
 		title = "Freezer Packages",
 		body = "The fridge is packed with white paper parcels, frozen solid, each one labelled in neat marker:\n\nDALE - RIBS\nMARISOL - SHOULDER\nBRANDT - STEW MEAT\nHARLAN (SMALL) - SAUSAGE\n\nThe parcel at the front isn't frozen yet. The label is blank, waiting for a name.",

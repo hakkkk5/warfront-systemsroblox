@@ -110,6 +110,77 @@ function HUD.chapterCard(chapter: string, title: string)
 	end)
 end
 
+-- The one place the story wants you to head for right now (the truck, the
+-- station, the helipad...), always on screen with its distance so nobody is
+-- left wandering the woods. Hidden once you are close.
+local goal: { anchor: Part, gui: BillboardGui, label: TextLabel, dist: TextLabel, pos: Vector3 }? = nil
+
+local function setGoal(pos: Vector3?, text: string?)
+	if not pos then
+		if goal then
+			goal.anchor:Destroy()
+			goal = nil
+		end
+		return
+	end
+	if not goal then
+		local anchor = Instance.new("Part")
+		anchor.Name = "GoalMarker"
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.CanQuery = false
+		anchor.CanTouch = false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.one
+		anchor.Parent = markers
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(160, 64)
+		bb.AlwaysOnTop = true
+		bb.LightInfluence = 0
+		bb.Adornee = anchor
+		bb.Parent = anchor
+		local diamond = Instance.new("Frame")
+		diamond.AnchorPoint = Vector2.new(0.5, 0)
+		diamond.Position = UDim2.fromScale(0.5, 0)
+		diamond.Size = UDim2.fromOffset(14, 14)
+		diamond.Rotation = 45
+		diamond.BackgroundColor3 = C.Bone
+		diamond.BackgroundTransparency = 0.15
+		diamond.BorderSizePixel = 0
+		diamond.Parent = bb
+		local label = Theme.label(bb, "", {
+			Position = UDim2.fromOffset(0, 20),
+			Size = UDim2.new(1, 0, 0, 18),
+			TextSize = 14,
+			Font = Theme.Fonts.UI,
+			TextStrokeTransparency = 0.5,
+		})
+		local dist = Theme.label(bb, "", {
+			Position = UDim2.fromOffset(0, 38),
+			Size = UDim2.new(1, 0, 0, 16),
+			TextSize = 13,
+			Font = Theme.Fonts.UI,
+			TextColor3 = C.BoneDim,
+			TextStrokeTransparency = 0.5,
+		})
+		goal = { anchor = anchor, gui = bb, label = label, dist = dist, pos = pos }
+	end
+	local g = goal :: any
+	g.pos = pos
+	g.anchor.CFrame = CFrame.new(pos + Vector3.new(0, 4, 0))
+	g.label.Text = text or ""
+end
+
+local function updateGoal()
+	local g = goal
+	if not g then
+		return
+	end
+	local d = (workspace.CurrentCamera.CFrame.Position - g.pos).Magnitude
+	g.gui.Enabled = HUD.visible and d > 14
+	g.dist.Text = string.format("%dm", math.floor(d * 0.28))
+end
+
 local function renderObjectives(data: any)
 	for _, c in objectiveList:GetChildren() do
 		if c:IsA("TextLabel") then
@@ -134,6 +205,7 @@ local function renderObjectives(data: any)
 		line.TextTransparency = 1
 		Util.tween(line, 0.4 + i * 0.08, { TextTransparency = 0 })
 	end
+	setGoal(if typeof(data.goal) == "Vector3" then data.goal else nil, data.goalLabel)
 	-- a title card whenever a new chapter begins
 	if data.chapter ~= lastChapter and data.chapter ~= "" then
 		lastChapter = data.chapter
@@ -384,6 +456,7 @@ function HUD.init()
 	ContextActionService:SetPosition("Hint", UDim2.new(1, -100, 1, -290))
 
 	RunService.RenderStepped:Connect(function(dt: number)
+		updateGoal()
 		if not HUD.visible then
 			return
 		end

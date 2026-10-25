@@ -6,6 +6,7 @@ local CameraController = require(script.Parent.Parent.CameraController)
 local Effects = require(script.Parent.Parent.Effects)
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
 local Stage = require(script.Parent.Stage)
+local Cast = require(script.Parent.Cast)
 
 local rgb = Color3.fromRGB
 local at = Stage.at
@@ -50,6 +51,18 @@ return Stage.scene("Radio", function(data: any)
 			staticOn = false
 		end)
 	end
+
+	-- you at the desk beside the set, the handset up at your mouth (the desk
+	-- top is about three studs above the floor)
+	local floorY = radioCF.Y - 3.1
+	local standAt = R(-1.7, 0, -1.3)
+	standAt = Vector3.new(standAt.X, floorY, standAt.Z)
+	local radioPos = radioCF.Position
+	local me = Cast.me(CFrame.lookAt(standAt, Vector3.new(radioPos.X, floorY, radioPos.Z)))
+	Cast.play(me, "idle")
+	Cast.pose(me, "rightShoulder", Cast.arm(me, true, 2.3, 0.35), 0)
+	Cast.pose(me, "neck", Cast.neck(me, -0.3, 0, 0), 0)
+	Cast.pose(me, "waist", Cast.waist(me, 0.2), 0)
 
 	Stage.shot(18.4, { R(1.7, 1.2, -3.8), R(0.5, 0.5, -2.7), R(-0.4, 0.35, -2.2) }, { R(0, -0.1, 0), R(0, -0.15, 0), R(0.1, -0.1, 0) }, {
 		fov = 60,

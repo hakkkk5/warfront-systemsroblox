@@ -122,20 +122,40 @@ return Stage.scene("Drive", function(data: any)
 	local bbCF, bbSize = body:GetBoundingBox()
 	local center = truckCF:PointToObjectSpace(bbCF.Position)
 	local eyeLocal = CF(center.X - 1.6, center.Y - bbSize.Y / 2 + bbSize.Y * 0.8, center.Z)
-	-- From the driver's seat the body is hidden and the cockpit (with its own
-	-- bonnet and headlights) stands in for it, so the view works with any
-	-- truck model, procedural or imported mesh. The body shows again outside.
-	local bodyParts: { { part: BasePart, transparency: number } } = {}
-	for _, p in body:GetDescendants() do
-		if p:IsA("BasePart") then
-			table.insert(bodyParts, { part = p, transparency = p.Transparency })
-			p.Transparency = 1
+	local frontZ = center.Z - bbSize.Z / 2
+	-- third person: the camera chases the truck, you at the wheel inside. The
+	-- cockpit only drives the warning lamps now and stays out of the world.
+	local cockpit = Cast.buildCockpit(6.6, rgb(122, 40, 32))
+	cockpit.model.Parent = nil
+	local me = Cast.me(CFrame.identity)
+	Cast.sit(me, 1.1)
+	local seatLocal = CF(eyeLocal.X, eyeLocal.Y - 1.6, center.Z + 0.6)
+	-- headlights on the body itself
+	local beams: { SpotLight } = {}
+	local lampParts: { { part: BasePart, offset: CFrame } } = {}
+	for _, x in { -2.5, 2.5 } do
+		local lamp = part(Vector3.new(1, 0.6, 0.15), CFrame.identity, rgb(70, 70, 66), Enum.Material.Glass, { Transparency = 0.3 })
+		local beam = Instance.new("SpotLight")
+		beam.Face = Enum.NormalId.Front
+		beam.Range = 75
+		beam.Angle = 60
+		beam.Brightness = 0
+		beam.Color = rgb(255, 240, 210)
+		beam.Shadows = true
+		beam.Parent = lamp
+		table.insert(beams, beam)
+		table.insert(lampParts, { part = lamp :: BasePart, offset = CF(center.X + x, center.Y - bbSize.Y * 0.12, frontZ - 0.05) })
+	end
+	local function lights(on: boolean)
+		for _, beam in beams do
+			beam.Brightness = if on then 5 else 0
+		end
+		for _, l in lampParts do
+			l.part.Material = if on then Enum.Material.Neon else Enum.Material.Glass
+			l.part.Color = if on then rgb(255, 246, 222) else rgb(70, 70, 66)
 		end
 	end
-	local cockpit = Cast.buildCockpit(6.6, rgb(122, 40, 32))
-	for _, l in cockpit.lights do
-		l.Enabled = false
-	end
+	local chaseCam: CFrame? = nil
 	local readInput = inputReader()
 
 	-- drive state
@@ -253,18 +273,21 @@ return Stage.scene("Drive", function(data: any)
 			* ANG(0, slip, 0)
 			* ANG(smoothPitch, 0, -steer * 0.025 * math.clamp(speed / 30, 0, 1))
 		body:PivotTo(truckPose * pivotOffset)
+		me.root.CFrame = truckPose * seatLocal * CF(0, Cast.seatLift(me), 0)
+		Cast.pose(me, "neck", Cast.neck(me, 0, -steer * 0.3, 0), 0)
+		for _, l in lampParts do
+			l.part.CFrame = truckPose * l.offset
+		end
 
-		local eyeCF = truckPose * eyeLocal
-		cockpit.steer = steer
-		cockpit.speed = speed / 70
-		cockpit.rpm = if control
-			then 0.25 + (speed / MAX_SPEED) * 0.6 + (if sputtering then math.random() * 0.15 else 0)
-			else 0.1 + math.random() * 0.04
-		Cast.placeCockpit(cockpit, eyeCF)
-		local bump = math.noise(along * 0.12, elapsed * 0.3) * 0.012 * (0.3 + speed / MAX_SPEED)
-		return eyeCF * ANG(-0.06 + bump, -steer * 0.1, 0)
+		-- the chase camera: behind and above, swinging a little into turns
+		local behind = truckPose * CF(steer * 3, 7.2 + speed * 0.02, 17 + speed * 0.06)
+		local goal = CFrame.lookAt(behind.Position, (truckPose * CF(0, 3.2, -8)).Position)
+		local current = chaseCam
+		chaseCam = if current then current:Lerp(goal, math.min(1, dt * 5)) else goal
+		local bump = math.noise(along * 0.12, elapsed * 0.3) * 0.01 * (0.3 + speed / MAX_SPEED)
+		return (chaseCam :: CFrame) * ANG(bump, 0, 0)
 	end)
-	Stage.zoom(70, 0)
+	Stage.zoom(62, 0)
 
 	-- engine start
 	Stage.resetClock()
@@ -278,9 +301,7 @@ return Stage.scene("Drive", function(data: any)
 	at(2.6)
 	CameraController.shake(0.8, 2.5)
 	Cast.setGauges(cockpit, true)
-	for _, l in cockpit.lights do
-		l.Enabled = true
-	end
+	lights(true)
 	Stage.loop("EngineLoop", true, 0.5)
 	HUD.subtitle("You", "Yes! Okay… let's get out of here.", 2.6)
 	at(3.4)
@@ -305,11 +326,8 @@ return Stage.scene("Drive", function(data: any)
 	hintLabel.Visible = false
 	Stage.loop("EngineLoop", false)
 
-	-- outside: the engine gives out for good
-	for _, e in bodyParts do
-		e.part.Transparency = e.transparency
-	end
-	cockpit.model.Parent = nil
+	-- outside: the engine gives out for good and you bail out of the cab
+	lights(false)
 	local endPose = truckPose
 	local hoodPos = (endPose * CF(0, 4.4, -6)).Position
 	Stage.cut(CFrame.lookAt((endPose * CF(-12.5, 4.2, -15)).Position, (endPose * CF(0, 3.4, -4)).Position), 58)
@@ -318,6 +336,13 @@ return Stage.scene("Drive", function(data: any)
 		activeSmoke.Opacity = 0.5
 		activeSmoke.Size = 6
 	end
+	local outside = Stage.ground((endPose * CF(center.X - 5, 0, center.Z + 0.6)).Position)
+	local diveTo = Stage.ground(wreck * Vector3.new(-7, 0, 9))
+	Cast.stand(me, 0)
+	me.root.CFrame = CFrame.lookAt(outside + UP * me.lift, diveTo + UP * me.lift)
+	Stage.go(function()
+		Cast.walk(me, { diveTo }, 17, { ground = true })
+	end)
 	sleep(0.5)
 	CameraController.shake(0.4, 4)
 	Stage.sfx("EngineFail", nil, hoodPos, 0.8)
@@ -397,25 +422,30 @@ return Stage.scene("Drive", function(data: any)
 	Stage.blur(24)
 	sleep(1.6)
 
-	-- ringing ears; on the ground beside the burning wreck
+	-- ears ringing: you, face down beside the burning wreck
 	local function W(x: number, z: number): Vector3
 		return Stage.ground(wreck * Vector3.new(x, 0, z))
 	end
-	local camPos = W(-7, 9) + UP * 0.6
-	local wreckFocus = endPose.Position + UP * 3
+	local awayDir = Util.flat(diveTo - endPose.Position)
+	awayDir = if awayDir.Magnitude > 1e-3 then awayDir.Unit else Vector3.new(0, 0, 1)
+	Cast.still(me)
+	Cast.pose(me, "rightShoulder", Cast.arm(me, true, 2.6, 0.3), 0)
+	Cast.pose(me, "leftShoulder", Cast.arm(me, false, 2.4, 0.4), 0)
+	local prone = CFrame.fromMatrix(diveTo + UP * 0.55, awayDir:Cross(UP), awayDir)
+	me.root.CFrame = prone
+	local camPos = W(-4, 2.5) + UP * 2.2
+	local wreckFocus = Cast.head(me)
 	local focus = wreckFocus
 	local focusFn: () -> Vector3 = function()
 		return wreckFocus
 	end
 	local rate = 1
-	local rollV = Stage.numberValue(1.25)
 	Stage.track(function(dt)
 		focus = focus:Lerp(focusFn(), 1 - math.exp(-rate * dt))
-		return CFrame.lookAt(camPos, focus) * ANG(0, 0, rollV.Value)
+		return CFrame.lookAt(camPos, focus)
 	end)
-	Stage.zoom(70, 0)
+	Stage.zoom(60, 0)
 	Stage.sway(0.7)
-	Stage.eyes(0, 0)
 
 	-- they come out of the trees: lanterns, and Papa with the chainsaw
 	local papa = Cast.actor("Papa", CFrame.lookAt(W(0, 46), camPos))
@@ -431,13 +461,7 @@ return Stage.scene("Drive", function(data: any)
 
 	Stage.resetClock()
 	Stage.fadeTo(0, 0.5)
-	at(0.4)
-	Stage.eyes(0.35, 1)
-	at(1.8)
-	Stage.eyes(0, 0.25)
-	at(2.3)
-	Stage.eyes(0.7, 0.6)
-	Stage.blurTo(12, 2)
+	Stage.blurTo(6, 2)
 	at(3.2)
 	Stage.go(function()
 		Cast.walk(papa, { W(-2, 24) }, 7, { ground = true })
@@ -453,12 +477,18 @@ return Stage.scene("Drive", function(data: any)
 		return (Cast.head(papa) + Cast.head(kinA) + Cast.head(kinB)) / 3
 	end
 	rate = 1.1
-	Util.tween(rollV, 2, { Value = 0.35 })
 	at(5)
-	Stage.eyes(0, 0.2)
-	at(5.4)
-	Stage.eyes(1, 0.5)
-	Stage.blurTo(5, 1.5)
+	-- you push yourself up to face them
+	local standPos = diveTo + UP * me.lift
+	local papaPos = papa.root.Position
+	local standing = CFrame.lookAt(standPos, Vector3.new(papaPos.X, standPos.Y, papaPos.Z))
+	Stage.go(function()
+		Stage.animate(1.1, function(a)
+			me.root.CFrame = prone:Lerp(standing, Stage.smooth(a))
+		end)
+		Cast.stand(me, 0.4)
+	end)
+	Stage.blurTo(2, 1.5)
 	at(6.2)
 	-- Papa revs the chainsaw
 	Stage.sfx("Chainsaw", nil, papa.root.Position, 1)

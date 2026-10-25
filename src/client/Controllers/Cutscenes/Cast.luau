@@ -4,7 +4,9 @@
 -- lanterns, a driver's-eye car cockpit and simple stand-in vehicles.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local Util = require(ReplicatedStorage.Shared.Util)
 local CameraController = require(script.Parent.Parent.CameraController)
@@ -37,6 +39,8 @@ local JOINTS: { [string]: { string } } = {
 	leftShoulder = { "LeftShoulder", "Left Shoulder" },
 	neck = { "Neck" },
 	waist = { "Waist", "RootJoint" },
+	rightHip = { "RightHip", "Right Hip" },
+	leftHip = { "LeftHip", "Left Hip" },
 }
 
 ---------------------------------------------------------------- actors
@@ -76,14 +80,10 @@ local function fallbackFigure(): Model
 	return m
 end
 
--- Local clone of a cannibal standing on floorCF (feet level). The root is
--- anchored and moved by hand; animations and joint poses do the rest.
--- folder: "HostTemplates" for the unmasked, friendly Jason and Michel.
-function Cast.actor(kind: string, floorCF: CFrame, folder: string?): Actor
-	local folderName = folder or "CannibalTemplates"
-	local templates = ReplicatedStorage:FindFirstChild(folderName) or ReplicatedStorage:WaitForChild(folderName, 5)
-	local template = templates and templates:FindFirstChild(kind)
-	local model = if template and template:IsA("Model") then template:Clone() else fallbackFigure()
+-- Turns a local rig copy into an actor standing on floorCF (feet level). The
+-- root is anchored and moved by hand; animations and joint poses do the rest.
+local function fromModel(source: Model, floorCF: CFrame): Actor
+	local model = source
 	local found = model:FindFirstChild("HumanoidRootPart")
 	if not (found and found:IsA("BasePart")) then
 		model:Destroy()
@@ -168,6 +168,140 @@ function Cast.actor(kind: string, floorCF: CFrame, folder: string?): Actor
 	end
 
 	return { model = model, root = root, lift = lift, r15 = r15, tracks = tracks, motors = motors, rest = rest }
+end
+
+-- Local clone of a cannibal standing on floorCF (feet level).
+-- folder: "HostTemplates" for the unmasked, friendly Jason and Michel.
+function Cast.actor(kind: string, floorCF: CFrame, folder: string?): Actor
+	local folderName = folder or "CannibalTemplates"
+	local templates = ReplicatedStorage:FindFirstChild(folderName) or ReplicatedStorage:WaitForChild(folderName, 5)
+	local template = templates and templates:FindFirstChild(kind)
+	return fromModel(if template and template:IsA("Model") then template:Clone() else fallbackFigure(), floorCF)
+end
+
+-- Copies a player's body into the scene as it really looks (the live one is
+-- hidden while a scene runs, so the saved transparency is used).
+local function copyCharacter(character: Model?): Model?
+	if not character then
+		return nil
+	end
+	local was = character.Archivable
+	character.Archivable = true
+	local ok, copy = pcall(function()
+		return character:Clone()
+	end)
+	character.Archivable = was
+	if not (ok and copy) then
+		return nil
+	end
+	local originals = character:GetDescendants()
+	local copies = copy:GetDescendants()
+	local matched = #originals == #copies
+	for i, d in copies do
+		if d:IsA("LuaSourceContainer") or d:IsA("Tool") or d:IsA("ForceField") or d:IsA("Sound") then
+			d:Destroy()
+		elseif d:IsA("BasePart") or d:IsA("Decal") then
+			local original = if matched then originals[i] else nil
+			local value = if d.Name == "HumanoidRootPart" then 1 else 0
+			if original and (original:IsA("BasePart") or original:IsA("Decal")) then
+				value = Stage.trueTransparency(original :: any)
+			end
+			(d :: any).Transparency = value
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 0
+			end
+		end
+	end
+	return copy
+end
+
+-- You, as everyone else sees you: for the third-person shots.
+function Cast.me(floorCF: CFrame): Actor
+	local copy = copyCharacter(Players.LocalPlayer.Character)
+	local actor = fromModel(copy or fallbackFigure(), floorCF)
+	actor.model.Name = "You"
+	return actor
+end
+
+-- A friend in the car: another player's avatar, or a stand-in built from the
+-- plain starter body in their own colours.
+function Cast.friend(index: number, floorCF: CFrame): Actor
+	local others: { Player } = {}
+	for _, plr in Players:GetPlayers() do
+		if plr ~= Players.LocalPlayer then
+			table.insert(others, plr)
+		end
+	end
+	local plr = others[index]
+	local copy = copyCharacter(if plr then plr.Character else nil)
+	if not copy then
+		local starter = StarterPlayer:FindFirstChild("StarterCharacter")
+		if starter and starter:IsA("Model") then
+			local ok, c = pcall(function()
+				return starter:Clone()
+			end)
+			if ok and c then
+				copy = c
+				local shirts = { rgb(110, 40, 44), rgb(40, 84, 70), rgb(150, 120, 60) }
+				local skins = { rgb(198, 140, 104), rgb(240, 200, 170), rgb(120, 82, 60) }
+				local bodyColors = c:FindFirstChildOfClass("BodyColors")
+				if bodyColors then
+					local skin = skins[(index - 1) % #skins + 1]
+					bodyColors.TorsoColor3 = shirts[(index - 1) % #shirts + 1]
+					bodyColors.HeadColor3 = skin
+					bodyColors.LeftArmColor3 = skin
+					bodyColors.RightArmColor3 = skin
+				end
+			end
+		end
+	end
+	local actor = fromModel(copy or fallbackFigure(), floorCF)
+	actor.model.Name = "Friend" .. index
+	return actor
+end
+
+---------------------------------------------------------------- poses
+
+-- raise > 0 swings the leg forward (about 1.5 to sit)
+function Cast.leg(actor: Actor, right: boolean, raise: number): CFrame
+	if actor.r15 then
+		return ANG(raise, 0, 0)
+	end
+	return ANG(0, 0, if right then raise else -raise)
+end
+
+-- Stops the baked clips so hand-set poses hold (sitting, lying, slumped).
+function Cast.still(actor: Actor)
+	actor.model:SetAttribute("AnimForce", "none")
+end
+
+-- Seated: legs forward, hands forward (on a wheel or in the lap).
+function Cast.sit(actor: Actor, hands: number?, duration: number?)
+	local d = duration or 0
+	Cast.still(actor)
+	Cast.pose(actor, "rightHip", Cast.leg(actor, true, 1.5), d)
+	Cast.pose(actor, "leftHip", Cast.leg(actor, false, 1.5), d)
+	local h = hands or 0.5
+	Cast.pose(actor, "rightShoulder", Cast.arm(actor, true, h, 0.05), d)
+	Cast.pose(actor, "leftShoulder", Cast.arm(actor, false, h, 0.05), d)
+end
+
+-- Back to standing with the idle clip.
+function Cast.stand(actor: Actor, duration: number?)
+	local d = duration or 0.4
+	for _, joint in { "rightHip", "leftHip", "rightShoulder", "leftShoulder", "neck", "waist" } do
+		Cast.pose(actor, joint, CFrame.identity, d)
+	end
+	actor.model:SetAttribute("AnimForce", "idle")
+end
+
+-- The seated root height above the seat surface (hips at the seat).
+function Cast.seatLift(actor: Actor): number
+	local torso = actor.model:FindFirstChild("Torso") or actor.model:FindFirstChild("LowerTorso")
+	if torso and torso:IsA("BasePart") then
+		return (actor.root.Position.Y - torso.Position.Y) + torso.Size.Y / 2
+	end
+	return 1
 end
 
 function Cast.play(actor: Actor, name: string, speed: number?)
@@ -257,7 +391,11 @@ export type WalkOptions = { ground: boolean?, onPoint: ((index: number) -> ())?,
 -- Walks through floor-level points at a fixed speed (yields).
 function Cast.walk(actor: Actor, points: { Vector3 }, speed: number, opts: WalkOptions?)
 	local o: WalkOptions = opts or {}
-	Cast.play(actor, "walk", o.anim or math.clamp(speed / 11, 0.35, 1.6))
+	if speed >= 12 then
+		Cast.play(actor, "run", o.anim or math.clamp(speed / 18, 0.6, 1.6))
+	else
+		Cast.play(actor, "walk", o.anim or math.clamp(speed / 10, 0.35, 1.6))
+	end
 	local pos = actor.root.Position - UP * actor.lift
 	local heading = Util.flat(actor.root.CFrame.LookVector)
 	heading = if heading.Magnitude > 1e-3 then heading.Unit else Vector3.new(0, 0, -1)
@@ -565,6 +703,111 @@ function Cast.setWarnings(c: Cockpit, on: boolean)
 	for i, w in c.warnings do
 		w.Material = if on then Enum.Material.Neon else Enum.Material.SmoothPlastic
 		w.Color = if on then c.warningColors[i] else rgb(40, 14, 12)
+	end
+end
+
+export type Car = {
+	model: Model,
+	doorParts: { { part: BasePart, offset: CFrame } }, -- driver's door, relative to its hinge
+	headlights: { SpotLight },
+	lamps: { BasePart },
+	glass: { BasePart },
+	hood: { BasePart },
+}
+
+-- Seats and the driver's door hinge in car space (front faces -Z, pivot at
+-- the bottom centre). Seat cushions are 2.2 up; the driver sits on the left.
+Cast.CAR_DRIVER = CF(-1.45, 2.2, 0.7)
+Cast.CAR_PASSENGER = CF(1.45, 2.2, 0.7)
+Cast.CAR_BACK = CF(0.9, 2.2, 3.7)
+Cast.CAR_DOOR_HINGE = CF(-3.1, 0, -2.6)
+
+-- A plain four-door sedan, roomy enough to show the people inside.
+function Cast.simpleCar(paint: Color3): Car
+	local m = Instance.new("Model")
+	m.Name = "Car"
+	local glassParts: { BasePart } = {}
+	local hoodParts: { BasePart } = {}
+	local lamps: { BasePart } = {}
+	local beams: { SpotLight } = {}
+	local doorParts: { { part: BasePart, offset: CFrame } } = {}
+	local function add(size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, props: { [string]: any }?): BasePart
+		local p = part(size, cf, color, material or Enum.Material.SmoothPlastic, props)
+		p.Parent = m
+		return p
+	end
+	local function doorPart(size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, props: { [string]: any }?): BasePart
+		local p = add(size, cf, color, material, props)
+		table.insert(doorParts, { part = p, offset = Cast.CAR_DOOR_HINGE:ToObjectSpace(cf) })
+		return p
+	end
+	local metal = Enum.Material.Metal
+	local glassColor = rgb(150, 170, 180)
+	local dark = rgb(22, 22, 24)
+	local seat = rgb(40, 34, 30)
+	-- body
+	add(Vector3.new(6.4, 1.2, 14.6), CF(0, 1.1, 0), paint, metal)
+	table.insert(hoodParts, add(Vector3.new(6.2, 0.8, 4.4), CF(0, 2.1, -5.1), paint, metal))
+	add(Vector3.new(6.2, 0.8, 3), CF(0, 2.1, 5.8), paint, metal)
+	add(Vector3.new(0.3, 1.1, 7.6), CF(3.05, 2.25, 0.6), paint, metal) -- passenger side
+	add(Vector3.new(6.6, 0.3, 0.4), CF(0, 1.2, -7.35), rgb(60, 60, 62), metal) -- bumpers
+	add(Vector3.new(6.6, 0.3, 0.4), CF(0, 1.2, 7.35), rgb(60, 60, 62), metal)
+	-- cabin: pillars, roof, glass
+	for _, x in { -3.05, 3.05 } do
+		for _, z in { -2.7, 4.2 } do
+			add(Vector3.new(0.3, 2.9, 0.3), CF(x, 4.25, z), paint, metal)
+		end
+	end
+	add(Vector3.new(6.4, 0.3, 7.4), CF(0, 5.85, 0.75), paint, metal)
+	table.insert(glassParts, add(Vector3.new(6, 2.9, 0.08), CF(0, 4.25, -2.75) * ANG(rad(-14), 0, 0), glassColor, Enum.Material.Glass, { Transparency = 0.7 }))
+	table.insert(glassParts, add(Vector3.new(6, 2.9, 0.08), CF(0, 4.25, 4.25), glassColor, Enum.Material.Glass, { Transparency = 0.7 }))
+	table.insert(glassParts, add(Vector3.new(0.08, 2.6, 6.9), CF(3.15, 4.2, 0.75), glassColor, Enum.Material.Glass, { Transparency = 0.75 }))
+	-- interior: dash, wheel, seats
+	add(Vector3.new(6, 0.9, 1.2), CF(0, 3.05, -2.2), dark)
+	add(Vector3.new(0.12, 1.2, 1.2), CF(-1.45, 3.55, -1.55) * ANG(rad(-60), 0, 0) * ANG(0, 0, rad(90)), dark, Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Cylinder })
+	for _, x in { -1.45, 1.45 } do
+		add(Vector3.new(2, 0.5, 2.1), CF(x, 1.95, 0.8), seat, Enum.Material.Leather)
+		add(Vector3.new(2, 2.4, 0.4), CF(x, 3.3, 1.9) * ANG(rad(10), 0, 0), seat, Enum.Material.Leather)
+	end
+	add(Vector3.new(5.4, 0.5, 2), CF(0, 1.95, 3.6), seat, Enum.Material.Leather)
+	add(Vector3.new(5.4, 2.2, 0.4), CF(0, 3.2, 4.55), seat, Enum.Material.Leather)
+	-- wheels
+	for _, x in { -3.1, 3.1 } do
+		for _, z in { -4.6, 4.6 } do
+			add(Vector3.new(0.9, 2.5, 2.5), CF(x, 1.25, z), rgb(18, 18, 18), Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Cylinder })
+		end
+	end
+	-- lights
+	for _, x in { -2.2, 2.2 } do
+		local lamp = add(Vector3.new(1.3, 0.5, 0.12), CF(x, 1.95, -7.32), rgb(255, 246, 220), Enum.Material.Neon)
+		table.insert(lamps, lamp)
+		local beam = Instance.new("SpotLight")
+		beam.Face = Enum.NormalId.Front
+		beam.Range = 70
+		beam.Angle = 55
+		beam.Brightness = 4
+		beam.Color = rgb(255, 240, 210)
+		beam.Shadows = true
+		beam.Parent = lamp
+		table.insert(beams, beam)
+		add(Vector3.new(1.1, 0.4, 0.12), CF(x * 1.05, 2.05, 7.32), rgb(200, 24, 18), Enum.Material.Neon)
+	end
+	-- left side: the driver's door swings on its front edge, the back door is fixed
+	doorPart(Vector3.new(0.3, 1.1, 3.3), CF(-3.05, 2.25, -0.95), paint, metal)
+	table.insert(glassParts, doorPart(Vector3.new(0.08, 2.5, 3.2), CF(-3.15, 4.2, -0.95), glassColor, Enum.Material.Glass, { Transparency = 0.75 }))
+	add(Vector3.new(0.3, 1.1, 3.6), CF(-3.05, 2.25, 2.5), paint, metal)
+	table.insert(glassParts, add(Vector3.new(0.08, 2.5, 3.4), CF(-3.15, 4.2, 2.5), glassColor, Enum.Material.Glass, { Transparency = 0.75 }))
+	m.WorldPivot = CFrame.new()
+	m.Parent = Stage.folder()
+	return { model = m, doorParts = doorParts, headlights = beams, lamps = lamps, glass = glassParts, hood = hoodParts }
+end
+
+-- Moves the car to `cf` with the driver's door open by `doorAngle` radians.
+function Cast.placeCar(car: Car, cf: CFrame, doorAngle: number?)
+	car.model:PivotTo(cf)
+	local hinge = cf * Cast.CAR_DOOR_HINGE * ANG(0, -(doorAngle or 0), 0)
+	for _, d in car.doorParts do
+		d.part.CFrame = hinge * d.offset
 	end
 end
 

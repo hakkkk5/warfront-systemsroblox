@@ -19,6 +19,8 @@ local soundRemote = Net.event("Sound")
 
 -- (player, itemId, newCount)
 Inventory.Changed = Signal.new() :: Signal.Signal<Player, string, number>
+-- (player, items they carried, last position) when someone leaves the server
+Inventory.Lost = Signal.new() :: Signal.Signal<Player, { [string]: number }, Vector3?>
 
 local function bag(player: Player): Bag
 	local b = bags[player]
@@ -139,7 +141,17 @@ end
 
 function Inventory.init()
 	Players.PlayerRemoving:Connect(function(player)
-		bags[player] = nil
+		-- tell the story what walked out of the server with them, so quest
+		-- items can be put back into the world instead of being lost
+		local b = bags[player]
+		if b then
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local where = if root and root:IsA("BasePart") then root.Position else nil
+			local carried: { [string]: number } = table.clone(b.items)
+			bags[player] = nil
+			Inventory.Lost:Fire(player, carried, where)
+		end
 	end)
 
 	Net.event("InventoryAction").OnServerEvent:Connect(function(player, action, id)

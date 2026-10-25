@@ -84,6 +84,7 @@ AssetService.publishItemModels({
 	"TireWheel",
 	"CarKeys",
 	"Fuse",
+	"BoltCutters",
 	"GasCan",
 	"Note",
 })

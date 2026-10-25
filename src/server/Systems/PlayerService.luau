@@ -9,6 +9,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
+local R6Characters = require(script.Parent.R6Characters)
 local Story = require(script.Parent.Story)
 
 local PlayerService = {}
@@ -51,13 +52,8 @@ local function setupCharacter(player: Player, character: Model)
 end
 
 function PlayerService.spawn(player: Player)
-	local ok = pcall(function()
-		player:LoadCharacterAsync()
-	end)
-	if not ok then
-		(player :: any):LoadCharacter()
-	end
-	local character = player.Character
+	-- your own avatar on an R6 body, every spawn and respawn
+	local character = R6Characters.load(player)
 	if not character then
 		return
 	end

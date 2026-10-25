@@ -46,6 +46,7 @@ local visited: { [string]: boolean } = {}
 local talked: { [string]: boolean } = {}
 local lineIndex: { [string]: number } = {}
 local hatchPosition = Vector3.zero
+local hatchPart: BasePart? = nil
 local onClueFound: () -> () = function() end -- set in the tension section
 
 local NEEDED = 5
@@ -234,6 +235,7 @@ local function buildClues(parent: Instance)
 	mist.Parent = hatch
 	clue("ClueHatch", hatch, "Basement hatch", "'Don't go in the basement.' Right. Something scratched this from the inside.")
 	hatchPosition = hatch.Position
+	hatchPart = hatch
 
 	-- kitchen fridge: freezer packages with names on them
 	local fridgeDoor = part(Vector3.new(0.2, 6.4, 3), L(-28.2, 4, 4), rgb(210, 206, 190), M.Metal, { CanCollide = false })
@@ -396,6 +398,11 @@ function Investigation.revealData(): { [string]: any }
 		jason = CFrame.lookAt((origin * CF(-1.2, 0, -18.5)).Position, (origin * CF(0, 0, -6)).Position),
 		michel = CFrame.lookAt((origin * CF(1.6, 0, -17.5)).Position, (origin * CF(0, 0, -6)).Position),
 	}
+end
+
+-- The padlocked kitchen hatch (the cellar opens it after the reveal).
+function Investigation.hatch(): BasePart?
+	return hatchPart
 end
 
 function Investigation.prepare(houseOrigin: CFrame, parent: Instance)

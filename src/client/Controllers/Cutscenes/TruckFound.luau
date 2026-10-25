@@ -1,10 +1,11 @@
 --!strict
--- TruckFound (~10 s): an orbit around the broken-down pickup, past the
--- bonnet, ending on the driver's door.
+-- TruckFound (~10 s): you walk up to the broken-down pickup while the camera
+-- orbits it, past the bonnet, ending on you at the driver's door.
 -- data: { truck: CFrame }
 
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
 local Stage = require(script.Parent.Stage)
+local Cast = require(script.Parent.Cast)
 
 local CF = CFrame.new
 
@@ -23,6 +24,16 @@ return Stage.scene("TruckFound", function(data: any)
 	moon.Color = Color3.fromRGB(150, 170, 210)
 	moon.Shadows = true
 	moon.Parent = key
+	-- you come out of the trees and walk up to the driver's door
+	local door = Stage.ground(T(-4.8, 0, -0.8))
+	local from = Stage.ground(T(-13, 0, 9))
+	local me = Cast.me(CFrame.lookAt(from, Vector3.new(door.X, from.Y, door.Z)))
+	Stage.go(function()
+		Stage.sleep(0.6)
+		Cast.walk(me, { Stage.ground(T(-9, 0, 4)), door }, 5.5, { ground = true })
+		Cast.face(me, T(-3.4, 4, -0.8), 0.6)
+		Cast.pose(me, "leftShoulder", Cast.arm(me, false, 1.2, 0.1), 0.6) -- hand on the door
+	end)
 	-- orbit from the front-left, low past the bonnet, ending on the driver's door
 	Stage.shot(9.3, {
 		T(-15, 7.5, -12),

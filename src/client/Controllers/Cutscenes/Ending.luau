@@ -105,6 +105,10 @@ return Stage.scene("Ending", function(data: any)
 	local travel = CFrame.lookAt(Vector3.zero, dir)
 	local tilt = 0
 	local lastPos = start
+	-- you, sitting in the open side door, legs over the edge
+	local me = Cast.me(CFrame.identity)
+	Cast.sit(me, 0.25)
+	local DOOR_SEAT = CF(-2.1, 4.1, 0.6) * ANG(0, math.pi / 2, 0)
 	local function updateHeli(dt: number)
 		flightT += dt
 		local pos = Stage.splineAt(route, math.clamp(flightT / FLIGHT, 0, 1) ^ 1.7)
@@ -114,6 +118,7 @@ return Stage.scene("Ending", function(data: any)
 		local rot = landed.Rotation:Lerp(travel, Stage.smooth(flightT / 5))
 		heliCF = CF(pos) * rot * ANG(tilt, 0, math.sin(flightT * 0.6) * 0.025)
 		craft:PivotTo(heliCF)
+		me.root.CFrame = heliCF * DOOR_SEAT
 		local spin = CF(MAST) * ANG(0, os.clock() * 25, 0) * CF(-MAST)
 		for _, e in rotorParts do
 			e.part.CFrame = heliCF * spin * e.offset
@@ -169,19 +174,25 @@ return Stage.scene("Ending", function(data: any)
 		dust.Enabled = false
 	end)
 
-	-- out of the side door, looking down at them, then out toward the forest
+	-- over your shoulder in the side door, looking down at them, then out
+	-- toward the forest
 	at(4.6)
-	local pitchV = Stage.numberValue(-0.62)
-	local yawV = Stage.numberValue(math.pi / 2 - 0.2)
+	local lookV = Stage.numberValue(0)
 	Stage.track(function(dt)
 		updateHeli(dt)
 		local t = os.clock()
 		local rattle = ANG(math.noise(t * 7, 1) * 0.006, math.noise(t * 7, 2) * 0.006, 0)
-		return heliCF * CF(-2.3, 5.7, 0.6) * ANG(0, yawV.Value, 0) * ANG(pitchV.Value, 0, 0) * rattle
+		local cam = heliCF * CF(0.5, 6.5, 2.1)
+		local down = (heliCF * CF(-12, -6, -2)).Position
+		local out = (heliCF * CF(-14, 1, -9)).Position
+		return CFrame.lookAt(cam.Position, down:Lerp(out, lookV.Value)) * rattle
 	end)
-	Stage.zoom(68, 0)
-	Util.tween(pitchV, 7.8, { Value = -0.3 })
-	Util.tween(yawV, 7.8, { Value = math.pi / 2 - 0.55 })
+	Stage.zoom(62, 0)
+	Cast.pose(me, "neck", Cast.neck(me, -0.45, 0, 0), 1.2)
+	Util.tween(lookV, 7.8, { Value = 1 })
+	Stage.later(5, function()
+		Cast.pose(me, "neck", Cast.neck(me, 0, 0.2, 0), 2)
+	end)
 
 	-- wide: the helicopter heads off into the dawn
 	at(12.4)

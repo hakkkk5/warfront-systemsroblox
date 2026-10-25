@@ -227,6 +227,8 @@ local function buildHighway(parent: Instance, info: Info, rng: Util.Rng)
 	Build.post(folder, 4, 0.4, mailCF * CF(0, 2, 0), rgb(70, 54, 40), M.Wood)
 	Build.part(folder, Vector3.new(1.4, 1.2, 2.2), mailCF * CF(0, 4.4, 0), rgb(90, 90, 92), M.CorrodedMetal)
 	sign(folder, "THE HOLLOW FAMILY", -160, -505, Vector2.new(-160, -530))
+	-- where the logging road leaves the farm: point the way to the truck
+	sign(folder, "LOGGING ROAD  >  CLEARING", -60, -250, Vector2.new(-90, -275))
 end
 
 ---------------------------------------------------------------- truck clearing

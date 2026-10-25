@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
@@ -14,7 +15,9 @@ local Build = require(script.Parent.Parent.World.Build)
 local Props = require(script.Parent.Parent.World.Props)
 local Terrain = require(script.Parent.Parent.World.Terrain)
 local Cannibals = require(script.Parent.Cannibals)
+local Cellar = require(script.Parent.Cellar)
 local Doors = require(script.Parent.Doors)
+local AssetService = require(script.Parent.AssetService)
 local Interact = require(script.Parent.Interact)
 local Inventory = require(script.Parent.Inventory)
 local Pickups = require(script.Parent.Pickups)
@@ -149,9 +152,17 @@ local function objectives(): { Objective }
 	elseif stage == "HouseEscape" then
 		add("Find the key to the padlock (upstairs?)", flags.keyFound)
 		add("Escape through the front door", flags.frontDoorOpen)
+		for _, o in Cellar.objectives() do
+			table.insert(list, o)
+		end
 	elseif stage == "Forest" then
 		add("Get away from the house", true)
-		add("Follow the logging road east to find a way out", false)
+		add("Follow the logging road east to the old truck in the clearing", false)
+		for _, o in Cellar.objectives() do
+			if not o.done then
+				table.insert(list, o)
+			end
+		end
 	elseif stage == "Repair" then
 		local count = 0
 		for _, entry in PART_LABELS do
@@ -189,13 +200,33 @@ local function objectives(): { Objective }
 	return list
 end
 
+-- Where the story wants you to go next, shown on screen with its distance.
+-- Only for the big "go there" steps; searching stays up to you (and H).
+local function goal(): (Vector3?, string?)
+	if stage == "HouseEscape" then
+		if flags.keyFound and not flags.frontDoorOpen then
+			return house.frontDoor.center, "Front door"
+		end
+	elseif stage == "Forest" then
+		return sites.truckCF.Position, "The old truck"
+	elseif stage == "Hunt" or stage == "Radio" or stage == "Survive" then
+		return sites.station.center, "Ranger station"
+	elseif stage == "Extraction" then
+		return sites.helipad.Position, "Helipad"
+	end
+	return nil, nil
+end
+
 function Story.broadcast(player: Player?)
 	local chapter = CHAPTERS[stage] or { "", "" }
+	local goalPos, goalLabel = goal()
 	local payload = {
 		stage = stage,
 		chapter = chapter[1],
 		title = chapter[2],
 		objectives = objectives(),
+		goal = goalPos,
+		goalLabel = goalLabel,
 	}
 	if player then
 		storyRemote:FireClient(player, payload)
@@ -367,39 +398,101 @@ local function allInstalled(): boolean
 	return true
 end
 
-local function setupTruck()
-	for id, slot in sites.truckSlots do
-		local def = Items.get(id)
-		local label = if def then def.name else id
-		Interact.add(slot, {
-			action = "Install",
-			object = label,
-			hold = 2.5,
-			distance = 9,
-			canUse = function(player)
-				if flags.installed[id] then
-					return false, label .. " is already installed."
-				end
-				if not Inventory.has(player, id) then
-					return false, "The truck is missing its " .. string.lower(label) .. "."
-				end
-				return true
-			end,
-			onUse = function(player, prompt)
-				if Inventory.remove(player, id) then
-					flags.installed[id] = true
-					prompt.Enabled = false
-					soundRemote:FireAllClients("Repair", slot.Position)
-					Interact.notifyAll(label .. " installed.", "item")
-					Cannibals.noise(slot.Position, 70)
-					Story.broadcast()
-					if allInstalled() then
-						Story.say("You", if flags.keysFound then "That's everything. Time to go." else "It's fixed. Now I just need the keys...", 3.5)
-					end
-				end
-			end,
-		})
+-- An installed part shows up on the truck: it drops into its slot.
+local function showInstalled(id: string)
+	local def = Items.get(id)
+	local slot = sites.truckSlots[id]
+	if not def or not slot or slot.Parent == nil then
+		return
 	end
+	local model = AssetService.create(def.model)
+	model.Name = "Installed_" .. id
+	for _, p in model:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.Anchored = true
+			p.CanCollide = false
+		end
+	end
+	-- the wheel stands up on its hub; everything else sits in the bay
+	local target = if id == "Tire" then slot.CFrame * CFrame.Angles(0, 0, math.rad(90)) else slot.CFrame * CFrame.new(0, -0.6, 0)
+	local lifted = target * CFrame.new(0, 3, 0)
+	model:PivotTo(lifted)
+	model.Parent = slot.Parent
+	local value = Instance.new("CFrameValue")
+	value.Value = lifted
+	value.Changed:Connect(function(cf)
+		model:PivotTo(cf)
+	end)
+	local tween = TweenService:Create(value, TweenInfo.new(0.7, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), { Value = target })
+	tween.Completed:Once(function()
+		value:Destroy()
+	end)
+	tween:Play()
+end
+
+-- Puts in every part this player carries that the truck still needs.
+local function installCarried(player: Player): number
+	local count = 0
+	for _, entry in PART_LABELS do
+		local id = entry[1]
+		if not flags.installed[id] and Inventory.has(player, id) and Inventory.remove(player, id) then
+			flags.installed[id] = true
+			count += 1
+			task.delay((count - 1) * 0.45, showInstalled, id)
+			local def = Items.get(id)
+			Interact.notifyAll((if def then def.name else id) .. " installed.", "item")
+		end
+	end
+	if count > 0 then
+		local bay = sites.truckSlots.Engine
+		soundRemote:FireAllClients("Repair", bay.Position)
+		Cannibals.noise(bay.Position, 70)
+		Story.broadcast()
+		if allInstalled() then
+			Story.say("You", if flags.keysFound then "That's everything. Time to go." else "It's fixed. Now I just need the keys...", 3.5)
+		end
+	end
+	return count
+end
+
+local function missingParts(): string
+	local missing = {}
+	for _, entry in PART_LABELS do
+		if not flags.installed[entry[1]] then
+			table.insert(missing, entry[2])
+		end
+	end
+	return table.concat(missing, ", ")
+end
+
+local function setupTruck()
+	-- one prompt for the whole repair (one per slot meant only the nearest
+	-- showed, usually the wrong one, so parts seemed impossible to fit)
+	local repairPrompt: ProximityPrompt? = nil
+	repairPrompt = Interact.add(sites.truckSlots.Engine, {
+		action = "Repair",
+		object = "Pickup Truck",
+		hold = 2,
+		distance = 11,
+		canUse = function(player)
+			if allInstalled() then
+				return false, "It's all fixed. Find the keys and drive."
+			end
+			for _, entry in PART_LABELS do
+				if not flags.installed[entry[1]] and Inventory.has(player, entry[1]) then
+					return true
+				end
+			end
+			return false, "Still missing: " .. missingParts()
+		end,
+		onUse = function(player)
+			installCarried(player)
+			local prompt = repairPrompt
+			if prompt and allInstalled() then
+				prompt.Enabled = false
+			end
+		end,
+	})
 
 	Interact.add(sites.truckDoor, {
 		action = "Drive",
@@ -462,7 +555,7 @@ end
 
 local function enterForest()
 	setStage("Forest")
-	Story.say("You", "I'm out... I need to find a way out of these woods.", 3.5)
+	Story.say("You", "I'm out! There was an old pickup in a clearing up the logging road... if it still runs, that's my way out.", 5)
 	-- the Butcher heads into the woods; the brother stays in the house
 	local butcher = Cannibals.find("Butcher")
 	if butcher then
@@ -723,6 +816,9 @@ local function reveal()
 	playCutscene("TheyKnow", Investigation.revealData(), 30)
 	setStage("HouseEscape")
 	spawnHouseKey()
+	Cellar.enable(Story.say, function()
+		Story.broadcast()
+	end)
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("SafeUntil", os.clock() + 8)
 		Inventory.add(player, "Knife", 1, true)
@@ -813,6 +909,9 @@ function Story.hintTargets(): { Vector3 }
 		else
 			table.insert(list, house.frontDoor.center)
 		end
+		for _, p in Cellar.hintTargets() do
+			table.insert(list, p)
+		end
 	elseif stage == "Forest" then
 		table.insert(list, sites.truckCF.Position)
 	elseif stage == "Repair" then
@@ -881,6 +980,7 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder)
 		return stage ~= "Investigate" and stage ~= "Intro"
 	end)
 	Investigation.prepare(house.origin, world)
+	Cellar.build(house.origin, world, Investigation.hatch())
 	spawnHouseItems()
 	spawnForestItems()
 	setupTruck()
@@ -889,6 +989,35 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder)
 
 	Inventory.Changed:Connect(function()
 		Story.broadcast()
+	end)
+	-- someone left with a quest item: drop it where they stood so nobody
+	-- else gets stuck without it
+	Inventory.Lost:Connect(function(_player, carried, where)
+		local spot = where or Story.checkpoint().Position
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore: { Instance } = {}
+		for _, p in Players:GetPlayers() do
+			if p.Character then
+				table.insert(ignore, p.Character)
+			end
+		end
+		params.FilterDescendantsInstances = ignore
+		local i = 0
+		for id, count in carried do
+			local def = Items.get(id)
+			if def and def.questItem and count > 0 and not (flags.installed[id] == true) then
+				i += 1
+				local offset = Vector3.new(math.cos(i * 2.1) * 2, 0, math.sin(i * 2.1) * 2)
+				local hit = workspace:Raycast(spot + offset + Vector3.new(0, 3, 0), Vector3.new(0, -40, 0), params)
+				local floor = if hit then hit.Position else spot + offset
+				Pickups.spawn(id, CFrame.new(floor + Vector3.new(0, 0.3, 0)), world)
+			end
+		end
+		if i > 0 then
+			Interact.notifyAll("Someone dropped what they were carrying. It's still out there.", "warn")
+			Story.broadcast()
+		end
 	end)
 
 	Net.event("CutsceneDone").OnServerEvent:Connect(function(player, name)

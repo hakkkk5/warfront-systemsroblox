@@ -85,6 +85,18 @@ PALETTE = {
     "label_gold": dict(color=srgb(206, 156, 46), roblox="SmoothPlastic", rough=0.4, metal=0.2, pattern="dirty"),
     "battery_black": dict(color=srgb(30, 30, 32), roblox="SmoothPlastic", rough=0.5, metal=0.0, pattern="dirty"),
     "blood": dict(color=srgb(90, 8, 8), roblox="Glass", rough=0.1, metal=0.0, pattern="none"),
+    # farmhouse furniture
+    "leather_sofa": dict(color=srgb(74, 42, 30), roblox="Leather", rough=0.6, metal=0.0, pattern="dirty"),
+    "brick": dict(color=srgb(112, 58, 44), roblox="Brick", rough=0.9, metal=0.0, pattern="stone"),
+    "marble": dict(color=srgb(196, 192, 182), roblox="Marble", rough=0.3, metal=0.0, pattern="dirty"),
+    "enamel": dict(color=srgb(214, 206, 182), roblox="SmoothPlastic", rough=0.35, metal=0.0, pattern="chipped"),
+    "cast_iron": dict(color=srgb(38, 36, 36), roblox="Metal", rough=0.6, metal=0.8, pattern="scratch"),
+    "chrome": dict(color=srgb(186, 188, 192), roblox="Metal", rough=0.2, metal=1.0, pattern="scratch"),
+    "linen": dict(color=srgb(186, 178, 158), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave_blood"),
+    "quilt": dict(color=srgb(120, 70, 60), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave"),
+    "book_red": dict(color=srgb(110, 34, 30), roblox="Fabric", rough=0.8, metal=0.0, pattern="dirty"),
+    "book_green": dict(color=srgb(44, 70, 46), roblox="Fabric", rough=0.8, metal=0.0, pattern="dirty"),
+    "book_brown": dict(color=srgb(96, 70, 44), roblox="Fabric", rough=0.8, metal=0.0, pattern="dirty"),
 }
 
 
@@ -967,7 +979,330 @@ def build_note():
     return p
 
 
+# ----------------------------------------------------------------------------- farmhouse furniture
+# Each one matches the footprint of the box stand-in it replaces in
+# House.luau (front faces +Y here, -Z in Roblox; scaled to the stand-in's
+# height on the client).
+
+
+def turned_leg(height, r=0.16):
+    return [(0.0, 0.0), (r * 0.7, 0.0), (r, height * 0.08), (r * 0.6, height * 0.3), (r * 1.1, height * 0.5),
+            (r * 0.6, height * 0.7), (r * 0.9, height * 0.92), (r * 0.9, height), (0.0, height)]
+
+
+def build_sofa():
+    p = Prop("Sofa")
+    L, D = 11.0, 4.4
+    box(p, "wood_dark", (L - 0.4, D - 0.4, 0.5), (0, 0, 0.55), bev=0.05)
+    for x in (-L / 2 + 0.6, L / 2 - 0.6):
+        for y in (-D / 2 + 0.5, D / 2 - 0.5):
+            cyl(p, "wood_dark", 0.16, 0.35, (x, y, 0.17), seg=10, r2=0.11)
+    cw = (L - 2.4) / 3
+    for i in range(3):
+        x = -L / 2 + 1.2 + cw * (i + 0.5)
+        seat = box(p, "leather_sofa", (cw - 0.08, D - 1.3, 0.75), (x, 0.4, 1.15), bev=0.2, seg=3)
+        displace(seat, 0.05, 1.3, seed=i)
+        back = box(p, "leather_sofa", (cw - 0.1, 0.9, 1.9), (x, -D / 2 + 1.05, 2.45), rot=(math.radians(-10), 0, 0), bev=0.3, seg=3)
+        displace(back, 0.06, 1.1, seed=i + 5)
+        for bx in (-0.55, 0.55):  # tufting buttons
+            sphere(p, "leather_sofa", 0.07, (x + bx, -D / 2 + 1.55, 2.6), seg=8, rings=5)
+    box(p, "leather_sofa", (L - 0.6, 0.7, 3.0), (0, -D / 2 + 0.35, 2.0), bev=0.25, seg=3)
+    for s in (-1, 1):
+        box(p, "leather_sofa", (1.1, D - 0.2, 1.9), (s * (L / 2 - 0.55), 0.05, 1.5), bev=0.3, seg=3)
+        cyl(p, "leather_sofa", 0.62, D - 0.1, (s * (L / 2 - 0.55), 0.05, 2.5), rot=(math.pi / 2, 0, 0), seg=18)
+    # a tear with the stuffing showing
+    sphere(p, "cloth_white", 0.22, (-L / 2 + 2.2, 1.6, 1.55), scale=(1.4, 0.5, 0.4), seg=10, rings=6)
+    return p
+
+
+def build_fireplace():
+    p = Prop("Fireplace")
+    rng = random.Random(7)
+    W, H = 8.0, 8.4
+    breast = box(p, "brick", (W, 2.0, H - 0.6), (0, -0.3, (H - 0.6) / 2), bev=0.04)
+    boolean_cut(breast, box(None, None, (3.6, 2.4, 3.4), (0, 0.4, 1.6)))
+    box(p, "ash", (3.5, 0.25, 3.3), (0, -1.15, 1.65))
+    box(p, "stone_dark", (W + 0.6, 3.0, 0.35), (0, 0.4, 0.175), bev=0.04)
+    box(p, "wood_dark", (W + 0.8, 2.6, 0.45), (0, 0.2, H - 0.45), bev=0.06)
+    for x in (-W / 2 + 0.45, W / 2 - 0.45):
+        box(p, "wood_dark", (0.5, 0.6, 1.0), (x, 0.9, H - 1.2), bev=0.05)
+    # rough stones standing proud of the brick
+    placed = 0
+    while placed < 30:
+        x = rng.uniform(-W / 2 + 0.5, W / 2 - 0.5)
+        z = rng.uniform(0.7, H - 1.4)
+        if abs(x) < 2.2 and z < 3.8:
+            continue
+        st = box(p, "stone", (rng.uniform(0.7, 1.3), 0.3, rng.uniform(0.45, 0.75)), (x, 0.75, z), bev=0.08, seg=2)
+        displace(st, 0.05, 2.0, seed=placed)
+        placed += 1
+    for x in (-1.0, 1.0):
+        box(p, "iron", (0.14, 1.1, 0.14), (x, 0.1, 0.55))
+        cyl(p, "iron", 0.1, 0.5, (x, 0.6, 0.6), seg=8)
+    for i, x in enumerate((-0.4, 0.3)):
+        cyl(p, "charred", 0.26, 2.5, (x * 0.4, -0.2 + i * 0.25, 0.75 + i * 0.25), rot=(0, math.pi / 2, 0.2 * i), seg=10)
+    return p
+
+
+def build_coffee_table():
+    p = Prop("CoffeeTable")
+    box(p, "wood_old", (5.0, 3.0, 0.3), (0, 0, 1.8), bev=0.05)
+    for x in (-2.0, 2.0):
+        for y in (-1.15, 1.15):
+            p.add(lathe(None, None, turned_leg(1.65, 0.14), seg=10, loc=(x, y, 0)), "wood_dark")
+    box(p, "wood_dark", (4.4, 2.4, 0.08), (0, 0, 0.5), bev=0.02)
+    return p
+
+
+def build_bookshelf():
+    p = Prop("Bookshelf")
+    rng = random.Random(12)
+    W, D, H = 6.0, 1.4, 9.0
+    box(p, "wood_dark", (W, 0.15, H), (0, -D / 2 + 0.07, H / 2))
+    for x in (-W / 2 + 0.1, W / 2 - 0.1):
+        box(p, "wood_dark", (0.2, D, H), (x, 0, H / 2), bev=0.03)
+    shelves = 5
+    for i in range(shelves + 1):
+        z = 0.2 + i * (H - 0.4) / shelves
+        box(p, "wood_dark", (W - 0.2, D, 0.18), (0, 0, z), bev=0.02)
+        if i == shelves:
+            break
+        x = -W / 2 + 0.3
+        while x < W / 2 - 0.5:
+            t = rng.uniform(0.18, 0.4)
+            h = rng.uniform(0.9, 1.45)
+            if rng.random() < 0.12:
+                x += 0.4  # a gap
+                continue
+            lean = rng.uniform(-0.12, 0.12) if rng.random() < 0.2 else 0.0
+            mat = rng.choice(("book_red", "book_green", "book_brown", "paper"))
+            box(p, mat, (t, D - 0.35, h), (x + t / 2, 0.05, z + 0.1 + h / 2), rot=(0, lean, 0), bev=0.02)
+            x += t + 0.02
+    box(p, "wood_dark", (W + 0.3, D + 0.2, 0.3), (0, 0.05, H), bev=0.05)
+    return p
+
+
+def build_dining_table():
+    p = Prop("DiningTable")
+    L, D, H = 16.0, 5.0, 3.5
+    for i in range(5):
+        y = -D / 2 + 0.5 + i * (D - 1.0) / 4
+        plank = box(p, "wood_old" if i % 2 else "wood", (L, (D - 0.1) / 5, 0.32), (0, y, H - 0.16), bev=0.03)
+        displace(plank, 0.02, 1.5, seed=i)
+    box(p, "wood_dark", (L - 1.4, D - 1.0, 0.5), (0, 0, H - 0.55))
+    for x in (-L / 2 + 1.0, 0.0, L / 2 - 1.0):
+        for y in (-D / 2 + 0.7, D / 2 - 0.7):
+            p.add(lathe(None, None, turned_leg(H - 0.3, 0.22), seg=12, loc=(x, y, 0)), "wood_dark")
+    # old knife cuts and a dark stain soaked into the wood
+    box(p, "blood", (2.2, 1.4, 0.02), (2.5, 0.4, H + 0.005))
+    return p
+
+
+def build_china_hutch():
+    p = Prop("ChinaHutch")
+    W, D, H = 7.0, 2.5, 8.0
+    box(p, "wood_dark", (W, D, 3.4), (0, 0, 1.9), bev=0.05)
+    for x in (-W / 4, W / 4):
+        box(p, "wood", (W / 2 - 0.3, 0.1, 2.6), (x, D / 2, 1.9), bev=0.04)
+        sphere(p, "brass", 0.09, (x + (0.9 if x < 0 else -0.9), D / 2 + 0.08, 2.0), seg=8, rings=5)
+    box(p, "wood_dark", (W, D - 0.9, H - 3.6), (0, -0.45, 3.6 + (H - 3.6) / 2), bev=0.04)
+    box(p, "glass", (W - 0.6, 0.06, H - 4.2), (0, D / 2 - 0.9, 3.6 + (H - 3.6) / 2))
+    for z in (4.9, 6.4):
+        box(p, "wood_dark", (W - 0.4, D - 1.1, 0.12), (0, -0.5, z))
+        for i in range(5):
+            cyl(p, "ceramic", 0.42, 0.06, (-2.6 + i * 1.3, -0.75, z + 0.45), rot=(math.radians(75), 0, 0), seg=18)
+    box(p, "wood_dark", (W + 0.3, D - 0.6, 0.35), (0, -0.3, H), bev=0.05)
+    return p
+
+
+def build_kitchen_counter():
+    p = Prop("KitchenCounter")
+    W, D, H = 4.0, 2.6, 3.65
+    box(p, "wood", (W, D - 0.2, H - 0.45), (0, -0.1, (H - 0.45) / 2 + 0.1), bev=0.03)
+    box(p, "wood_dark", (W - 0.1, D - 0.4, 0.3), (0, -0.1, 0.15))
+    box(p, "wood_old", (W - 0.5, 0.08, 0.7), (0, D / 2 - 0.15, H - 1.0), bev=0.03)
+    for x in (-W / 4, W / 4):
+        box(p, "wood_old", (W / 2 - 0.35, 0.08, 1.7), (x, D / 2 - 0.15, 1.15), bev=0.03)
+        box(p, "brass", (0.08, 0.1, 0.4), (x + (0.6 if x < 0 else -0.6), D / 2 - 0.05, 1.5))
+    box(p, "brass", (0.5, 0.1, 0.08), (0, D / 2 - 0.05, H - 1.0))
+    top = box(p, "marble", (W + 0.1, D + 0.15, 0.3), (0, 0.05, H - 0.15), bev=0.04)
+    displace(top, 0.01, 2.0)
+    return p
+
+
+def build_stove():
+    p = Prop("Stove")
+    W, D, H = 4.0, 3.0, 3.6
+    box(p, "enamel", (W, D - 0.4, H - 1.0), (0, 0, 0.6 + (H - 1.0) / 2), bev=0.12, seg=3)
+    for x in (-W / 2 + 0.3, W / 2 - 0.3):
+        for y in (-D / 2 + 0.4, D / 2 - 0.4):
+            cyl(p, "cast_iron", 0.12, 0.6, (x, y, 0.3), seg=8, r2=0.08)
+    box(p, "cast_iron", (W + 0.1, D - 0.3, 0.12), (0, 0, H - 0.4))
+    for x in (-0.9, 0.9):
+        for y in (-0.55, 0.55):
+            torus(p, "cast_iron", 0.42, 0.06, (x, y, H - 0.3), seg=16, tseg=6)
+            cyl(p, "cast_iron", 0.36, 0.05, (x, y, H - 0.32), seg=16)
+    box(p, "cast_iron", (W - 0.6, 0.08, 1.5), (0, D / 2 - 0.15, 1.5), bev=0.04)
+    box(p, "chrome", (2.2, 0.15, 0.12), (0, D / 2 + 0.05, 2.45))
+    for i in range(4):
+        cyl(p, "cast_iron", 0.12, 0.15, (-1.2 + i * 0.8, D / 2 - 0.1, H - 0.75), rot=(math.pi / 2, 0, 0), seg=10)
+    box(p, "enamel", (W, 0.3, 1.4), (0, -D / 2 + 0.35, H + 0.25), bev=0.08)
+    cyl(p, "cast_iron", 0.3, 4.0, (1.4, -D / 2 + 0.5, H + 2.0), seg=12)
+    return p
+
+
+def build_fridge():
+    p = Prop("Fridge")
+    W, D, H = 3.4, 3.0, 8.0
+    body = box(p, "enamel", (W, D, H - 0.4), (0, 0, 0.4 + (H - 0.4) / 2), bev=0.55, seg=5)
+    displace(body, 0.015, 1.5)
+    box(p, "cast_iron", (W - 0.4, D - 0.4, 0.4), (0, 0, 0.2))
+    box(p, "cast_iron", (W - 0.2, 0.05, 0.05), (0, D / 2 + 0.01, H - 2.4))
+    box(p, "chrome", (0.16, 0.25, 1.3), (W / 2 - 0.45, D / 2 + 0.1, H - 3.5), bev=0.05)
+    box(p, "chrome", (0.16, 0.25, 0.7), (W / 2 - 0.45, D / 2 + 0.1, H - 1.4), bev=0.05)
+    box(p, "chrome", (1.4, 0.06, 0.25), (0, D / 2 + 0.03, H - 0.9))
+    # a bloody hand print on the door
+    box(p, "blood", (0.5, 0.02, 0.6), (W / 2 - 0.9, D / 2 + 0.02, H - 3.3), rot=(0, 0.3, 0))
+    return p
+
+
+def build_kitchen_table():
+    p = Prop("KitchenTable")
+    L, D, H = 8.0, 4.0, 3.25
+    top = box(p, "wood_old", (L, D, 0.45), (0, 0, H - 0.22), bev=0.05)
+    displace(top, 0.02, 1.2)
+    for x in (-L / 2 + 0.5, L / 2 - 0.5):
+        for y in (-D / 2 + 0.5, D / 2 - 0.5):
+            box(p, "wood_dark", (0.45, 0.45, H - 0.45), (x, y, (H - 0.45) / 2), bev=0.04)
+    box(p, "wood_dark", (L - 1.4, 0.15, 0.4), (0, 0, 0.6))
+    box(p, "wood", (2.5, 1.6, 0.2), (0, 0, H + 0.1), bev=0.04)  # cutting board
+    box(p, "blood", (1.0, 0.7, 0.02), (0.1, 0.1, H + 0.21))
+    return p
+
+
+def build_bed():
+    p = Prop("Bed")
+    W, L = 7.0, 9.4
+    for x in (-W / 2 + 0.2, W / 2 - 0.2):
+        for y, h in ((-L / 2 + 0.2, 5.0), (L / 2 - 0.2, 3.0)):
+            p.add(lathe(None, None, turned_leg(h, 0.2), seg=12, loc=(x, y, 0)), "wood_dark")
+    head = box(p, "wood_dark", (W - 0.4, 0.25, 2.6), (0, -L / 2 + 0.2, 3.4), bev=0.05)
+    boolean_cut(head, box(None, None, (W - 1.6, 1.0, 1.6), (0, -L / 2 + 0.2, 3.4)))
+    for i in range(5):
+        box(p, "wood_dark", (0.18, 0.18, 1.6), (-2.0 + i, -L / 2 + 0.2, 3.4))
+    box(p, "wood_dark", (W - 0.4, 0.25, 1.4), (0, L / 2 - 0.2, 1.9), bev=0.05)
+    for x in (-W / 2 + 0.2, W / 2 - 0.2):
+        box(p, "wood_dark", (0.25, L - 0.4, 0.6), (x, 0, 1.0))
+    mattress = box(p, "linen", (W - 0.7, L - 0.7, 0.9), (0, 0, 1.75), bev=0.25, seg=3)
+    displace(mattress, 0.05, 0.9)
+    quilt = box(p, "quilt", (W - 0.5, L * 0.55, 0.25), (0, L * 0.18, 2.3), bev=0.2, seg=3)
+    displace(quilt, 0.12, 0.8, seed=3)
+    pillow = box(p, "cloth_white", (2.8, 1.4, 0.5), (0, -L / 2 + 1.3, 2.4), bev=0.25, seg=3)
+    displace(pillow, 0.06, 1.4, seed=4)
+    return p
+
+
+def build_nightstand():
+    p = Prop("Nightstand")
+    box(p, "wood_dark", (2.0, 2.0, 2.2), (0, 0, 1.2), bev=0.05)
+    box(p, "wood", (1.7, 0.08, 0.7), (0, 1.0, 1.7), bev=0.03)
+    sphere(p, "brass", 0.08, (0, 1.08, 1.7), seg=8, rings=5)
+    box(p, "wood_dark", (2.2, 2.2, 0.15), (0, 0, 2.38), bev=0.04)
+    for x in (-0.85, 0.85):
+        for y in (-0.85, 0.85):
+            box(p, "wood_dark", (0.2, 0.2, 0.3), (x, y, 0.15))
+    return p
+
+
+def build_wardrobe():
+    p = Prop("Wardrobe")
+    W, D, H = 6.0, 3.0, 9.0
+    box(p, "wood_dark", (W, D, H - 0.5), (0, 0, 0.35 + (H - 0.5) / 2), bev=0.05)
+    for x in (-W / 4, W / 4):
+        door = box(p, "wood", (W / 2 - 0.2, 0.12, H - 1.4), (x, D / 2 + 0.02, H / 2), bev=0.04)
+        displace(door, 0.01, 2.0, seed=int(x * 10))
+        for z in (2.6, 6.4):
+            box(p, "wood_old", (W / 2 - 0.9, 0.06, 2.6), (x, D / 2 + 0.1, z), bev=0.04)
+        box(p, "brass", (0.1, 0.12, 0.5), (x + (0.65 if x < 0 else -0.65), D / 2 + 0.15, H / 2))
+    box(p, "wood_dark", (W + 0.4, D + 0.3, 0.45), (0, 0, H - 0.1), bev=0.08)
+    for x in (-W / 2 + 0.3, W / 2 - 0.3):
+        for y in (-D / 2 + 0.3, D / 2 - 0.3):
+            sphere(p, "wood_dark", 0.22, (x, y, 0.2), seg=10, rings=6)
+    return p
+
+
+def build_dresser():
+    p = Prop("Dresser")
+    W, D = 6.0, 2.0
+    box(p, "wood_dark", (W, D, 3.2), (0, 0, 1.8), bev=0.05)
+    for i in range(3):
+        z = 0.75 + i * 1.0
+        box(p, "wood", (W - 0.4, 0.08, 0.85), (0, D / 2 + 0.02, z), bev=0.03)
+        for x in (-1.5, 1.5):
+            box(p, "brass", (0.5, 0.1, 0.1), (x, D / 2 + 0.1, z))
+    box(p, "wood_dark", (W + 0.2, D + 0.2, 0.2), (0, 0, 3.45), bev=0.04)
+    frame = box(p, "wood_dark", (4.2, 0.2, 4.2), (0, -D / 2 + 0.3, 5.6), bev=0.05)
+    boolean_cut(frame, box(None, None, (3.6, 1.0, 3.6), (0, -D / 2 + 0.3, 5.6)))
+    box(p, "glass_dark", (3.7, 0.05, 3.7), (0, -D / 2 + 0.3, 5.6))
+    # the crack across the mirror
+    tube(p, "paint_white", [(-1.6, -D / 2 + 0.35, 6.9), (-0.4, -D / 2 + 0.35, 5.9), (0.3, -D / 2 + 0.35, 5.4), (1.5, -D / 2 + 0.35, 4.1)], 0.02, seg=4, poly=True)
+    return p
+
+
+def build_bathtub():
+    p = Prop("Bathtub")
+    L, D, H = 8.0, 3.6, 2.6
+    shell = lathe(None, None, [(0.0, 0.5), (0.9, 0.5), (1.0, 0.8), (1.0, H), (0.85, H), (0.82, 0.8), (0.0, 0.75)], seg=32, loc=(0, 0, 0))
+    shell.scale = (L / 2 / 1.0, D / 2 / 1.0, 1.0)
+    p.add(shell, "enamel")
+    for x in (-L / 2 + 0.9, L / 2 - 0.9):
+        for y in (-D / 2 + 0.5, D / 2 - 0.5):
+            p.add(lathe(None, None, [(0.0, 0.0), (0.22, 0.0), (0.16, 0.25), (0.12, 0.6), (0.0, 0.6)], seg=10, loc=(x, y, 0)), "brass")
+    tube(p, "brass", [(-L / 2 + 0.4, 0, H - 0.1), (-L / 2 + 0.5, 0, H + 0.9), (-L / 2 + 1.1, 0, H + 1.0), (-L / 2 + 1.2, 0, H + 0.6)], 0.09, seg=8)
+    for y in (-0.5, 0.5):
+        cyl(p, "brass", 0.12, 0.3, (-L / 2 + 0.45, y, H + 0.25), seg=10)
+    return p
+
+
+def build_grandfather_clock():
+    p = Prop("GrandfatherClock")
+    W, D = 2.2, 1.4
+    box(p, "wood_dark", (W + 0.3, D + 0.2, 0.6), (0, 0, 0.3), bev=0.05)
+    box(p, "wood_dark", (W - 0.3, D - 0.2, 4.6), (0, 0, 2.9), bev=0.04)
+    box(p, "glass", (W - 0.8, 0.05, 3.6), (0, D / 2 - 0.08, 3.0))
+    cyl(p, "brass", 0.05, 2.4, (0, 0.1, 3.4), seg=6)
+    cyl(p, "brass", 0.32, 0.08, (0, 0.1, 2.1), rot=(math.pi / 2, 0, 0), seg=18)
+    box(p, "wood_dark", (W, D, 2.2), (0, 0, 6.3), bev=0.05)
+    cyl(p, "paper", 0.8, 0.08, (0, D / 2 + 0.02, 6.3), rot=(math.pi / 2, 0, 0), seg=28)
+    torus(p, "brass", 0.82, 0.05, (0, D / 2 + 0.05, 6.3), rot=(math.pi / 2, 0, 0), seg=28, tseg=6)
+    for i in range(12):
+        a = i * math.pi / 6
+        box(p, "metal_dark", (0.05, 0.03, 0.14), (math.sin(a) * 0.65, D / 2 + 0.07, 6.3 + math.cos(a) * 0.65), rot=(0, a, 0))
+    box(p, "metal_dark", (0.05, 0.03, 0.5), (0.12, D / 2 + 0.09, 6.48), rot=(0, 0.5, 0))
+    box(p, "metal_dark", (0.05, 0.03, 0.36), (-0.13, D / 2 + 0.1, 6.2), rot=(0, 2.4, 0))
+    crown = box(p, "wood_dark", (W + 0.3, D + 0.2, 0.5), (0, 0, 7.65), bev=0.08)
+    displace(crown, 0.0, 1.0)
+    cyl(p, "wood_dark", 0.6, D, (0, 0, 7.9), rot=(math.pi / 2, 0, 0), seg=20)
+    return p
+
+
 BUILDERS = {
+    "Sofa": build_sofa,
+    "Fireplace": build_fireplace,
+    "CoffeeTable": build_coffee_table,
+    "Bookshelf": build_bookshelf,
+    "DiningTable": build_dining_table,
+    "ChinaHutch": build_china_hutch,
+    "KitchenCounter": build_kitchen_counter,
+    "Stove": build_stove,
+    "Fridge": build_fridge,
+    "KitchenTable": build_kitchen_table,
+    "Bed": build_bed,
+    "Nightstand": build_nightstand,
+    "Wardrobe": build_wardrobe,
+    "Dresser": build_dresser,
+    "Bathtub": build_bathtub,
+    "GrandfatherClock": build_grandfather_clock,
     "Flashlight": build_flashlight,
     "Cleaver": build_cleaver,
     "Chainsaw": build_chainsaw,

@@ -278,6 +278,13 @@ local function hideAllCharacters()
 	end
 end
 
+-- A part's own transparency, even while the scene keeps the characters
+-- hidden (used when copying a player's avatar into a shot).
+function Stage.trueTransparency(inst: BasePart | Decal): number
+	local saved = savedTransparency[inst]
+	return if saved ~= nil then saved else inst.Transparency
+end
+
 -- Local clone of a prop: anchored, inert, no prompts or scripts.
 function Stage.prepareClone(root: Instance)
 	for _, d in root:GetDescendants() do

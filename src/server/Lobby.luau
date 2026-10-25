@@ -23,6 +23,7 @@ local Build = require(script.Parent.World.Build)
 local LightingSetup = require(script.Parent.World.Lighting)
 local Props = require(script.Parent.World.Props)
 local Cannibals = require(script.Parent.Systems.Cannibals)
+local R6Characters = require(script.Parent.Systems.R6Characters)
 
 local Lobby = {}
 
@@ -505,13 +506,8 @@ local function spawnPlayer(player: Player)
 	if not player.Parent then
 		return
 	end
-	local ok = pcall(function()
-		player:LoadCharacterAsync()
-	end)
-	if not ok then
-		(player :: any):LoadCharacter()
-	end
-	local character = player.Character
+	-- your own avatar on an R6 body
+	local character = R6Characters.load(player)
 	local root = character and character:WaitForChild("HumanoidRootPart", 10)
 	if root and root:IsA("BasePart") then
 		root.CFrame = spawnCF * CF(math.random(-6, 6), 0, math.random(-6, 6))
