@@ -856,8 +856,9 @@ def build_gas_station():
             cyl_between(p, "rubber", a, b, 0.09, seg=6)
         at(p, "metal_dark", (0.32, 0.7, 0.42), px + 1.3, 3.6, -8.95)
 
-    # ---- a leaning utility pole with wires to the store roof
-    pole = (44.0, 0.0, 24.0)
+    # ---- a leaning utility pole behind the diner (build_lobby.py, x 14..54,
+    # z 18..40) with wires over its roof to the store roof
+    pole = (44.0, 0.0, 46.0)
     cyl(p, "wood_dark", 0.45, 28.0, T(pole[0], 14.0, pole[2]) @ RZ(0.03), seg=10)
     at(p, "wood_dark", (6.0, 0.4, 0.4), pole[0] - 0.4, 25.0, pole[2])
     for dx in (-2.6, 0.0, 2.6):
