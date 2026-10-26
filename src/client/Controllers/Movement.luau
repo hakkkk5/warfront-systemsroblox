@@ -6,6 +6,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -49,21 +50,35 @@ function Movement.toggleCrouch()
 	crouching = not crouching
 end
 
--- Held Shift / L3, or the touch HUD's Run latch (UI TouchControls).
+-- The touch HUD's Run latch (UI TouchControls) and the gamepad's L3 toggle.
 function Movement.setSprint(on: boolean)
 	wantSprint = on
 end
 
+-- Shift is read as held or not every frame rather than from press / release
+-- events: those went missing (Roblox's shift-lock rebinding Shift, a menu or
+-- the hiding view taking the input) and left sprinting dead, or stuck on.
+local function shiftHeld(): boolean
+	if UserInputService:GetFocusedTextBox() then
+		return false -- typing a capital letter in chat
+	end
+	return UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+end
+
 function Movement.wantsSprint(): boolean
-	return wantSprint
+	return wantSprint or shiftHeld()
 end
 
 function Movement.init()
-	-- phones get their buttons from UI TouchControls
-	ContextActionService:BindAction("Sprint", function(_, state)
-		wantSprint = state == Enum.UserInputState.Begin
+	-- Shift is ours, not Roblox's shift-lock
+	player.DevEnableMouseLock = false
+	-- gamepad: L3 toggles running (phones get their buttons from UI TouchControls)
+	ContextActionService:BindActionAtPriority("Sprint", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			wantSprint = not wantSprint
+		end
 		return Enum.ContextActionResult.Pass
-	end, false, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3)
+	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.ButtonL3)
 
 	ContextActionService:BindAction("Crouch", function(_, state)
 		if state == Enum.UserInputState.Begin then
@@ -80,7 +95,11 @@ function Movement.init()
 		end
 		local heavy = player:GetAttribute("Heavy") == true
 		local moving = humanoid.MoveDirection.Magnitude > 0.1
-		local canSprint = wantSprint and moving and not crouching and not heavy and not Movement.exhausted and not Movement.locked
+		-- a gamepad's run toggle lets go once you stop
+		if not moving and wantSprint and not UserInputService.TouchEnabled then
+			wantSprint = false
+		end
+		local canSprint = Movement.wantsSprint() and moving and not crouching and not heavy and not Movement.exhausted and not Movement.locked
 
 		if canSprint then
 			Movement.stamina = math.max(0, Movement.stamina - P.StaminaDrain * dt)

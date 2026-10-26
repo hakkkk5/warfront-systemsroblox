@@ -158,6 +158,8 @@ end
 
 -- Undo everything the scene created and hand control back.
 function Kit.finish()
+	-- first, so nothing below that fails can leave the player stuck
+	Movement.locked = false
 	if renderBound then
 		RunService:UnbindFromRenderStep("CutsceneCamera")
 		renderBound = false
