@@ -75,14 +75,27 @@ function HUD.setVisible(v: boolean)
 	root.Visible = v
 end
 
--- Seconds until the next hint can be asked for.
+-- Whether hints are on at all (Nightmare has none: an endless cooldown).
+function HUD.hintsOn(): boolean
+	return Config.Player.HintCooldown < 1e6
+end
+
+-- Seconds until the next hint can be asked for (0 when hints are off; see
+-- hintsOn).
 function HUD.hintCooldown(): number
+	if not HUD.hintsOn() then
+		return 0
+	end
 	return math.max(0, hintReady - os.clock())
 end
 
 -- Asks the server where to go (H, or the touch HUD's Hint button).
 function HUD.requestHint()
 	if not HUD.visible then
+		return
+	end
+	if not HUD.hintsOn() then
+		HUD.toast("No hints on this difficulty.", "warn")
 		return
 	end
 	local wait = HUD.hintCooldown()

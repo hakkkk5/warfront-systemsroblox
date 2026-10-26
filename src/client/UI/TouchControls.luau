@@ -204,8 +204,9 @@ function TouchControls.init()
 		throw.button.Visible = Throwing.held() ~= nil
 		light.label.TextColor3 = if Viewmodel.on then C.Ink else C.Bone
 		local wait = HUD.hintCooldown()
-		hint.label.Text = if wait > 0 then string.format("%ds", math.ceil(wait)) else "HINT"
-		hint.label.TextColor3 = if wait > 0 then C.BoneDim else C.Bone
+		local on = HUD.hintsOn()
+		hint.label.Text = if not on then "OFF" elseif wait > 0 then string.format("%ds", math.ceil(wait)) else "HINT"
+		hint.label.TextColor3 = if wait > 0 or not on then C.BoneDim else C.Bone
 	end)
 end
 

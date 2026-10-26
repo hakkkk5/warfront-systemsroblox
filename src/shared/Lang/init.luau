@@ -102,19 +102,49 @@ local function withNumbers(t: { [string]: string }, text: string): string?
 	end))
 end
 
+local function lookup(t: { [string]: string }, text: string): string?
+	return t[text] or withNumbers(t, text)
+end
+
+-- Text put together from pieces: "Picked up: Bandage" (a known prefix and
+-- the rest), "Spark Plugs, Spare Wheel" (a list).
+local function pieces(t: { [string]: string }, text: string): string?
+	local cut = string.find(text, ": ", 1, true)
+	if cut then
+		local head = string.sub(text, 1, cut + 1)
+		local known = lookup(t, head)
+		if known then
+			local rest = string.sub(text, cut + 2)
+			return known .. (lookup(t, rest) or pieces(t, rest) or rest)
+		end
+	end
+	if string.find(text, ", ", 1, true) then
+		local out, any = {}, false
+		for _, item in string.split(text, ", ") do
+			local known = lookup(t, item)
+			any = any or known ~= nil
+			table.insert(out, known or item)
+		end
+		if any then
+			return table.concat(out, ", ")
+		end
+	end
+	return nil
+end
+
 -- The text in the current language (or as it is).
 function Lang.t(text: string): string
 	local t = tableFor(current)
 	if not t or text == "" then
 		return text
 	end
-	return t[text] or withNumbers(t, text) or text
+	return lookup(t, text) or pieces(t, text) or text
 end
 
 -- Whether the current language has this text.
 function Lang.has(text: string): boolean
 	local t = tableFor(current)
-	return t ~= nil and (t[text] ~= nil or withNumbers(t, text) ~= nil)
+	return t ~= nil and text ~= "" and (lookup(t, text) ~= nil or pieces(t, text) ~= nil)
 end
 
 -- A pattern with %s / %d in it, translated and then filled in.

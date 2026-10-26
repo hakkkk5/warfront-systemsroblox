@@ -1369,8 +1369,19 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder, finaleSi
 			cutsceneDone[player] = name
 		end
 	end)
+	-- hints, at most one per cooldown (none on Nightmare: an endless cooldown)
+	local lastHint: { [Player]: number } = {}
 	Net.event("RequestHint").OnServerEvent:Connect(function(player)
+		local cooldown = Config.Player.HintCooldown
+		local now = os.clock()
+		if cooldown >= 1e6 or now - (lastHint[player] or -math.huge) < cooldown - 1 then
+			return
+		end
+		lastHint[player] = now
 		Net.event("Hint"):FireClient(player, Story.hintTargets())
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		lastHint[player] = nil
 	end)
 	task.spawn(watcher)
 end
