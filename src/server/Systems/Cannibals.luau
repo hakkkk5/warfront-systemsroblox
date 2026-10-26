@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Signal = require(ReplicatedStorage.Shared.Signal)
 local Util = require(ReplicatedStorage.Shared.Util)
@@ -38,6 +39,14 @@ export type KindSpec = {
 	apron: boolean?,
 	lantern: boolean?,
 	keys: boolean?,
+	-- how each of them hunts differently (think / attack):
+	--   charge  bursts forward when it has you in a straight line
+	--   silent  no growl when it starts after you, and a quicker swing
+	--   thrower throws its cleaver at you from range
+	--   statue  can't move while someone's looking at it; rushes when not
+	--   rev     revs the chainsaw, then charges
+	trait: string?,
+	stamina: number, -- seconds it can run flat out before it's winded
 }
 
 local KINDS: { [string]: KindSpec } = {
@@ -55,6 +64,8 @@ local KINDS: { [string]: KindSpec } = {
 		mask = "Sack",
 		apron = true,
 		keys = true,
+		trait = "charge",
+		stamina = 10,
 	},
 	Brother = {
 		display = "Michel",
@@ -68,6 +79,8 @@ local KINDS: { [string]: KindSpec } = {
 		damage = 30,
 		weapon = "Cleaver",
 		mask = "Stitched",
+		trait = "silent",
+		stamina = 14,
 	},
 	Hunter = {
 		display = "The Hunter",
@@ -82,6 +95,8 @@ local KINDS: { [string]: KindSpec } = {
 		weapon = "Cleaver",
 		mask = "Sack",
 		lantern = true,
+		trait = "thrower",
+		stamina = 12,
 	},
 	Scavenger = {
 		display = "The Scavenger",
@@ -95,6 +110,8 @@ local KINDS: { [string]: KindSpec } = {
 		damage = 26,
 		weapon = "Cleaver",
 		mask = "Stitched",
+		trait = "statue",
+		stamina = 18,
 	},
 	Papa = {
 		display = "Papa",
@@ -109,6 +126,8 @@ local KINDS: { [string]: KindSpec } = {
 		weapon = "Chainsaw",
 		mask = "Skin",
 		apron = true,
+		trait = "rev",
+		stamina = 7,
 	},
 	Kin = {
 		display = "Kin",
@@ -122,6 +141,7 @@ local KINDS: { [string]: KindSpec } = {
 		damage = 30,
 		weapon = "Cleaver",
 		mask = "Sack",
+		stamina = 11,
 	},
 }
 Cannibals.Kinds = KINDS
@@ -174,6 +194,12 @@ export type Cannibal = {
 	nextHunt: number,
 	struggling: boolean,
 	speedMult: number, -- the chase director pushes it to keep up
+	stamina: number, -- 0..1 of its flat-out running left
+	windedUntil: number, -- out of breath: walks until then
+	burstUntil: number, -- charging (charge / rev)
+	nextBurst: number,
+	revUntil: number, -- rev: standing, revving, until then
+	nextThrow: number, -- thrower
 }
 
 local folder = Instance.new("Folder")
@@ -182,6 +208,8 @@ folder.Parent = workspace
 
 local list: { Cannibal } = {}
 local paused = false
+local watched: (c: Cannibal) -> boolean
+local chaseSpeed: (c: Cannibal, now: number, dt: number) -> number
 
 local hurtRemote = Net.event("Hurt")
 local soundRemote = Net.event("Sound")
@@ -604,7 +632,7 @@ local function startChase(c: Cannibal, player: Player)
 	c.target = player
 	setState(c, "Chase")
 	c.target = player
-	if not wasChasing then
+	if not wasChasing and c.spec.trait ~= "silent" then
 		soundRemote:FireAllClients("Growl", c.head.Position)
 	end
 end
@@ -628,13 +656,30 @@ local function isSafe(player: Player): boolean
 	return typeof(untilTime) == "number" and os.clock() < untilTime
 end
 
+-- How much a blow takes off: on Hard and Nightmare it kills outright.
+local function blow(humanoid: Humanoid, damage: number): number
+	return if Difficulty.oneShot() then humanoid.Health + 100 else damage
+end
+
+-- Lands a blow on a player (the client gets where it came from and who, for
+-- the hit flash and, if they never saw it coming, a jumpscare).
+local function hit(c: Cannibal, player: Player, humanoid: Humanoid, root: BasePart, damage: number, from: Vector3)
+	local amount = blow(humanoid, damage)
+	player:SetAttribute("LastAttacker", c.kind)
+	humanoid:TakeDamage(amount)
+	hurtRemote:FireClient(player, amount, from, c.kind)
+	local away = Util.flat(root.Position - from)
+	if away.Magnitude > 0.1 then
+		root.AssemblyLinearVelocity += away.Unit * 30 + Vector3.new(0, 12, 0)
+	end
+end
+
 local function attack(c: Cannibal, player: Player)
 	if c.attacking then
 		return
 	end
 	c.attacking = true
 	c.attackReady = os.clock() + TUNE.AttackCooldown
-	stop(c)
 	local track = c.tracks.attack
 	if track then
 		track:Play(0.1, 1, 1.3)
@@ -645,18 +690,71 @@ local function attack(c: Cannibal, player: Player)
 		end)
 	end
 	soundRemote:FireAllClients("Slash", c.head.Position)
-	task.wait(TUNE.AttackWindup)
-	local _, humanoid, root = playerParts(player)
-	if humanoid and root and c.alive and c.state == "Chase" and not player:GetAttribute("Hidden") and not isSafe(player) then
-		local offset = root.Position - c.root.Position
-		if offset.Magnitude < TUNE.HitRange then
-			player:SetAttribute("LastAttacker", c.kind)
-			humanoid:TakeDamage(c.spec.damage)
-			hurtRemote:FireClient(player, c.spec.damage, c.root.Position)
-			root.AssemblyLinearVelocity += Util.flat(offset).Unit * 30 + Vector3.new(0, 12, 0)
+	-- it keeps coming through the wind-up (a lunge, not a standstill, so
+	-- walking off doesn't take you out of reach) and the blade can land any
+	-- time in the follow-through
+	local windup = TUNE.AttackWindup * (if c.spec.trait == "silent" then 0.75 else 1)
+	local started = os.clock()
+	while os.clock() - started < windup + 0.3 do
+		local _, humanoid, root = playerParts(player)
+		if not (humanoid and root and c.alive and c.state == "Chase") or player:GetAttribute("Hidden") or isSafe(player) then
+			break
 		end
+		local offset = root.Position - c.root.Position
+		if os.clock() - started >= windup and offset.Magnitude < TUNE.HitRange then
+			hit(c, player, humanoid, root, c.spec.damage, c.root.Position)
+			break
+		end
+		c.humanoid.WalkSpeed = c.spec.run * 1.1 * c.speedMult
+		c.humanoid:MoveTo(root.Position)
+		task.wait(0.05)
 	end
 	task.wait(0.35)
+	c.attacking = false
+end
+
+-- The Hunter's cleaver, thrown at where you're going to be.
+local function throwCleaver(c: Cannibal, player: Player)
+	local _, _, root = playerParts(player)
+	if not root then
+		return
+	end
+	c.attacking = true
+	stop(c)
+	c.root.CFrame = CFrame.lookAt(c.root.Position, Vector3.new(root.Position.X, c.root.Position.Y, root.Position.Z))
+	soundRemote:FireAllClients("KnifeDraw", c.head.Position)
+	task.wait(0.35)
+	local from = c.head.Position + c.root.CFrame.RightVector * 1.2
+	local flight = math.clamp((root.Position - from).Magnitude / 75, 0.2, 0.7)
+	local aim = root.Position + Util.flat(root.AssemblyLinearVelocity) * flight
+	local blade = Instance.new("Part")
+	blade.Name = "ThrownCleaver"
+	blade.Size = Vector3.new(0.25, 1.4, 0.9)
+	blade.Color = rgb(70, 66, 64)
+	blade.Material = Enum.Material.Metal
+	blade.Anchored = true
+	blade.CanCollide = false
+	blade.CanQuery = false
+	blade.CFrame = CFrame.lookAt(from, aim)
+	blade.Parent = workspace
+	soundRemote:FireAllClients("Whoosh", from)
+	local t0 = os.clock()
+	while os.clock() - t0 < flight do
+		local k = (os.clock() - t0) / flight
+		blade.CFrame = CFrame.lookAt(from:Lerp(aim, k), aim) * CFrame.Angles(k * 25, 0, 0)
+		task.wait()
+	end
+	blade.CFrame = CFrame.new(aim)
+	local _, humanoid, r2 = playerParts(player)
+	if humanoid and r2 and not player:GetAttribute("Hidden") and (r2.Position - aim).Magnitude < 3.6 then
+		hit(c, player, humanoid, r2, c.spec.damage * 0.7, from)
+		blade:Destroy()
+	else
+		soundRemote:FireAllClients("Impact", aim)
+		task.delay(6, function()
+			blade:Destroy()
+		end)
+	end
 	c.attacking = false
 end
 
@@ -826,10 +924,8 @@ function Cannibals.struggle(c: Cannibal, player: Player)
 		-- slammed: hurt, thrown back, and it comes straight back at you
 		local _, h2, r2 = playerParts(player)
 		if h2 and r2 and h2.Health > 0 then
-			player:SetAttribute("LastAttacker", c.kind)
-			h2:TakeDamage(c.spec.damage * 0.8)
-			hurtRemote:FireClient(player, c.spec.damage * 0.8, c.root.Position)
-			r2.AssemblyLinearVelocity += Util.flat(r2.Position - c.root.Position).Unit * 45 + Vector3.new(0, 14, 0)
+			hit(c, player, h2, r2, c.spec.damage * 0.8, c.root.Position)
+			r2.AssemblyLinearVelocity += Util.flat(r2.Position - c.root.Position).Unit * 15
 		end
 		c.attackReady = os.clock() + 1.5
 		c.detection[player] = 1
@@ -912,10 +1008,62 @@ local function perceive(c: Cannibal, dt: number): (Player?, number)
 	return best, bestDetection
 end
 
+-- Whether any player is looking straight at it (in first person the body
+-- faces where the camera does), close enough and with nothing in between.
+watched = function(c: Cannibal): boolean
+	for _, player in Players:GetPlayers() do
+		local _, _, root, head = playerParts(player)
+		if root and head then
+			local to = c.head.Position - head.Position
+			if to.Magnitude < 70 and to.Magnitude > 0.1 then
+				local facing = Util.flat(root.CFrame.LookVector)
+				if facing.Magnitude > 0.1 and facing.Unit:Dot(Util.flat(to).Unit) > 0.75 and lineOfSight(head.Position, c.head.Position) then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- Flat-out running costs breath. Out of it, they slow to a walk for a few
+-- seconds, gasping: the moment to break away. Charges cost double.
+chaseSpeed = function(c: Cannibal, now: number, dt: number): number
+	local spec = c.spec
+	if now < c.windedUntil then
+		return spec.walk * 1.05
+	end
+	local burst = now < c.burstUntil
+	local speed = spec.run * (if burst then (if spec.trait == "rev" then 1.5 else 1.4) else 1)
+	if spec.trait == "statue" then
+		speed *= 1.3 -- the moment you look away
+	end
+	c.stamina -= dt / spec.stamina * (if burst then 2 else 1)
+	if c.stamina <= 0 then
+		c.stamina = 0
+		local rest = if Difficulty.current() == "Nightmare" then 2 elseif Difficulty.current() == "Hard" then 2.8 else 3.6
+		c.windedUntil = now + rest
+		c.burstUntil = 0
+		c.model:SetAttribute("Winded", true)
+		soundRemote:FireAllClients("Pant", c.head.Position)
+		task.delay(rest, function()
+			if c.model.Parent then
+				c.model:SetAttribute("Winded", nil)
+			end
+		end)
+		return spec.walk * 1.05
+	end
+	return speed
+end
+
 local function think(c: Cannibal, dt: number)
 	local now = os.clock()
 	if c.struggling then
 		return -- locked in a syringe struggle with someone
+	end
+	-- breath comes back whenever it isn't running you down
+	if c.state ~= "Chase" or now < c.windedUntil then
+		c.stamina = math.min(1, c.stamina + dt * (if now < c.windedUntil then 0.3 else 0.2))
 	end
 	if c.state == "Sedated" then
 		if now >= c.sedatedUntil then
@@ -998,15 +1146,46 @@ local function think(c: Cannibal, dt: number)
 		end
 		local goal = if now - c.lastSeenTime < 0.4 then root.Position else (c.lastSeenPos or root.Position)
 		local dist = (root.Position - c.root.Position).Magnitude
-		if dist < TUNE.AttackRange and now >= c.attackReady and now - c.lastSeenTime < 0.4 then
+		local sees = now - c.lastSeenTime < 0.4
+		local trait = c.spec.trait
+		-- the Scavenger can't move while you're looking at it
+		if trait == "statue" and watched(c) then
+			if not c.attacking then
+				stop(c)
+			end
+			return
+		end
+		if dist < TUNE.AttackRange and now >= c.attackReady and sees then
 			task.spawn(attack, c, target)
 		elseif not c.attacking then
-			if dist < 22 and now - c.lastSeenTime < 0.4 then
+			if trait == "thrower" and sees and dist > 14 and dist < 42 and now > c.nextThrow then
+				c.nextThrow = now + 7 + math.random() * 4
+				task.spawn(throwCleaver, c, target)
+				return
+			end
+			if (trait == "charge" or trait == "rev") and sees and dist > 9 and dist < 32 and now > c.nextBurst and c.stamina > 0.3 then
+				c.nextBurst = now + (if trait == "rev" then 13 else 9)
+				if trait == "rev" then
+					c.revUntil = now + 0.9
+					soundRemote:FireAllClients("Chainsaw", c.head.Position)
+				else
+					soundRemote:FireAllClients("Growl", c.head.Position)
+				end
+				c.burstUntil = math.max(now, c.revUntil) + 1.6
+			end
+			if now < c.revUntil then
+				-- revving: rooted to the spot, staring you down
+				stop(c)
+				c.root.CFrame = CFrame.lookAt(c.root.Position, Vector3.new(root.Position.X, c.root.Position.Y, root.Position.Z))
+				return
+			end
+			local speed = chaseSpeed(c, now, dt)
+			if dist < 22 and sees then
 				c.waypoints = nil
-				c.humanoid.WalkSpeed = c.spec.run
+				c.humanoid.WalkSpeed = speed * c.speedMult
 				c.humanoid:MoveTo(goal)
 			else
-				moveTo(c, goal, c.spec.run)
+				moveTo(c, goal, speed)
 			end
 		end
 	elseif state == "Grab" then
@@ -1221,6 +1400,12 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		nextHunt = 0,
 		struggling = false,
 		speedMult = 1,
+		stamina = 1,
+		windedUntil = 0,
+		burstUntil = 0,
+		nextBurst = 0,
+		revUntil = 0,
+		nextThrow = 0,
 	}
 	rig:SetAttribute("Kind", kind)
 	rig:SetAttribute("State", "Patrol")

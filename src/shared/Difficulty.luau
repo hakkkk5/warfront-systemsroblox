@@ -82,6 +82,11 @@ function Difficulty.current(): string
 	return current
 end
 
+-- Hard and Nightmare: one blow from the family kills.
+function Difficulty.oneShot(): boolean
+	return current == "Hard" or current == "Nightmare"
+end
+
 function Difficulty.valid(name: any): boolean
 	return typeof(name) == "string" and SCALES[name] ~= nil
 end

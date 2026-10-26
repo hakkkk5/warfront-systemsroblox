@@ -341,6 +341,28 @@ function Scares.init()
 		end
 	end)
 
+	-- Hit by one you never saw coming (from behind, from the side, a cleaver
+	-- out of the dark): its face, in yours, for half a second. A blow that
+	-- kills gets the full scare from the death screen instead.
+	Net.event("Hurt").OnClientEvent:Connect(function(_amount: any, from: any, kind: any)
+		if typeof(from) ~= "Vector3" or Jumpscare.isPlaying() then
+			return
+		end
+		local camera = workspace.CurrentCamera
+		local to = from - camera.CFrame.Position
+		local unseen = to.Magnitude > 0.1 and camera.CFrame.LookVector:Dot(to.Unit) < 0.4
+		if not unseen then
+			return
+		end
+		task.delay(0.05, function()
+			local character = Players.LocalPlayer.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				Jumpscare.play(if typeof(kind) == "string" then kind else nil, { tail = true, build = false, duration = 0.45 })
+			end
+		end)
+	end)
+
 	-- Tells: when one of them is close (and not already on you) the flashlight
 	-- gets nervous and your heart starts to pound, before you see anything.
 	local heart = false

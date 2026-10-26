@@ -110,6 +110,7 @@ Assets.Sounds = {
 	Footstep = "rbxasset://sounds/action_footsteps_plastic.mp3", -- (built in) steps behind you
 	ChurchBell = "rbxassetid://9113804436", -- Pro Sound Effects: the Pinecrest bell
 	Siren = "rbxassetid://102624441028451", -- the state police arriving
+	Pant = "rbxassetid://134436716666898", -- Creator Store "male_outofbreath_03": one of the family winded, pitched down
 }
 
 return Assets

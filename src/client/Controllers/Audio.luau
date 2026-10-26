@@ -33,6 +33,11 @@ local VOLUMES: { [string]: number } = {
 	Repair = 0.7,
 }
 
+-- played lower than recorded (a person's breath, made to sound like one of them)
+local PITCHES: { [string]: number } = {
+	Pant = 0.72,
+}
+
 local musicGroup = Instance.new("SoundGroup")
 musicGroup.Name = "Music"
 musicGroup.Volume = 0.55
@@ -61,7 +66,7 @@ function Audio.play(name: string, position: Vector3?, volume: number?, pitch: nu
 	local sound = Instance.new("Sound")
 	sound.SoundId = id
 	sound.Volume = (volume or VOLUMES[name] or 0.8)
-	sound.PlaybackSpeed = pitch or (1 + (math.random() - 0.5) * 0.08)
+	sound.PlaybackSpeed = pitch or ((PITCHES[name] or 1) * (1 + (math.random() - 0.5) * 0.08))
 	sound.SoundGroup = sfxGroup
 	sound.Looped = false
 	if position then
