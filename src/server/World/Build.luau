@@ -108,6 +108,27 @@ function Build.wedge(
 	return w
 end
 
+-- A roof over a room you can walk into: the sloped face of the wedge
+-- Build.wedge would make with this size and CFrame, as a slab `thickness`
+-- thick under that face. A wedge is solid all the way down under its slope,
+-- which fills an attic with something you can't see but can't walk into.
+function Build.roofSlab(
+	parent: Instance,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material,
+	thickness: number?
+): Part
+	local t = thickness or 1
+	local h, d = size.Y, size.Z
+	local length = math.sqrt(h * h + d * d)
+	-- the slope runs from the low front edge (-Z) to the high back edge (+Z)
+	-- through the wedge's centre; tip the slab onto it and sink it below
+	local slab = cf * CFrame.Angles(-math.atan2(h, d), 0, 0) * CFrame.new(0, -t / 2, 0)
+	return Build.part(parent, Vector3.new(size.X, t, length), slab, color, material)
+end
+
 function Build.model(parent: Instance, name: string): Model
 	local m = Instance.new("Model")
 	m.Name = name

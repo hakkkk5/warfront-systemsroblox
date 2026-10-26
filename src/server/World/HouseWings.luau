@@ -161,6 +161,11 @@ function HouseWings.build(ctx: Ctx): Info
 		local s, c = HL.spanCF(size, cf)
 		return Build.wedge(p, s, O * c, color, mat)
 	end
+	-- a roof you can stand under: just the sloped face of that wedge (Build.roofSlab)
+	local function spanRoof(p: Instance, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material): Part
+		local s, c = HL.spanCF(size, cf)
+		return Build.roofSlab(p, s, O * c, color, mat)
+	end
 	local function rect(p: Instance, x0: number, x1: number, z0: number, z1: number, y: number, h: number, color: Color3, mat: Enum.Material)
 		if x1 - x0 > 0.05 and z1 - z0 > 0.05 then
 			Build.part(p, Vector3.new(x1 - x0, h, z1 - z0), O * CF((x0 + x1) / 2, y, (z0 + z1) / 2), color, mat)
@@ -297,8 +302,8 @@ function HouseWings.build(ctx: Ctx): Info
 	-- wing roofs sit lower than the main one (ridge at y 33 against 36)
 	local roofColor = rgb(44, 40, 38)
 	for _, side in { -1, 1 } do
-		spanWedge(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, -12.75), roofColor, M.RoofShingles)
-		spanWedge(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, 12.75) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
+		spanRoof(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, -12.75), roofColor, M.RoofShingles)
+		spanRoof(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, 12.75) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
 		span(shell, Vector3.new(39, 0.6, 1.2), side * 50.5, 33.1, 0, rgb(34, 30, 28), M.Wood)
 		-- wing end gables (inside face) and their siding
 		spanWedge(structure, Vector3.new(1, 8, 24), CF(side * 68, 29, -12), rgb(96, 84, 70), M.Plaster)
@@ -321,10 +326,12 @@ function HouseWings.build(ctx: Ctx): Info
 	end
 	-- attic: floorboards are the ceiling slab; a ladder up from the upstairs
 	-- hall (under the 4 x 4 hatch House.luau leaves, where the roof is high)
-	-- and one into the east loft, each beside its hatch as on the plan
+	-- and one into the east loft. Each stands in its hatch against the back
+	-- edge (z +0..+2 of the hole's -2..+2), so you climb up through the front
+	-- half and step off onto the boards, rather than into the floor.
 	local ah = HL.at(2.5, 0, -4)
-	truss(ah.X, 13, ah.Z + 3, 14)
-	truss(lh.X, 13, lh.Z + 3, 14)
+	truss(ah.X, 13, ah.Z + 1, 14)
+	truss(lh.X, 13, lh.Z + 1, 14)
 	boxCF(structure, Vector3.new(4.6, 0.3, 0.4), CF(ah.X, 25.15, ah.Z - 2.2), TRIM, M.Wood, noCollide)
 	boxCF(structure, Vector3.new(4.6, 0.3, 0.4), CF(lh.X, 25.15, lh.Z - 2.2), TRIM, M.Wood, noCollide)
 	-- rafters, from the eaves up to the ridge of the (wider, lower-pitched) roof

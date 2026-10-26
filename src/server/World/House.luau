@@ -108,9 +108,11 @@ function House.build(parent: Instance): Info
 		local s, c = HL.span(size, Vector3.new(x, y, z))
 		return Build.part(p, s, O * CF(c), color, mat, extra)
 	end
-	local function spanWedge(p: Instance, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material): WedgePart
+	-- a roof you can stand under: the sloped face of the wedge this size would
+	-- make (Build.roofSlab)
+	local function spanRoof(p: Instance, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material): Part
 		local s, c = HL.spanCF(size, cf)
-		return Build.wedge(p, s, O * c, color, mat)
+		return Build.roofSlab(p, s, O * c, color, mat)
 	end
 	-- a box between two corners already in the bigger house (x0 < x1, z0 < z1)
 	local function rect(p: Instance, x0: number, x1: number, z0: number, z1: number, y: number, h: number, color: Color3, mat: Enum.Material)
@@ -191,8 +193,8 @@ function House.build(parent: Instance): Info
 	-- (XL: the exterior with the wings; the old mesh no longer fits)
 	local shell = Build.standIn(structure, "FarmhouseExteriorXL")
 	local roofColor = rgb(44, 40, 38)
-	spanWedge(shell, Vector3.new(69, 11, 27), CF(0, 30.5, -12.5), roofColor, M.RoofShingles)
-	spanWedge(shell, Vector3.new(69, 11, 27), CF(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
+	spanRoof(shell, Vector3.new(69, 11, 27), CF(0, 30.5, -12.5), roofColor, M.RoofShingles)
+	spanRoof(shell, Vector3.new(69, 11, 27), CF(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
 	span(shell, Vector3.new(69, 0.6, 1.2), 0, 36.1, 0, rgb(34, 30, 28), M.Wood)
 	-- chimney over the living room fireplace
 	fixture(shell, Vector3.new(4, 18, 4), -30, 28, -12, rgb(96, 50, 40), M.Brick)
