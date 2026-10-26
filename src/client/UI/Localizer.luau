@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local Net = require(ReplicatedStorage.Shared.Net)
 
 local Localizer = {}
 
@@ -83,6 +84,58 @@ function Localizer.init()
 			if obj.Parent then
 				update(obj :: any)
 			end
+		end
+	end)
+
+	-- Machine translation (server Systems/Translate): what the current
+	-- language is missing goes to the server in batches; what comes back
+	-- goes into Lang, which refreshes every label.
+	local outbox: { [string]: { string } } = {}
+	Lang.Requested:Connect(function(code: string, key: string)
+		local list = outbox[code]
+		if not list then
+			list = {}
+			outbox[code] = list
+		end
+		table.insert(list, key)
+	end)
+	Net.event("Translations").OnClientEvent:Connect(function(code: any, map: any)
+		if typeof(code) == "string" and typeof(map) == "table" then
+			Lang.addTranslations(code, map)
+		end
+	end)
+	-- a language seen for the first time: everything the server already has
+	-- for it, and (without a table of our own) every line the game knows,
+	-- translated in the background
+	local warmed: { [string]: boolean } = {}
+	local function warm()
+		local code = Lang.code()
+		if code == "en" or warmed[code] then
+			return
+		end
+		warmed[code] = true
+		Net.event("TranslateRequest"):FireServer(code, nil, false)
+		if not Lang.hasTable() then
+			local keys = {}
+			for _, line in Lang.knownLines() do
+				table.insert(keys, (Lang.key(line)))
+			end
+			for i = 1, #keys, 50 do
+				Net.event("TranslateRequest"):FireServer(code, table.move(keys, i, math.min(i + 49, #keys), 1, {}), true)
+			end
+		end
+	end
+	Lang.Changed:Connect(warm)
+	warm()
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			for code, keys in outbox do
+				for i = 1, #keys, 50 do
+					Net.event("TranslateRequest"):FireServer(code, table.move(keys, i, math.min(i + 49, #keys), 1, {}), false)
+				end
+			end
+			table.clear(outbox)
 		end
 	end)
 end

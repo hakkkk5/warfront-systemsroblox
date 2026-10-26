@@ -39,6 +39,8 @@ local EVENTS = {
 	"GameOver", -- the whole party is out of lives
 	"RequestMap", -- the map wants what to do next
 	"MapTargets",
+	"TranslateRequest", -- (code, keys, background) lines a player needs in their language
+	"Translations", -- (code, { key = translation })
 	"StruggleResult",
 	"StoreBuy", -- lobby store: buy a perk
 	"SaveSettings", -- settings kept with the profile

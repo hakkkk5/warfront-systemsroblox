@@ -37,6 +37,7 @@ local PlayerService = require(Systems.PlayerService)
 require(Systems.Profiles).init()
 require(Systems.Store).init()
 require(Systems.GamePasses).init() -- who owns which pass (Pass_<key>), lobby and game servers alike
+require(Systems.Translate).init() -- every language a player's Roblox is set to (Translate Text API)
 
 -- R6 bodies for everyone, before the lobby loads anyone in
 require(Systems.R6Characters).init()

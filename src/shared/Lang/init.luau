@@ -1,8 +1,10 @@
 --!strict
 -- Translations. The game is written in English; Lang.t(text) gives the text
--- in the player's language when that language's table has it (the
+-- in the player's language: from that language's table when it has one (the
 -- ModuleScripts under this one, named by language code and keyed by the
--- English text) and the English otherwise, so a missing line never breaks
+-- English text: French), and otherwise machine-translated by the server
+-- (Systems/Translate, Roblox's Translate Text API) and kept. Until a
+-- translation arrives the English shows, so a missing line never breaks
 -- anything. The language is a setting (PlayerSettings "language": 0 = the
 -- player's Roblox language), saved with the profile; on the client
 -- UI/Localizer then swaps the text of screens and world signs in place.
@@ -16,13 +18,52 @@ local Lang = {}
 
 export type Language = { code: string, name: string }
 
--- the Settings choice, in order (1..n; 0 is automatic)
+-- the Settings choice, in order (1..n; 0 is automatic): English, French
+-- (with a table here) and every language Roblox's Translate Text API knows
+-- (translated at runtime, server Systems/Translate)
 Lang.List = {
 	{ code = "en", name = "English" },
 	{ code = "fr", name = "Français" },
+	{ code = "es", name = "Español" },
+	{ code = "pt", name = "Português" },
+	{ code = "de", name = "Deutsch" },
+	{ code = "it", name = "Italiano" },
+	{ code = "pl", name = "Polski" },
+	{ code = "ru", name = "Русский" },
+	{ code = "tr", name = "Türkçe" },
+	{ code = "id", name = "Bahasa Indonesia" },
+	{ code = "vi", name = "Tiếng Việt" },
+	{ code = "th", name = "ไทย" },
+	{ code = "ja", name = "日本語" },
+	{ code = "ko", name = "한국어" },
+	{ code = "zh-cn", name = "简体中文" },
+	{ code = "zh-tw", name = "繁體中文" },
 } :: { Language }
 
+-- each language's code for the Translate Text API (IETF BCP-47)
+Lang.API = {
+	en = "en-us",
+	fr = "fr-fr",
+	es = "es-es",
+	pt = "pt-br",
+	de = "de-de",
+	it = "it-it",
+	pl = "pl-pl",
+	ru = "ru-ru",
+	tr = "tr-tr",
+	id = "id-id",
+	vi = "vi-vn",
+	th = "th-th",
+	ja = "ja-jp",
+	ko = "ko-kr",
+	["zh-cn"] = "zh-cn",
+	["zh-tw"] = "zh-tw",
+} :: { [string]: string }
+
 Lang.Changed = Signal.new()
+-- (code, key): a line the current language has no translation for yet; the
+-- client's Localizer asks the server (key: Lang.key)
+Lang.Requested = Signal.new()
 
 local current = "en"
 local tables: { [string]: { [string]: string } | false } = {}
@@ -59,7 +100,13 @@ function Lang.guess(): string
 		end
 		return id
 	end)
-	local code = if ok and typeof(locale) == "string" then string.lower(string.sub(locale, 1, 2)) else "en"
+	local lower = if ok and typeof(locale) == "string" then string.lower(locale) else "en"
+	local code = string.sub(lower, 1, 2)
+	if code == "zh" then
+		-- Taiwan, Hong Kong, traditional script: traditional characters
+		local traditional = string.find(lower, "tw", 1, true) or string.find(lower, "hk", 1, true) or string.find(lower, "hant", 1, true)
+		code = if traditional then "zh-tw" else "zh-cn"
+	end
 	for _, l in Lang.List do
 		if l.code == code then
 			return code
@@ -180,26 +227,113 @@ local function pieces(t: { [string]: string }, text: string): string?
 	return nil
 end
 
--- The text in the current language (or as it is).
-function Lang.t(text: string): string
-	local t = tableFor(current)
-	if not t or text == "" then
-		return text
-	end
-	return lookup(t, text) or pieces(t, text) or text
+-- Machine translations from the server (Systems/Translate), by language and
+-- key. A key is the English with its numbers and format slots taken out
+-- ("Leaving in 12s" -> "Leaving in {A}s"), so one translation serves every
+-- value and the translator never touches them.
+local runtime: { [string]: { [string]: string } } = {}
+local asked: { [string]: boolean } = {}
+
+function Lang.key(text: string): (string, { string })
+	local fills: { string } = {}
+	local key = string.gsub(text, "%%[%-%d%.]*[dsgf]", function(slot)
+		table.insert(fills, slot)
+		return "\1"
+	end)
+	key = string.gsub(key, "%d+", function(n)
+		table.insert(fills, n)
+		return "\1"
+	end)
+	-- the marks in order: {A}, {B}...
+	local i = 0
+	key = string.gsub(key, "\1", function()
+		i += 1
+		return "{" .. string.char(64 + math.min(i, 26)) .. "}"
+	end)
+	return key, fills
 end
 
--- Whether the game has its own table for the current language (French). For
--- every other language the text stays English and Roblox's automatic
--- translation (Creator Dashboard > Localization) translates it on screen.
+local function fromRuntime(text: string): string?
+	local key, fills = Lang.key(text)
+	local found = runtime[current] and runtime[current][key]
+	if found then
+		return (string.gsub(found, "{(%u)}", function(c)
+			return fills[string.byte(c) - 64] or ""
+		end))
+	end
+	-- worth asking: some words, not too long
+	local mark = current .. "\0" .. key
+	if not asked[mark] and #key <= 400 and string.find(key, "%a%a") then
+		asked[mark] = true
+		Lang.Requested:Fire(current, key)
+	end
+	return nil
+end
+
+-- Translations arriving from the server (code: a Lang.List code).
+local refreshing = false
+function Lang.addTranslations(code: string, map: { [string]: string })
+	local into = runtime[code]
+	if not into then
+		into = {}
+		runtime[code] = into
+	end
+	for key, text in map do
+		into[key] = text
+	end
+	-- one refresh for a burst of arrivals
+	if code == current and not refreshing then
+		refreshing = true
+		task.delay(0.15, function()
+			refreshing = false
+			Lang.Changed:Fire(current)
+		end)
+	end
+end
+
+-- The text in the current language (or as it is): this game's own table
+-- first (French), then the machine translations.
+function Lang.t(text: string): string
+	if current == "en" or text == "" then
+		return text
+	end
+	local t = tableFor(current)
+	if t then
+		local found = lookup(t, text) or pieces(t, text)
+		if found then
+			return found
+		end
+	end
+	return fromRuntime(text) or text
+end
+
+-- Whether the game has its own table for the current language (French).
 function Lang.hasTable(): boolean
 	return tableFor(current) ~= nil
 end
 
--- Whether the current language has this text.
+-- Whether the current language has this text (asking the server if not).
 function Lang.has(text: string): boolean
+	if current == "en" or text == "" then
+		return false
+	end
 	local t = tableFor(current)
-	return t ~= nil and text ~= "" and (lookup(t, text) ~= nil or pieces(t, text) ~= nil)
+	if t and (lookup(t, text) ~= nil or pieces(t, text) ~= nil) then
+		return true
+	end
+	return fromRuntime(text) ~= nil
+end
+
+-- Every English line the game's own table knows (to warm up a language).
+function Lang.knownLines(): { string }
+	local fr = tableFor("fr")
+	local list = {}
+	if fr then
+		for english in fr do
+			table.insert(list, english)
+		end
+	end
+	return list
 end
 
 -- A pattern with %s / %d in it, translated and then filled in.
