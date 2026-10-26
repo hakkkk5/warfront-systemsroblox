@@ -47,8 +47,10 @@ import build_props as bp  # noqa: E402
 from build_props import PALETTE, srgb, mix, mul  # noqa: E402
 from build_buildings import C  # noqa: E402
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "farmhouse_parts.txt")
-MESHES = {"S": "FarmhouseStructure", "F": "FarmhouseFurnish"}
+# HP_DATA / HP_MESHES remodel another building the same way, e.g. the lobby:
+#   HP_DATA=lobby_parts.txt HP_MESHES=S=LobbyParts
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", os.environ.get("HP_DATA", "farmhouse_parts.txt"))
+MESHES = dict(pair.split("=") for pair in os.environ.get("HP_MESHES", "S=FarmhouseStructure,F=FarmhouseFurnish").split(","))
 # Roblox takes at most 20k triangles a mesh; bigger materials are split into
 # "<key>_2", "<key>_3"... (MeshLibrary reads those as <key>)
 LIMIT = 18000

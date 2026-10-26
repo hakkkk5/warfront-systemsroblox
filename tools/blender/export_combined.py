@@ -37,6 +37,7 @@ import build_buildings  # noqa: E402,F401  (adds the building palette entries)
 import build_monsters  # noqa: E402,F401  (adds the cannibal palette entries)
 import build_interiors  # noqa: E402,F401  (adds the room palette entries)
 import build_house_parts  # noqa: E402,F401  (adds the farmhouse parts' palette entries)
+import build_lobby  # noqa: E402,F401  (adds the truck stop palette entries)
 
 # BH_OUT names the file, so a later batch can sit next to the first one
 OUT = os.path.join(bp.ROOT, "assets", "blender", os.environ.get("BH_OUT", "CannibalFamilyMeshes.glb"))

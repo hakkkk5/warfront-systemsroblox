@@ -543,6 +543,7 @@ local function buildSet(parent: Instance): { Party }
 		if not onSite and math.abs(z + 50) > 18 then
 			local tree = Props.PineTree(rng)
 			tree:PivotTo(L(x, 0, z) * ANG(0, rng:NextNumber(0, math.pi * 2), 0))
+			tree:SetAttribute("KeepVisible", true) -- the woods stay as they are
 			tree.Parent = set
 		end
 	end

@@ -79,6 +79,7 @@ return {
 	"KitchenCounter",
 	"KitchenTable",
 	"Lantern",
+	"LobbyParts",
 	"LookoutTowerRoof",
 	"Nightstand",
 	"Note",
@@ -110,5 +111,9 @@ return {
 	"ToolShedExterior",
 	"ToyChest",
 	"TrailerExterior",
+	"TruckStopBillboard",
+	"TruckStopDiner",
+	"TruckStopMotel",
+	"TruckStopPylon",
 	"Wardrobe",
 }
