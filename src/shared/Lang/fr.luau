@@ -491,6 +491,7 @@ return {
 	["Light switch"] = "Interrupteur",
 	["Boxes"] = "Cartons",
 	["Wardrobe"] = "Armoire",
+	["Bush"] = "Buisson",
 	["Closet"] = "Placard",
 	["Locker"] = "Casier",
 	["Pantry"] = "Garde-manger",

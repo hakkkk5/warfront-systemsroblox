@@ -89,6 +89,7 @@ mark("sites")
 local finaleSites = require(World.FinaleSites).build(world)
 mark("finale")
 Forest.build(world)
+require(World.Bushes).build(world) -- bushes to hide in out in the woods
 mark("forest")
 
 AssetService.publishItemModels({

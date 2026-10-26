@@ -28,9 +28,14 @@ local function leave()
 	end
 end
 
-local function setHiding(on: boolean, inside: CFrame?)
+local slats: Frame
+local leaves: Frame
+
+local function setHiding(on: boolean, inside: CFrame?, kind: string?)
 	hiding = on
 	gui.Enabled = on
+	slats.Visible = kind ~= "bush"
+	leaves.Visible = kind == "bush"
 	if on and inside then
 		-- just past the door panels so the room is visible between the slats
 		baseCF = inside * CFrame.new(0, 2, -1.8)
@@ -55,9 +60,29 @@ end
 function HidingView.init()
 	gui = Theme.screen("Hiding", 7)
 	gui.Enabled = false
-	-- slats you peek through
+	-- slats you peek through (wardrobes, closets, lockers)
+	slats = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
+	-- leaves crowding the edges, a gap in the middle (bushes)
+	leaves = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false })
+	local rng = Random.new(7)
+	for _ = 1, 26 do
+		local edge = rng:NextInteger(1, 4)
+		local along = rng:NextNumber()
+		local x = if edge == 1 then -0.05 elseif edge == 2 then 1.05 else along
+		local y = if edge == 3 then -0.05 elseif edge == 4 then 1.05 else along
+		local size = rng:NextNumber(0.28, 0.5)
+		local leaf = Theme.frame(leaves, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(x, y),
+			Size = UDim2.fromScale(size, size * 1.4),
+			BackgroundColor3 = Color3.fromRGB(rng:NextInteger(12, 22), rng:NextInteger(24, 36), rng:NextInteger(12, 20)),
+			BackgroundTransparency = rng:NextNumber(0, 0.15),
+			Rotation = rng:NextNumber(0, 360),
+		})
+		Theme.corner(leaf, 400)
+	end
 	for i = 0, 7 do
-		local slat = Theme.frame(gui, {
+		local slat = Theme.frame(slats, {
 			Position = UDim2.fromScale(0, i / 8),
 			Size = UDim2.new(1, 0, 1 / 8, -14),
 			BackgroundColor3 = Color3.fromRGB(14, 10, 8),

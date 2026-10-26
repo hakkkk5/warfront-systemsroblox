@@ -1,5 +1,5 @@
 --!strict
--- Wardrobes, closets and lockers players can hide in.
+-- Wardrobes, closets, lockers and bushes players can hide in.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +13,7 @@ export type Spot = {
 	exit: CFrame,
 	occupant: Player?,
 	position: Vector3,
+	kind: string, -- "furniture" (slats to peek through) or "bush" (leaves)
 }
 
 local spots: { Spot } = {}
@@ -20,7 +21,13 @@ local byPlayer: { [Player]: Spot } = {}
 local hidingRemote = Net.event("Hiding")
 
 function Hiding.add(promptParent: BasePart, inside: CFrame, exit: CFrame, label: string?): Spot
-	local spot: Spot = { inside = inside, exit = exit, occupant = nil, position = inside.Position }
+	local spot: Spot = {
+		inside = inside,
+		exit = exit,
+		occupant = nil,
+		position = inside.Position,
+		kind = if label == "Bush" then "bush" else "furniture",
+	}
 	table.insert(spots, spot)
 	Interact.add(promptParent, {
 		action = "Hide",
@@ -51,7 +58,7 @@ function Hiding.enter(player: Player, spot: Spot)
 	root.CFrame = spot.inside
 	player:SetAttribute("Hidden", true)
 	player:SetAttribute("HiddenAt", os.clock())
-	hidingRemote:FireClient(player, true, spot.inside)
+	hidingRemote:FireClient(player, true, spot.inside, spot.kind)
 end
 
 function Hiding.leave(player: Player, forced: boolean?)
