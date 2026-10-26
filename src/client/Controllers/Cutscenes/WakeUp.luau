@@ -199,10 +199,17 @@ return Stage.scene("WakeUp", function(data: any)
 	at(34.6)
 	-- the front window, black with rain... a face pressed to the glass in
 	-- the lightning, watching you, and gone on the next flash
-	local faceFloor = L(-20, 2.6, -26.4)
+	-- (the rigs are about 1.5x scale: floor here puts the head at the glass)
+	local faceFloor = L(-20, -0.5, -26.4)
 	local face = Cast.actor("Kin", CFrame.lookAt(faceFloor, faceFloor + Z))
 	Cast.still(face)
 	Cast.pose(face, "neck", Cast.neck(face, -0.15, 0.1, -0.1), 0)
+	-- a cold glow on the face, so it's just there before the lightning
+	local chill = Instance.new("PointLight")
+	chill.Color = rgb(150, 180, 255)
+	chill.Range = 5
+	chill.Brightness = 0.7
+	chill.Parent = Stage.part(Vector3.new(0.2, 0.2, 0.2), CFrame.new(L(-20, 6.4, -25.1)), rgb(0, 0, 0), nil, { Transparency = 1 })
 	shot(L(-19.4, 5.8, -16.8), function()
 		return L(-20, 6.4, -24)
 	end, true)

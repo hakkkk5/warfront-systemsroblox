@@ -605,11 +605,13 @@ return Stage.scene("Crash", function(data: any)
 	local watcher = Cast.actor("Kin", CFrame.lookAt(watcherFloor.Position, watcherFloor.Position - house.LookVector))
 	Cast.still(watcher)
 	Cast.pose(watcher, "neck", Cast.neck(watcher, -0.1, 0, 0.12), 0)
-	local glow = Stage.part(Vector3.one, house * CF(-12, 19, -20), rgb(0, 0, 0), nil, { Transparency = 1 })
+	-- lamplight from just inside the glass, on the figure's front (from
+	-- behind it only made a silhouette against a black room)
+	local glow = Stage.part(Vector3.one, house * CF(-12, 19.5, -23.1), rgb(0, 0, 0), nil, { Transparency = 1 })
 	local window = Instance.new("PointLight")
 	window.Color = rgb(255, 150, 80)
-	window.Range = 12
-	window.Brightness = 0.9
+	window.Range = 9
+	window.Brightness = 1.8
 	window.Parent = glow
 	Stage.cut(CFrame.lookAt(HV(26, 3, -96), HV(0, 13, -22)), 52)
 	Stage.move(CFrame.lookAt(HV(8, 5, -58), HV(-6, 15, -22)), 8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
