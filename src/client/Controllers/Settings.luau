@@ -29,7 +29,9 @@ local ok, reduced = pcall(function()
 	return (GuiService :: any).ReducedMotionEnabled
 end)
 if ok and reduced == true then
+	-- the device asks for less motion: no flashing, a calmer camera
 	Settings.values.reduceFlashing = 1
+	Settings.values.cameraMotion = 0.5
 end
 Settings.reduceFlashing = Settings.values.reduceFlashing >= 0.5
 

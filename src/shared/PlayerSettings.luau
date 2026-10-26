@@ -63,6 +63,19 @@ PlayerSettings.List = {
 		end,
 	},
 	{
+		-- how much the view moves as you run (client CameraController): head
+		-- bob, leaning into strafes and turns, the sprint lean and FOV
+		key = "cameraMotion",
+		label = "Camera motion",
+		default = 1,
+		min = 0,
+		max = 1,
+		step = 0.5,
+		format = function(v)
+			return if v < 0.25 then "Off" elseif v < 0.75 then "Low" else "Full"
+		end,
+	},
+	{
 		-- 1 = on. For photosensitive players: see client Controllers/Settings
 		key = "reduceFlashing",
 		label = "Reduce flashing",

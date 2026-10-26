@@ -157,6 +157,9 @@ return {
 	["THE FAMILY ATE WELL TONIGHT"] = "LA FAMILLE A BIEN MANGÉ CE SOIR",
 	["Nobody made it out."] = "Personne ne s'en est sorti.",
 	["Back to the lobby in a moment."] = "Retour au lobby dans un instant.",
+	-- camera motion
+	["Camera motion"] = "Mouvement de caméra",
+	["Low"] = "Faible",
 	-- party markers
 	["Party markers"] = "Repères du groupe",
 	["%s was caught."] = "%s s'est fait attraper.",

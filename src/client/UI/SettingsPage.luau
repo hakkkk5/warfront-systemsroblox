@@ -25,6 +25,8 @@ local function apply(key: string, value: number)
 		CameraController.setBaseFov(value)
 	elseif key == "volume" then
 		Audio.setMasterVolume(value)
+	elseif key == "cameraMotion" then
+		CameraController.setMotion(value)
 	elseif key == "language" then
 		Lang.setAuto(math.round(value) == 0)
 		Lang.set(Lang.fromSetting(value))
