@@ -42,7 +42,27 @@ type Say = (speaker: string, text: string, duration: number?) -> ()
 
 export type Objective = { text: string, done: boolean, optional: boolean? }
 
-local ORDER = { "table", "beer", "fire", "curtains", "phone", "clock", "key", "chest", "plug", "tape" }
+local ORDER = {
+	"table",
+	"beer",
+	"fire",
+	"curtains",
+	"phone",
+	"clock",
+	"key",
+	"chest",
+	"plug",
+	"tape",
+	-- the wings and the attic (HouseWings)
+	"record",
+	"radio",
+	"tea",
+	"pattern",
+	"oil",
+	"sheets",
+	"guestbed",
+	"album",
+}
 local LABELS: { [string]: string } = {
 	table = "Help Michel set the dinner table",
 	beer = "Bring Jason a beer from the fridge",
@@ -54,7 +74,17 @@ local LABELS: { [string]: string } = {
 	chest = "Open the toy chest in the kid's room",
 	plug = "Pull the plug in the bathtub",
 	tape = "Watch the tape in the living room VCR",
+	record = "Put on Grandpa's record in the parlor",
+	radio = "Tune the sunroom radio to the weather",
+	tea = "Take Grandma her tea (sunroom, then her room upstairs)",
+	pattern = "Fetch Michel's dress pattern from the sewing room",
+	oil = "Bring Michel lamp oil from the workshop",
+	sheets = "Hang the wet sheets up in the attic",
+	guestbed = "Make up the bed in the guest room",
+	album = "Find the photo album in the storage room",
 }
+-- how many unfinished chores the objective list shows at once
+local SHOWN = 6
 
 local origin = CFrame.new()
 local folder: Folder? = nil
@@ -63,7 +93,7 @@ local changed: () -> () = function() end
 local onAllDone: () -> () = function() end
 local active = false
 local done: { [string]: boolean } = {}
-local carrying = { plates = false, beer = false, log = false, key = false, tape = false }
+local carrying = { plates = false, beer = false, log = false, key = false, tape = false, tea = false, oil = false, sheets = false }
 local spots: { [string]: Vector3 } = {}
 local clockHour = 3
 local CLOCK_TARGET = 7
@@ -417,6 +447,177 @@ local function buildTasks(f: Folder)
 			end)
 		end,
 	})
+
+	---------------------------------------------------------------- the wings
+	-- 11. Grandpa's record (parlor)
+	local record = anchor("RecordPlayer", L(-38, 3.4, -4), Vector3.new(1.8, 0.8, 1.6))
+	prompt(record, "Play the record", "Record player", {
+		hold = 1,
+		canUse = function()
+			return not done.record, if done.record then "The needle's stuck in the last groove." else nil
+		end,
+		onUse = function()
+			sound("Radio", record.Position)
+			task.spawn(function()
+				say("Record", "[A hymn, scratched and slow. Then a man's voice over it:]", 3.6)
+				task.wait(3.8)
+				say("Record", "\"...Sunday supper, Pinecrest church. Bring the whole family. Bring a guest.\"", 4.4)
+				task.wait(4.6)
+				complete("record", "Grandpa's voice. Michel hums along to it from the kitchen.", "You")
+			end)
+		end,
+	})
+
+	-- 12. the sunroom radio
+	local radio = anchor("Radio", L(35, 3.5, -14), Vector3.new(2, 1.4, 1.2))
+	prompt(radio, "Tune the radio", "Radio", {
+		hold = 2,
+		canUse = function()
+			return not done.radio, if done.radio then "Just static." else nil
+		end,
+		onUse = function()
+			sound("Radio", radio.Position)
+			task.spawn(function()
+				say("Radio", "...storm over the county tonight... state police are asking anyone on Hollow Road...", 4.4)
+				task.wait(4.6)
+				say("Radio", "...to stay in their vehicles. Do NOT accept assistance from-  [click]", 4)
+				task.wait(4.2)
+				complete("radio", "Someone turned the dial back. Nobody's in here.", "You")
+			end)
+		end,
+	})
+
+	-- 13. Grandma's tea: the cup from the sunroom, up to her room
+	local teapot = anchor("Teapot", L(49.2, 3.6, -11.4), Vector3.new(1.2, 1, 1.2))
+	prompt(teapot, "Take a cup of tea", "Tea set", {
+		canUse = function()
+			if done.tea then
+				return false, "It's gone cold."
+			end
+			return not carrying.tea, if carrying.tea then "I've got the cup." else nil
+		end,
+		onUse = function()
+			carrying.tea = true
+			sound("Pickup", teapot.Position)
+			say("Michel", "Grandma's room is at the top of the back stairs. She takes it with a lot of sugar.", 4.4)
+			changed()
+		end,
+	})
+	local grandma = anchor("Grandma", L(-60, U + 4, -6), Vector3.new(2.4, 3, 2.4))
+	prompt(grandma, "Give her the tea", "Grandma", {
+		hold = 0.6,
+		canUse = function()
+			if done.tea then
+				return false, "She hasn't moved. She isn't going to."
+			end
+			if not carrying.tea then
+				return false, "Grandma's asleep in her chair."
+			end
+			return true
+		end,
+		onUse = function()
+			carrying.tea = false
+			sound("Scream", grandma.Position)
+			Net.event("Scare"):FireAllClients("lights")
+			complete("tea", "Grandma...? Her skin is like paper. She's been dead for YEARS.", "You")
+		end,
+	})
+
+	-- 14. the dress pattern, pinned to a dress form in the sewing room
+	local form = anchor("DressForm", L(-51.5, U + 4.5, 20.4), Vector3.new(2, 3, 1.4))
+	prompt(form, "Unpin the pattern", "Dress form", {
+		hold = 1,
+		canUse = function()
+			return not done.pattern, nil
+		end,
+		onUse = function()
+			sound("PageTurn", form.Position)
+			Pickups.note("PatternNote", L(-51.5, U + 0.1, 19), f)
+			complete("pattern", "The pattern's traced around a person. Lying down. Arms out.", "You")
+		end,
+	})
+
+	-- 15. lamp oil from the workshop drums, for Michel
+	local drums = anchor("OilDrums", L(42.6, 3.2, 22), Vector3.new(6, 2, 2.4))
+	prompt(drums, "Fill a can of lamp oil", "Drums", {
+		hold = 1.2,
+		canUse = function()
+			if done.oil then
+				return false, "Michel has his oil."
+			end
+			return not carrying.oil, if carrying.oil then "The can's full." else nil
+		end,
+		onUse = function()
+			carrying.oil = true
+			sound("Repair", drums.Position)
+			say("You", "Lamp oil... it smells like the cellar. Michel wanted this.", 3.2)
+			changed()
+		end,
+	})
+
+	-- 16. wet sheets from the mudroom, up the ladder to the attic line
+	local tub = anchor("WashTub", L(-36, 3.8, 21.8), Vector3.new(3.6, 1, 3))
+	prompt(tub, "Wring out the sheets", "Wash tub", {
+		hold = 1.4,
+		canUse = function()
+			if done.sheets then
+				return false, "Empty. The water is pink."
+			end
+			return not carrying.sheets, if carrying.sheets then "Got them." else nil
+		end,
+		onUse = function()
+			carrying.sheets = true
+			sound("Wind", tub.Position)
+			say("Michel", "Attic. The ladder's in the upstairs hall. Mind the boards.", 3.6)
+			changed()
+		end,
+	})
+	local line = anchor("AtticLine", L(-6, 27.5, 3), Vector3.new(4, 2, 1))
+	prompt(line, "Hang the sheets", "Washing line", {
+		hold = 1.6,
+		canUse = function()
+			if done.sheets then
+				return false, nil
+			end
+			if not carrying.sheets then
+				return false, "A washing line, strung between the rafters."
+			end
+			return true
+		end,
+		onUse = function()
+			carrying.sheets = false
+			sound("Wind", line.Position)
+			Net.event("Scare"):FireAllClients("whisper")
+			complete("sheets", "There's a shape under the next sheet along. Standing very still.", "You")
+		end,
+	})
+
+	-- 17. the guest bed
+	local bed = anchor("GuestBed", L(56, U + 3.2, -17), Vector3.new(6, 1, 6))
+	prompt(bed, "Make the bed", "Guest bed", {
+		hold = 2,
+		canUse = function()
+			return not done.guestbed, nil
+		end,
+		onUse = function()
+			sound("PageTurn", bed.Position)
+			complete("guestbed", "The mattress is new. The stain underneath it isn't.", "You")
+		end,
+	})
+
+	-- 18. the photo album, buried in the storage room boxes
+	local boxes = anchor("Album", L(40, U + 2.6, 17.2), Vector3.new(4, 2, 3))
+	prompt(boxes, "Dig through the boxes", "Boxes", {
+		hold = 2.2,
+		canUse = function()
+			return not done.album, nil
+		end,
+		onUse = function()
+			sound("PageTurn", boxes.Position)
+			Pickups.note("GuestAlbum", L(38.5, U + 0.1, 15), f)
+			complete("album", "An album. Every page a different guest. The last page is blank... waiting.", "You")
+		end,
+	})
 end
 
 ---------------------------------------------------------------- api
@@ -457,13 +658,25 @@ function Chores.onTalk(name: string): boolean
 		complete("beer", "Good. You're learning how we do things here.", "Jason")
 		return true
 	end
+	if active and name == "Michel" and carrying.oil and not done.oil then
+		carrying.oil = false
+		complete("oil", "Bless you. The lamps in the cellar drink it up... we keep them lit for the guests.", "Michel")
+		return true
+	end
 	return false
 end
 
+-- A running count, then the next few chores still to do (eighteen lines
+-- would fill the screen).
 function Chores.objectives(): { Objective }
 	local list: { Objective } = {}
+	table.insert(list, { text = string.format("Lend a hand before supper (%d/%d)", count(), #ORDER), done = count() >= #ORDER })
+	local shown = 0
 	for _, id in ORDER do
-		table.insert(list, { text = LABELS[id], done = done[id] == true })
+		if not done[id] and shown < SHOWN then
+			table.insert(list, { text = LABELS[id], done = false })
+			shown += 1
+		end
 	end
 	return list
 end
@@ -505,6 +718,30 @@ function Chores.hintTargets(): { Vector3 }
 	end
 	if not done.tape and carrying.tape then
 		add("VCR")
+	end
+	if not done.record then
+		add("RecordPlayer")
+	end
+	if not done.radio then
+		add("Radio")
+	end
+	if not done.tea then
+		add(if carrying.tea then "Grandma" else "Teapot")
+	end
+	if not done.pattern then
+		add("DressForm")
+	end
+	if not done.oil and not carrying.oil then
+		add("OilDrums")
+	end
+	if not done.sheets then
+		add(if carrying.sheets then "AtticLine" else "WashTub")
+	end
+	if not done.guestbed then
+		add("GuestBed")
+	end
+	if not done.album then
+		add("Album")
 	end
 	return list
 end

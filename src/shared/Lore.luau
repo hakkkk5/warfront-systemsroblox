@@ -85,6 +85,15 @@ local Lore: { [string]: Note } = {
 		title = "Basement Hatch",
 		body = "A heavy hatch in the kitchen floor, chained shut with a padlock the size of your fist.\n\nCold air seeps up through the cracks. It smells like a butcher's shop.\n\nThe wood around the edge has been scratched, deep and frantic, from the other side.",
 	},
+	-- chores in the wings
+	PatternNote = {
+		title = "Dress Pattern",
+		body = "Brown paper, cut and pinned. Someone traced the outline straight onto it: a person lying on their back, arms out, fingers spread.\n\nMeasurements down the side in Mama's handwriting:\n\nHEIGHT 5'7\". GOOD SKIN ON THE BACK.\nSUNDAY DRESS - FOR CHURCH.",
+	},
+	GuestAlbum = {
+		title = "Photo Album",
+		body = "\"OUR GUESTS\" stitched on the cover.\n\nPage after page of polaroids: strangers on the sofa downstairs, smiling, sometimes not. A date under each one. A red tick beside most of the dates.\n\nThe newest page has a space and a label already written out, waiting for a photo:\n\n\"HOLLOW ROAD - THE STORM\"",
+	},
 	-- the wings and the attic
 	PianoNote = {
 		title = "Sheet Music",
