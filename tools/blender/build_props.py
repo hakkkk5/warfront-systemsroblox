@@ -84,7 +84,8 @@ PALETTE = {
     "ceramic": dict(color=srgb(232, 228, 216), roblox="SmoothPlastic", rough=0.3, metal=0.0, pattern="dirty"),
     "label_gold": dict(color=srgb(206, 156, 46), roblox="SmoothPlastic", rough=0.4, metal=0.2, pattern="dirty"),
     "battery_black": dict(color=srgb(30, 30, 32), roblox="SmoothPlastic", rough=0.5, metal=0.0, pattern="dirty"),
-    "blood": dict(color=srgb(90, 8, 8), roblox="Glass", rough=0.1, metal=0.0, pattern="none"),
+    # (not Glass: Roblox glass ignores vertex colours and shows the blood grey)
+    "blood": dict(color=srgb(90, 8, 8), roblox="SmoothPlastic", rough=0.1, metal=0.0, pattern="none"),
     # farmhouse furniture
     "leather_sofa": dict(color=srgb(74, 42, 30), roblox="Leather", rough=0.6, metal=0.0, pattern="dirty"),
     "brick": dict(color=srgb(112, 58, 44), roblox="Brick", rough=0.9, metal=0.0, pattern="stone"),
