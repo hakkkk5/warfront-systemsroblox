@@ -14,6 +14,13 @@ A first-person survival horror game for Roblox. Your car crashes on a forest roa
 | **III: Last Ride** | Interactive drive (hold W). The engine overheats and **explodes**. |
 | **IV: The Ranger Station** | Papa and his chainsaw are right behind you. Get the fuse from the fire lookout and fuel from the tool shed, restore power, and use the radio. |
 | **V: Rescue** | Survive two minutes while the family closes in, then reach the helicopter. |
+| **VII: Hard Landing** | Cutscene: the helicopter is shot down over the woods. Search the wreck; the pilot is gone. Follow the drag marks. |
+| **VIII: Hollow Meats** | The family's meat plant. Throw three breakers, find the foreman's keycard, cut the pilot down in cold storage (optional), and get through the mine door. |
+| **IX: Supper** | Through the mine into the crypt under Pinecrest's church. Find the crypt key, ring the bell, hold out 90 seconds against the whole family, and run for the police car. The true ending needs Ranger Ellis and the pilot both saved. |
+
+The farmhouse has two wings and an attic (`World/HouseWings.luau`), so it's about three times bigger. After the reveal the front door is nailed shut: a crowbar and the padlock key are hidden in different spots every night.
+
+**Systems:** throw bottles, rocks, molotovs and noise traps to draw the family away (G / R1 / touch button), craft at workbenches (`shared/Crafting.luau`), 18 achievements and 13 hidden polaroids (`shared/Trophies.luau`), and a fear director (`Systems/RandomEvents.luau`) that paces the dread per player instead of firing scares on a timer.
 
 ## Features
 
