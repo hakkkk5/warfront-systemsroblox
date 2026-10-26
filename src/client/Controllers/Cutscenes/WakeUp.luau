@@ -1,8 +1,9 @@
 --!strict
--- WakeUp (~37 s), shot from across the room: you come to on the farmhouse
+-- WakeUp (~40 s), shot from across the room: you come to on the farmhouse
 -- sofa by the fire. Michel and Jason are kind, a little too kind: the phone
 -- is down, they'll drive you to town in the morning, make yourself at
 -- home... and stay out of the basement. You sit up; they leave you to rest,
+-- a face at the front window watches you in the lightning and is gone,
 -- and the camera settles back into your eyes for the game.
 -- data: { eye, jason, michel, exit, doorway: CFrame }
 
@@ -195,14 +196,34 @@ return Stage.scene("WakeUp", function(data: any)
 	end)
 	at(32.6)
 	focusFn = michelHead
-	at(35)
+	at(34.6)
+	-- the front window, black with rain... a face pressed to the glass in
+	-- the lightning, watching you, and gone on the next flash
+	local faceFloor = L(-20, 2.6, -26.4)
+	local face = Cast.actor("Kin", CFrame.lookAt(faceFloor, faceFloor + Z))
+	Cast.still(face)
+	Cast.pose(face, "neck", Cast.neck(face, -0.15, 0.1, -0.1), 0)
+	shot(L(-19.4, 5.8, -16.8), function()
+		return L(-20, 6.4, -24)
+	end, true)
+	Stage.zoom(40, 0)
+	Stage.zoom(30, 2.4)
+	at(35.4)
+	Effects.lightning()
+	Stage.sfx("Growl", nil, L(-20, 6, -25), 0.45, 0.55)
+	at(36.9)
+	Effects.lightning()
+	face.model:Destroy()
+	at(37.8)
 	-- back into your own eyes for the game
+	Stage.zoom(55, 0)
 	local eyePos = myHead() + seated.LookVector * 0.3
 	shot(eyePos, function()
 		return eyePos + seated.LookVector * 10
-	end, false, 2.2)
+	end, true)
 	Stage.zoom(70, 1.6)
-	at(36.4)
+	HUD.subtitle("You", "...was someone at the window?", 2.6)
+	at(39.6)
 	Stage.fadeTo(1, 0.8)
 	sleep(0.9)
 	Stage.stopCamera()

@@ -1,9 +1,10 @@
 --!strict
--- Crash (~50 s), shot from outside like a film: you at the wheel on a late
+-- Crash (~58 s), shot from outside like a film: you at the wheel on a late
 -- food run with friends in the storm, a pickup with its lights off rolls out
 -- of the dark and T-bones the car into a pine. Michel and Jason come down the
 -- road with a lantern, find you slumped over the wheel, and Michel carries
--- you up the driveway to the farmhouse.
+-- you up the driveway. Lightning shows the farmhouse - far too big - with a
+-- figure at an upstairs window that is gone on the next flash.
 -- data: { sedan: Model, tree: CFrame, house: CFrame, truck: Model?, truckCF: CFrame? }
 
 local Players = game:GetService("Players")
@@ -590,6 +591,50 @@ return Stage.scene("Crash", function(data: any)
 	jason.model:Destroy()
 	michel.model:Destroy()
 	me.model:Destroy()
+
+	---------------------------------------------------------------- the house
+	-- out of the dark in a lightning flash: the farmhouse, far bigger than a
+	-- house out here should be, every window black but one. Someone stands
+	-- at an upstairs window watching you being carried in, and on the next
+	-- flash there's no one there.
+	local house = Stage.cf(data.house, workspace.CurrentCamera.CFrame)
+	local function HV(x: number, y: number, z: number): Vector3
+		return house * Vector3.new(x, y, z)
+	end
+	local watcherFloor = house * CF(-12, 13, -22.4)
+	local watcher = Cast.actor("Kin", CFrame.lookAt(watcherFloor.Position, watcherFloor.Position - house.LookVector))
+	Cast.still(watcher)
+	Cast.pose(watcher, "neck", Cast.neck(watcher, -0.1, 0, 0.12), 0)
+	local glow = Stage.part(Vector3.one, house * CF(-12, 19, -20), rgb(0, 0, 0), nil, { Transparency = 1 })
+	local window = Instance.new("PointLight")
+	window.Color = rgb(255, 150, 80)
+	window.Range = 12
+	window.Brightness = 0.9
+	window.Parent = glow
+	Stage.cut(CFrame.lookAt(HV(26, 3, -96), HV(0, 13, -22)), 52)
+	Stage.move(CFrame.lookAt(HV(8, 5, -58), HV(-6, 15, -22)), 8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	Stage.blur(0)
+	Stage.sway(0.3)
+	Stage.resetClock()
+	Stage.fadeTo(0, 1.4)
+	at(1.3)
+	Effects.lightning()
+	at(2.6)
+	HUD.subtitle("Jason", "(whispering) Mama's going to be so pleased.", 3)
+	at(4.4)
+	-- in close on the window... and then she's gone
+	Stage.cut(CFrame.lookAt(HV(-10, 15, -44), HV(-12, 16.5, -23)), 34)
+	Stage.move(CFrame.lookAt(HV(-11, 15.8, -38), HV(-12, 16.5, -23)), 3)
+	at(6.2)
+	Effects.lightning()
+	watcher.model:Destroy()
+	window.Brightness = 0
+	at(7.4)
+	Stage.sfx("Impact", nil, HV(0, 4, -24), 1, 0.55) -- the front door slams
+	CameraController.shake(0.25, 3)
+	Stage.fadeTo(1, 0.3)
+	sleep(0.4)
+	Stage.stopCamera()
 	Stage.title("Hours later…", { font = Theme.Fonts.Type, size = 34, color = Theme.Colors.BoneDim, fadeIn = 1.2, hold = 1.8, fadeOut = 1 })
 	sleep(4.2)
 end)

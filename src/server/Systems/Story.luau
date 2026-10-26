@@ -1142,7 +1142,7 @@ function Story.begin()
 			truck = sites.truck,
 			truckCF = sites.truckCF,
 			house = house.origin,
-		}, 60)
+		}, 75)
 
 		-- Chapter 1: two friendly strangers pulled us out of the wreck. The
 		-- slaughter room stays locked while they play nice.

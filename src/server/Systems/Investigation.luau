@@ -444,6 +444,7 @@ function Investigation.revealData(): { [string]: any }
 		camera = CFrame.lookAt((origin * CF(1.5, 4.6, -6)).Position, (origin * CF(0, 4.2, -18)).Position),
 		jason = CFrame.lookAt((origin * CF(-1.2, 0, -18.5)).Position, (origin * CF(0, 0, -6)).Position),
 		michel = CFrame.lookAt((origin * CF(1.6, 0, -17.5)).Position, (origin * CF(0, 0, -6)).Position),
+		house = origin,
 	}
 end
 

@@ -31,8 +31,8 @@ local ANG = CFrame.Angles
 -- Hard limits in seconds, each below the server timeout in Story.luau
 -- (Crash 60, WakeUp 90, TheyKnow 30, TruckFound 14, Drive 75, Radio 30, Ending 60).
 local LIMITS: { [string]: number } = {
-	Crash = 56,
-	WakeUp = 84,
+	Crash = 68,
+	WakeUp = 86,
 	TheyKnow = 26,
 	TruckFound = 12.5,
 	Drive = 68,

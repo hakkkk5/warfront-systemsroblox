@@ -1,9 +1,10 @@
 --!strict
--- TheyKnow (~16 s): the end of Chapter 1. From the hall you watch Jason and
+-- TheyKnow (~17 s): the end of Chapter 1. From the hall you watch Jason and
 -- Michel whisper by the front door, over your shoulder. They know what you
 -- found. They turn, the bulb dies for a heartbeat, and the friendly couple
--- are gone: two masked butchers stand in their place. You run.
--- data: { camera, jason, michel: CFrame }
+-- are gone: two masked butchers stand in their place, and Papa steps out of
+-- the dining room between you and them with the chainsaw running. You run.
+-- data: { camera, jason, michel, house: CFrame }
 
 local Util = require(game:GetService("ReplicatedStorage").Shared.Util)
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
@@ -119,6 +120,22 @@ return Stage.scene("TheyKnow", function(data: any)
 		light.Brightness = 1.1
 	end)
 	sleep(0.6)
+	-- and Papa steps out of the dining room doorway, between you and them,
+	-- the chainsaw already running
+	local house = Stage.cf(data.house, cam)
+	local dining = house * CF(7, 0, -11.5)
+	local papa = Cast.actor("Papa", CFrame.lookAt(dining.Position, (house * CF(0, 0, -11.5)).Position))
+	Cast.play(papa, "idle")
+	Cast.pose(papa, "rightShoulder", Cast.arm(papa, true, 1.4, 0.3), 0)
+	Stage.sfx("Chainsaw", nil, dining.Position, 1, 1)
+	CameraController.shake(0.8, 2.5)
+	Stage.go(function()
+		Cast.walk(papa, { (house * CF(2.5, 0, -10)).Position }, 7)
+		Cast.face(papa, camPos, 0.4)
+		Cast.laugh(papa, 1.2)
+	end)
+	Stage.zoom(42, 0.5)
+	sleep(0.9)
 	-- the Butcher starts down the hall; you turn and run past the camera
 	Stage.go(function()
 		local toward = Vector3.new(camPos.X, butcherCF.Y, camPos.Z)
@@ -139,5 +156,6 @@ return Stage.scene("TheyKnow", function(data: any)
 	Stage.stopCamera()
 	butcher.model:Destroy()
 	brother.model:Destroy()
+	papa.model:Destroy()
 	me.model:Destroy()
 end)
