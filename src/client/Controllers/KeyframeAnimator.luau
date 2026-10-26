@@ -1,7 +1,8 @@
 --!strict
--- Plays the baked R6 animations (Shared.AnimData) on every R6 rig this
--- client can see by writing Motor6D.Transform every frame after the Animator has
--- run: player characters, the family, the hosts and cutscene actors. Idle,
+-- Plays the R6 animations (Shared.AnimData: baked, or written as code with
+-- AnimData/Author) on every R6 rig this client can see by writing
+-- Motor6D.Transform every frame after the Animator has run: player
+-- characters, the family, the hosts and cutscene actors. Idle,
 -- walk or run is picked from how fast each rig moves, so nothing has to be
 -- uploaded as an animation asset and it works the same in live servers.
 --
@@ -196,6 +197,23 @@ end
 local function choose(rig: Rig): (string?, number)
 	local model = rig.model
 	local force = attr(model, "AnimForce")
+	-- players move on the clips written for them (AnimData/Author): their
+	-- own walk and run, and low and slow while crouching
+	local owner = Players:GetPlayerFromCharacter(model)
+	if owner and typeof(force) ~= "string" then
+		local speed = rig.speed
+		if owner:GetAttribute("Crouching") == true then
+			if speed < 0.7 then
+				return "CrouchIdle", 1
+			end
+			return "CrouchWalk", math.clamp(speed / 4.5, 0.5, 1.8)
+		elseif speed < 0.7 then
+			return rig.idle, 1
+		elseif speed >= 15 then
+			return "PlayerRun", math.clamp(speed / 7.5, 0.7, 1.6)
+		end
+		return "PlayerWalk", math.clamp(speed / 6, 0.5, 1.6)
+	end
 	local walkClip = attr(model, "AnimWalk") or "Walk1"
 	local runClip = attr(model, "AnimRun") or "Run2"
 	if typeof(force) == "string" then
