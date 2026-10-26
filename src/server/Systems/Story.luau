@@ -21,6 +21,7 @@ local Cellar = require(script.Parent.Cellar)
 local Chase = require(script.Parent.Chase)
 local Doors = require(script.Parent.Doors)
 local AssetService = require(script.Parent.AssetService)
+local HouseExtras = require(script.Parent.HouseExtras)
 local Interact = require(script.Parent.Interact)
 local Inventory = require(script.Parent.Inventory)
 local Pickups = require(script.Parent.Pickups)
@@ -100,6 +101,8 @@ local flags = {
 	keyFound = false,
 	crowbarFound = false,
 	boardsOff = false,
+	deadboltFound = false, -- the front door's second lock (Chapter 2)
+	wireCut = false, -- the bell they tied to the door handle
 	frontDoorOpen = false,
 	syringeFound = false,
 	keysFound = false,
@@ -121,6 +124,8 @@ local currentCutscene: string? = nil
 local cutsceneData: any = nil
 local keyModel: Model? = nil
 local crowbarModel: Model? = nil
+local deadboltModel: Model? = nil
+local alarmWire: BasePart? = nil
 local butcherKeysDropped = false
 local helicopter: Model? = nil
 
@@ -183,6 +188,8 @@ local function objectives(): { Objective }
 		add("Find something to pry the boards off the front door", flags.crowbarFound or flags.boardsOff)
 		add("Pry the boards off (it will be loud)", flags.boardsOff)
 		add("Find the key to the padlock", flags.keyFound)
+		add("Find the deadbolt key (upstairs)", flags.deadboltFound)
+		add("Cut the alarm wire on the front door", flags.wireCut)
 		add("Escape through the front door", flags.frontDoorOpen)
 		for _, o in Cellar.objectives() do
 			table.insert(list, o)
@@ -243,7 +250,10 @@ local function goal(): (Vector3?, string?)
 		if flags.crowbarFound and not flags.boardsOff then
 			return house.frontDoor.center, "Pry the boards off"
 		end
-		if flags.keyFound and flags.boardsOff and not flags.frontDoorOpen then
+		if flags.keyFound and flags.boardsOff and flags.deadboltFound and not flags.wireCut then
+			return house.frontDoor.center, "Cut the alarm wire"
+		end
+		if flags.keyFound and flags.boardsOff and flags.deadboltFound and flags.wireCut and not flags.frontDoorOpen then
 			return house.frontDoor.center, "Front door"
 		end
 	elseif stage == "Forest" then
@@ -395,6 +405,85 @@ local function spawnHouseItems()
 	Pickups.note("AtticLetter", spots.NoteAttic, items)
 end
 
+-- What still holds the front door after the reveal, in the order you meet
+-- it: the boards, the deadbolt, the alarm bell on the handle (the padlock
+-- is the door's own lock: the HouseKey).
+local function updateFrontDoor()
+	local door = house.frontDoor
+	if not flags.boardsOff then
+		Doors.setBlocked(door, "They nailed it shut from inside. I need something to pry these boards off.")
+	elseif not flags.deadboltFound then
+		Doors.setBlocked(door, "There's a deadbolt too. The key must be somewhere upstairs.")
+	elseif not flags.wireCut then
+		Doors.setBlocked(door, "A wire runs from the handle to a bell over the door. Open it now and they'll all hear. Cut it first.")
+	else
+		Doors.setBlocked(door, nil)
+	end
+end
+
+-- The deadbolt key: always upstairs (a bedroom, the attic), never where the
+-- padlock key is.
+local function spawnDeadbolt()
+	if deadboltModel then
+		return
+	end
+	local upstairs: { CFrame } = {}
+	for _, cf in house.keySpots do
+		local y = house.origin:PointToObjectSpace(cf.Position).Y
+		if y > 12 and not (keyModel and (keyModel:GetPivot().Position - cf.Position).Magnitude < 1) then
+			table.insert(upstairs, cf)
+		end
+	end
+	local spot = upstairs[math.random(1, math.max(1, #upstairs))] or house.keySpots[1]
+	deadboltModel = Pickups.spawn("DeadboltKey", spot, Build.folder(world, "DeadboltKey"), {
+		onPicked = function(player)
+			flags.deadboltFound = true
+			updateFrontDoor()
+			Story.broadcast()
+			Story.say("You", "The deadbolt key. One more lock gone.", 3)
+			soundRemote:FireClient(player, "Unlock")
+		end,
+	})
+end
+
+-- A bell tied to the front door handle with a wire: cut it quietly (the
+-- knife they all have after the reveal), or opening the door rings it.
+local function rigDoorAlarm()
+	if alarmWire then
+		return
+	end
+	local folder = Build.folder(world, "DoorAlarm")
+	local inside = house.origin * CFrame.new(HouseLayout.at(0, 0, -23.3))
+	local bell = Build.ball(folder, 0.9, inside * CFrame.new(1.6, 9.6, 0.2), Color3.fromRGB(196, 160, 70), Enum.Material.Metal)
+	bell.CanCollide = false
+	local from, to = (inside * CFrame.new(1.9, 4.2, 0.3)).Position, (inside * CFrame.new(1.6, 9.2, 0.2)).Position
+	local wire = Build.part(folder, Vector3.new(0.05, 0.05, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), Color3.fromRGB(150, 150, 150), Enum.Material.Metal, {
+		CanCollide = false,
+	})
+	alarmWire = wire
+	Interact.add(wire, {
+		action = "Cut the wire",
+		object = "Door alarm",
+		hold = 1.5,
+		distance = 7,
+		canUse = function(player)
+			if not Inventory.has(player, "Knife") then
+				return false, "I need something sharp to cut it."
+			end
+			return true
+		end,
+		onUse = function(_, prompt)
+			prompt:Destroy()
+			flags.wireCut = true
+			wire:Destroy()
+			bell.Anchored = false
+			updateFrontDoor()
+			Story.broadcast()
+			Story.say("You", "Got it. Quietly... quietly.", 3)
+		end,
+	})
+end
+
 -- After the reveal they nail the front door shut from inside: pry the boards
 -- off with a crowbar (hidden somewhere in the wings or the attic, different
 -- every night), and it is loud enough to bring the whole family.
@@ -423,7 +512,7 @@ local function boardFrontDoor()
 		onUse = function(_, prompt)
 			prompt:Destroy()
 			flags.boardsOff = true
-			Doors.setBlocked(door, nil)
+			updateFrontDoor()
 			soundRemote:FireAllClients("Chop", door.center)
 			Cannibals.noise(door.center, 150)
 			for _, b in boards do
@@ -1126,6 +1215,8 @@ local function reveal()
 	spawnHouseKey()
 	spawnCrowbar()
 	boardFrontDoor()
+	spawnDeadbolt()
+	rigDoorAlarm()
 	Cellar.enable(Story.say, function()
 		Story.broadcast()
 	end)
@@ -1225,6 +1316,8 @@ function Story.hintTargets(): { Vector3 }
 			table.insert(list, crowbarModel:GetPivot().Position)
 		elseif not flags.keyFound and keyModel and keyModel.Parent then
 			table.insert(list, keyModel:GetPivot().Position)
+		elseif not flags.deadboltFound and deadboltModel and deadboltModel.Parent then
+			table.insert(list, deadboltModel:GetPivot().Position)
 		else
 			table.insert(list, house.frontDoor.center)
 		end
@@ -1315,6 +1408,7 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder, finaleSi
 		return stage ~= "Investigate" and stage ~= "Intro"
 	end)
 	Investigation.prepare(house.origin, world)
+	HouseExtras.build(house.origin, world)
 	Cellar.build(house.origin, world, Investigation.hatch())
 	spawnHouseItems()
 	spawnForestItems()

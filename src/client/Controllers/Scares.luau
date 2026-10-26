@@ -201,6 +201,41 @@ local function jumpscare()
 	Jumpscare.play(nil, { tail = true })
 end
 
+-- Breathing at the back of your neck, everything else gone quiet. Turn round
+-- and it's in your face; keep still and it's gone when you finally look.
+local function behind()
+	local cam = workspace.CurrentCamera
+	local start = cam.CFrame
+	local m = monster()
+	if not m then
+		jumpscare()
+		return
+	end
+	local spot = start.Position - flat(start.LookVector) * 3.4
+	stand(m, groundBelow(spot), start.Position)
+	m.Parent = folder
+	Audio.duck(0.05, 9)
+	local turned = false
+	local began = os.clock()
+	while not turned and os.clock() - began < 7 do
+		Audio.play("Growl", spot + Vector3.new(0, 1.5, 0), 0.35, 0.42)
+		for _ = 1, 22 do
+			task.wait(0.1)
+			if flat(cam.CFrame.LookVector):Dot(flat(start.LookVector)) < 0 then
+				turned = true
+				break
+			end
+		end
+	end
+	if turned then
+		m:Destroy()
+		Jumpscare.play(nil, { tail = true, build = false })
+	else
+		vanish(m)
+		Audio.unduck()
+	end
+end
+
 -- Every light near you stutters and dies for a moment.
 local function lightsFail()
 	local camPos = workspace.CurrentCamera.CFrame.Position
@@ -243,6 +278,8 @@ local function play(kind: string)
 			shadow()
 		elseif kind == "jumpscare" then
 			jumpscare()
+		elseif kind == "behind" then
+			behind()
 		elseif kind == "lights" then
 			lightsFail()
 		elseif kind == "whisper" then

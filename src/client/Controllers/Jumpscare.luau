@@ -22,6 +22,7 @@ local Jumpscare = {}
 
 export type Options = {
 	tail: boolean?, -- end on a black frame that fades out (the random scares)
+	build: boolean?, -- with tail: a silence before it (default on)
 	duration: number?, -- how long the face stays in your face
 }
 
@@ -87,26 +88,15 @@ function Jumpscare.isPlaying(): boolean
 	return playing
 end
 
--- Yields until the scare is over. kind: whose face (random if nil).
-function Jumpscare.play(kind: string?, opts: Options?)
-	if playing then
-		return
-	end
-	playing = true
-	local o: Options = opts or {}
-	local reduced = Settings.reduceFlashing
-	local duration = o.duration or 0.75
-	local face = buildFace(kind or pickKind())
-
-	-- above every other screen (Menu and Struggle are 30): nothing gets in front
-	local gui = Theme.screen("Jumpscare", 60)
-	local bg = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
+-- A full-screen ViewportFrame with its own camera, lit from below like a
+-- torch under the chin.
+local function viewport(gui: Instance, face: Model?): (ViewportFrame, Camera)
 	local vp = Instance.new("ViewportFrame")
 	vp.Size = UDim2.fromScale(1, 1)
 	vp.BackgroundTransparency = 1
 	vp.Ambient = Color3.fromRGB(150, 70, 60)
 	vp.LightColor = Color3.fromRGB(255, 210, 180)
-	vp.LightDirection = Vector3.new(0.2, 0.7, 1) -- lit from below, like a torch under the chin
+	vp.LightDirection = Vector3.new(0.2, 0.7, 1)
 	vp.Parent = gui
 	local cam = Instance.new("Camera")
 	cam.FieldOfView = 70
@@ -115,52 +105,136 @@ function Jumpscare.play(kind: string?, opts: Options?)
 	if face then
 		face.Parent = vp
 	end
+	return vp, cam
+end
+
+-- Yields until the scare is over. kind: whose face (random if nil).
+-- Random scares (tail) start with a dead silence and leave an after-image;
+-- the face lunges, jerks like a bad tape, smears into red and cyan copies
+-- of itself, and for two frames it is somebody else's face.
+function Jumpscare.play(kind: string?, opts: Options?)
+	if playing then
+		return
+	end
+	playing = true
+	local o: Options = opts or {}
+	local reduced = Settings.reduceFlashing
+	local duration = o.duration or 0.8
+	local tail = o.tail ~= false
+	local who = kind or pickKind()
+	local face = buildFace(who)
+
+	-- above every other screen (Menu and Struggle are 30): nothing gets in front
+	local gui = Theme.screen("Jumpscare", 60)
+	local bg = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
+	-- the copies behind the face: red and cyan, a little off, and the other
+	-- face waiting in the red one for its two frames
+	local ghosts: { { vp: ViewportFrame, cam: Camera, offset: Vector2 } } = {}
+	if not reduced then
+		local other = pickKind()
+		for i, tint in { Color3.fromRGB(255, 40, 40), Color3.fromRGB(40, 220, 255) } do
+			local vp, cam = viewport(gui, buildFace(if i == 1 and other ~= who then other else who))
+			vp.ImageColor3 = tint
+			vp.ImageTransparency = 1
+			table.insert(ghosts, { vp = vp, cam = cam, offset = Vector2.new(if i == 1 then -14 else 14, if i == 1 then 6 else -6) })
+		end
+	end
+	local vp, cam = viewport(gui, face)
+	cam.CFrame = CFrame.new(0, 0, -40)
 	local wash = Theme.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = RED, BackgroundTransparency = 1 })
 
-	-- the screech: the jumpscare sting under a scream pushed up and distorted
+	-- the build-up: everything goes quiet, one heartbeat, the edges darken
+	if tail and o.build ~= false then
+		Audio.duck(0.04, 6)
+		bg.BackgroundColor3 = BLACK
+		Util.tween(bg, 0.8, { BackgroundTransparency = 0.6 })
+		task.wait(0.55)
+		Audio.play("Heartbeat", nil, 1, 0.8)
+		task.wait(0.35)
+		bg.BackgroundTransparency = 1
+		Audio.unduck()
+	end
+
+	-- the screech: the sting, a scream pushed up and distorted, a growl under it
 	Audio.play("Jumpscare", nil, 1.3, 1)
 	local scream = Audio.play("Scream", nil, 1.15, 1.3)
 	if scream then
 		local distortion = Instance.new("DistortionSoundEffect")
-		distortion.Level = 0.6
+		distortion.Level = 0.7
 		distortion.Parent = scream
 	end
-	CameraController.punch(if reduced then 10 else 26)
-	CameraController.shake(if reduced then 2 else 4, 1.6)
+	Audio.play("Growl", nil, 1, 0.45)
+	CameraController.punch(if reduced then 10 else 28)
+	CameraController.shake(if reduced then 2 else 5, 1.8)
 	Effects.flash(RED, 0.7)
 	if reduced then
 		wash.BackgroundTransparency = 0.55
 		Util.tween(wash, 0.7, { BackgroundTransparency = 1 })
 	end
 
-	local lunge = if reduced then 0.42 else 0.22
+	local lunge = if reduced then 0.42 else 0.2
 	local start = os.clock()
+	local snap = CFrame.identity
+	local nextSnap = 0
+	local frozenUntil = 0
 	local conn = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - start
+		if t < frozenUntil then
+			return -- a dropped frame: the picture hangs, then jumps on
+		end
 		local k = math.min(t / lunge, 1)
 		local ease = 1 - (1 - k) ^ 3 -- out of the dark and into your face
-		local d = Util.lerp(9, 1.45, ease)
+		local d = Util.lerp(9, 1.4, ease)
 		local jitter = if k >= 1 then 1 else 0.3
-		cam.FieldOfView = Util.lerp(70, 48, ease)
+		-- once it's in your face it jerks: snaps to a new angle every few frames
+		if k >= 1 and not reduced and t > nextSnap then
+			nextSnap = t + 0.05 + math.random() * 0.08
+			snap = CFrame.new((math.random() - 0.5) * 0.12, (math.random() - 0.5) * 0.12, 0)
+				* CFrame.Angles((math.random() - 0.5) * 0.25, (math.random() - 0.5) * 0.3, (math.random() - 0.5) * 0.55)
+			if math.random() < 0.12 then
+				frozenUntil = t + 0.09
+			end
+		end
+		cam.FieldOfView = Util.lerp(70, 46, ease)
 		cam.CFrame = CFrame.lookAt(Vector3.new(0, 0.05, -d), Vector3.new(0, 0.05, 0))
 			* CFrame.Angles(math.noise(t * 28, 1) * 0.05 * jitter, math.noise(t * 28, 2) * 0.05 * jitter, math.noise(t * 28, 3) * 0.08 * jitter)
+			* snap
+		local subliminal = t > 0.42 and t < 0.47
+		for i, g in ghosts do
+			g.cam.FieldOfView = cam.FieldOfView
+			g.cam.CFrame = cam.CFrame
+			local shake = Vector2.new(math.random(-4, 4), math.random(-4, 4))
+			g.vp.Position = UDim2.fromOffset(g.offset.X + shake.X, g.offset.Y + shake.Y)
+			g.vp.ImageTransparency = if subliminal and i == 1 then 0 elseif k >= 1 then 0.55 else 0.8
+		end
+		vp.Visible = not subliminal
 		if not reduced and t > 0.05 then
 			local step = STROBE[math.floor(t * STROBE_HZ) % #STROBE + 1]
-			bg.BackgroundColor3 = step.bg
-			bg.BackgroundTransparency = step.bgAlpha
+			bg.BackgroundColor3 = if subliminal then BLACK else step.bg
+			bg.BackgroundTransparency = if subliminal then 0 else step.bgAlpha
 			vp.ImageColor3 = step.tint
 		end
 	end)
 	task.wait(duration)
 	conn:Disconnect()
+	vp.Visible = true
 	vp.ImageColor3 = WHITE
-	if o.tail ~= false then
+	for _, g in ghosts do
+		g.vp:Destroy()
+	end
+	if tail then
 		bg.BackgroundColor3 = BLACK
 		bg.BackgroundTransparency = 0
 		vp.Visible = false
-		task.wait(0.25)
-		Util.tween(bg, 0.5, { BackgroundTransparency = 1 })
-		task.wait(0.55)
+		task.wait(0.3)
+		-- the after-image: it's still there, faintly, while the room comes back
+		vp.Visible = true
+		vp.ImageTransparency = 0.82
+		vp.ImageColor3 = Color3.fromRGB(255, 200, 190)
+		Util.tween(bg, 0.6, { BackgroundTransparency = 1 })
+		Util.tween(vp, 1.6, { ImageTransparency = 1 })
+		Audio.play("Heartbeat", nil, 0.8, 1.1)
+		task.wait(1.7)
 	end
 	gui:Destroy()
 	playing = false

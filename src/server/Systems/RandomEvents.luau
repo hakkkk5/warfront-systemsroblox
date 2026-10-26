@@ -46,10 +46,10 @@ local CUES: { [string]: { [string]: number } } = {
 -- what can follow a build-up (silence / footsteps)
 local JOLTS: { [string]: { [string]: number } } = {
 	Investigate = { lights = 1 },
-	HouseEscape = { apparition = 3, shadow = 2, jumpscare = 1 },
-	Forest = { apparition = 3, shadow = 3, jumpscare = 1 },
-	Repair = { apparition = 3, shadow = 3, jumpscare = 1 },
-	Power = { apparition = 2, shadow = 2, jumpscare = 1 },
+	HouseEscape = { apparition = 3, shadow = 2, jumpscare = 1, behind = 2 },
+	Forest = { apparition = 3, shadow = 3, jumpscare = 1, behind = 1 },
+	Repair = { apparition = 3, shadow = 3, jumpscare = 1, behind = 1 },
+	Power = { apparition = 2, shadow = 2, jumpscare = 1, behind = 1 },
 	Radio = { shadow = 1 },
 	Survive = { apparition = 2, shadow = 2, jumpscare = 1 },
 	Wreck = { apparition = 3, shadow = 3, jumpscare = 1 },
@@ -154,7 +154,7 @@ local function send(player: Player, kind: string, st: State)
 		Net.event("Sound"):FireAllClients("Impact", door.center)
 		return
 	end
-	if kind == "jumpscare" then
+	if kind == "jumpscare" or kind == "behind" then
 		st.lastJumpscare = os.clock()
 	end
 	remote:FireClient(player, kind)
@@ -179,7 +179,7 @@ local function maybeJolt(player: Player, stage: string, st: State)
 		local options: { [string]: number } = {}
 		local jolts: { [string]: number } = JOLTS[stage] or {}
 		for kind, w in jolts do
-			if not (kind == "jumpscare" and os.clock() - st.lastJumpscare < JUMPSCARE_COOLDOWN) then
+			if not ((kind == "jumpscare" or kind == "behind") and os.clock() - st.lastJumpscare < JUMPSCARE_COOLDOWN) then
 				options[kind] = w
 			end
 		end

@@ -177,6 +177,15 @@ local defs: { [string]: ItemDef } = {
 		tint = Color3.fromRGB(196, 150, 80),
 		questItem = true,
 	},
+	DeadboltKey = {
+		id = "DeadboltKey",
+		name = "Deadbolt Key",
+		description = "A small steel key on a loop of twine. The front door's second lock.",
+		model = "HouseKey",
+		icon = Assets.Images.Key,
+		tint = Color3.fromRGB(170, 176, 186),
+		questItem = true,
+	},
 	Syringe = {
 		id = "Syringe",
 		name = "Sedative Syringe",
@@ -277,6 +286,7 @@ Items.Order = {
 	"AlarmClock",
 	"Crowbar",
 	"HouseKey",
+	"DeadboltKey",
 	"Keycard",
 	"CryptKey",
 	"BoltCutters",

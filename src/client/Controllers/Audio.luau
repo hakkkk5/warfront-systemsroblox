@@ -185,6 +185,12 @@ function Audio.duck(level: number, seconds: number)
 	end)
 end
 
+-- Back to full volume at once (a scare cutting through a silence).
+function Audio.unduck()
+	duckToken += 1
+	Util.tween(duck, 0.02, { Value = 1 })
+end
+
 function Audio.init()
 	Net.event("Sound").OnClientEvent:Connect(function(name: string, position: Vector3?)
 		if name == "Generator" or name == "HelicopterLoop" then
