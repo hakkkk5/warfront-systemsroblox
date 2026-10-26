@@ -130,6 +130,7 @@ require(Systems.Rewards).init() -- Teeth for escaping, sedating, chores
 require(Systems.Throwing).init() -- bottles, rocks, molotovs, noise traps
 require(Systems.Crafting).init() -- the workbenches
 require(Systems.Achievements).init()
+require(Systems.Ambush).init(world) -- one of the family up a tree, outdoors
 
 workspace:SetAttribute("WorldReady", true)
 print(string.format("[Cannibal Family] world ready in %.1fs (%s)", os.clock() - started, table.concat(marks, ", ")))
