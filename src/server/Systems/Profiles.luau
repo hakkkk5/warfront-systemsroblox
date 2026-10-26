@@ -4,7 +4,7 @@
 -- so it follows a player from the lobby into the reserved game server and back.
 --
 -- Loaded when a player joins and mirrored onto player attributes for the
--- client (Teeth, Escapes, Deaths, Perk<Id>, Setting<key>, ProfileReady). Saved on leave,
+-- client (Teeth, Escapes, Deaths, Perk<Id>, Setting<key>, DailyStreak, ProfileReady). Saved on leave,
 -- on shutdown, a few seconds after a change, and right before a teleport
 -- (Profiles.save) so the next server reads fresh data. When DataStores are
 -- unavailable (Studio without "Enable Studio Access to API Services") the
@@ -32,6 +32,7 @@ export type Data = {
 	settings: { [string]: number },
 	achievements: { [string]: boolean },
 	polaroids: { [string]: boolean },
+	daily: { day: number, streak: number }, -- last claimed (UTC day number) and how many days in a row
 }
 
 local STORE_NAME = "CannibalFamilyProfiles_v1"
@@ -45,7 +46,7 @@ local offline: { [Player]: boolean } = {}
 local runAwards: { [Player]: { [string]: boolean } } = {}
 
 local function blank(): Data
-	return { teeth = 0, perks = {}, escapes = 0, deaths = 0, settings = {}, achievements = {}, polaroids = {} }
+	return { teeth = 0, perks = {}, escapes = 0, deaths = 0, settings = {}, achievements = {}, polaroids = {}, daily = { day = 0, streak = 0 } }
 end
 
 local function key(player: Player): string
@@ -73,6 +74,12 @@ local function sanitize(raw: any): Data
 		end
 	end
 	data.settings = PlayerSettings.sanitize(raw.settings)
+	if typeof(raw.daily) == "table" then
+		data.daily = {
+			day = math.max(0, math.floor(tonumber(raw.daily.day) or 0)),
+			streak = math.max(0, math.floor(tonumber(raw.daily.streak) or 0)),
+		}
+	end
 	for _, field in { "achievements", "polaroids" } do
 		local known: { [string]: any } = if field == "achievements" then Trophies.Achievements else Trophies.Polaroids
 		local saved = raw[field]
@@ -108,6 +115,7 @@ local function publish(player: Player)
 		photos += 1
 	end
 	player:SetAttribute("Polaroids", photos)
+	player:SetAttribute("DailyStreak", data.daily.streak)
 	for key, value in data.settings do
 		player:SetAttribute("Setting" .. key, value)
 	end
@@ -165,6 +173,7 @@ function Profiles.save(player: Player)
 				settings = table.clone(data.settings),
 				achievements = table.clone(data.achievements),
 				polaroids = table.clone(data.polaroids),
+				daily = table.clone(data.daily),
 			}
 		end)
 	end)
@@ -223,6 +232,26 @@ function Profiles.awardOnce(player: Player, awardKey: string, amount: number, re
 	end
 	seen[awardKey] = true
 	Profiles.award(player, amount, reason)
+end
+
+-- Today's supplies, the first time a player turns up in the lobby each day
+-- (UTC). Coming back the next day keeps the streak going; missing a day
+-- starts it again. Returns the Teeth and the streak, or nil if they've had
+-- today's already.
+function Profiles.claimDaily(player: Player): (number?, number?)
+	local data = profiles[player]
+	if not data then
+		return nil, nil
+	end
+	local today = os.time() // 86400
+	if data.daily.day >= today then
+		return nil, nil
+	end
+	local streak = if data.daily.day == today - 1 then data.daily.streak + 1 else 1
+	data.daily = { day = today, streak = streak }
+	local amount = StoreCatalog.dailyFor(streak)
+	Profiles.award(player, amount, "Daily supplies")
+	return amount, streak
 end
 
 -- Spends Teeth; false when there aren't enough.

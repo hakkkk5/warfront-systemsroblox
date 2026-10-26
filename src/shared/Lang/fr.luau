@@ -78,6 +78,13 @@ return {
 	["Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone."] = "Appuie sur Prêt (R) quand tu es paré : dès que tout le monde à bord est prêt, le pick-up part. L'hôte peut aussi partir tout de suite, réserver le pick-up à ses amis ou exclure quelqu'un.",
 	["No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone."] = "Pas de groupe ? Partie rapide te place dans le meilleur pick-up ici, Trouver des joueurs te réunit avec des joueurs d'autres serveurs, et Jouer en solo t'emmène seul.",
 	["Find players"] = "Trouver des joueurs",
+	-- daily supplies
+	["DAILY SUPPLIES"] = "RAVITAILLEMENT DU JOUR",
+	["Day %d in a row: +%d %s"] = "%de jour d'affilée : +%d %s",
+	["Day %d"] = "Jour %d",
+	["Come back tomorrow for +%d."] = "Reviens demain pour +%d.",
+	["Take it"] = "Prendre",
+	["Daily supplies"] = "Ravitaillement du jour",
 	-- the ride out (teleport screen)
 	["Tonight: %s"] = "Ce soir : %s",
 	["In the back of the truck"] = "À l'arrière du pick-up",

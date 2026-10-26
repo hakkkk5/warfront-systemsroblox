@@ -75,6 +75,7 @@ local studioStart: string? = nil
 local stateRemote: RemoteEvent
 local actionRemote: RemoteEvent
 local noticeRemote: RemoteEvent
+local dailyRemote: RemoteEvent
 
 ---------------------------------------------------------------- the set
 
@@ -1022,6 +1023,19 @@ local function sendMatched(player: Player, ticket: Matchmaking.Ticket)
 	end
 end
 
+-- Today's supplies once the profile is in (Profiles.claimDaily), shown by
+-- the client's daily popup.
+local function dailySupplies(player: Player)
+	local started = os.clock()
+	while player.Parent and player:GetAttribute("ProfileReady") ~= true and os.clock() - started < 30 do
+		task.wait(0.5)
+	end
+	local amount, streak = Profiles.claimDaily(player)
+	if amount and streak and player.Parent then
+		dailyRemote:FireClient(player, amount, streak)
+	end
+end
+
 -- A player whose party is still playing (they dropped out of the run) goes
 -- straight back to it.
 local function rejoinParty(player: Player)
@@ -1225,6 +1239,7 @@ local function makeRemotes(): Folder
 	stateRemote = remote("State")
 	actionRemote = remote("Action")
 	noticeRemote = remote("Notice")
+	dailyRemote = remote("Daily")
 	folder.Parent = ReplicatedStorage
 	return folder
 end
@@ -1323,6 +1338,7 @@ function Lobby.run()
 	Matchmaking.start(sendMatched)
 	table.insert(connections, Players.PlayerAdded:Connect(function(player)
 		task.spawn(rejoinParty, player)
+		task.spawn(dailySupplies, player)
 		spawnPlayer(player)
 	end))
 	table.insert(connections, Players.PlayerRemoving:Connect(function(player)
@@ -1362,6 +1378,7 @@ function Lobby.run()
 	end))
 	for _, player in Players:GetPlayers() do
 		task.spawn(rejoinParty, player)
+		task.spawn(dailySupplies, player)
 		task.spawn(spawnPlayer, player)
 	end
 

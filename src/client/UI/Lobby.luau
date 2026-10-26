@@ -19,6 +19,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Effects = require(script.Parent.Parent.Controllers.Effects)
 local HUD = require(script.Parent.HUD)
+local DailyPopup = require(script.Parent.DailyPopup)
 local LobbyMenu = require(script.Parent.LobbyMenu)
 local LobbyTrophyWall = require(script.Parent.LobbyTrophyWall)
 local TeleportScreen = require(script.Parent.TeleportScreen)
@@ -671,6 +672,7 @@ function Lobby.run()
 	local stateRemote = remotes:WaitForChild("State") :: RemoteEvent
 	local actionRemote = remotes:WaitForChild("Action") :: RemoteEvent
 	local noticeRemote = remotes:WaitForChild("Notice") :: RemoteEvent
+	local dailyRemote = remotes:WaitForChild("Daily") :: RemoteEvent
 
 	HUD.setVisible(false)
 	Effects.setRain(true, false)
@@ -744,6 +746,11 @@ function Lobby.run()
 				solo = if typeof(state.solo) == "string" then state.solo else nil,
 				search = if typeof(search) == "table" and typeof(search.elapsed) == "number" then search else nil,
 			})
+		end),
+		dailyRemote.OnClientEvent:Connect(function(amount: any, streak: any)
+			if typeof(amount) == "number" and typeof(streak) == "number" then
+				DailyPopup.show(canvas, amount, streak)
+			end
 		end),
 		UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 			if not processed and input.KeyCode == Enum.KeyCode.R then

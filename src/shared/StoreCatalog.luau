@@ -18,6 +18,16 @@ local StoreCatalog = {}
 
 StoreCatalog.Currency = "Teeth"
 
+-- Daily supplies: Teeth for turning up in the lobby on consecutive days
+-- (server Profiles.claimDaily), day 1 to 7; every day after the seventh
+-- pays the last.
+StoreCatalog.Daily = { 5, 8, 10, 12, 15, 20, 30 }
+
+function StoreCatalog.dailyFor(streak: number): number
+	local days = StoreCatalog.Daily
+	return days[math.clamp(streak, 1, #days)]
+end
+
 StoreCatalog.Perks = {
 	Battery = {
 		id = "Battery",
