@@ -112,8 +112,34 @@ local function step()
 	end
 end
 
+-- Lives left this run, top left (nothing on Easy, where there's no limit).
+local function livesCounter()
+	local gui = Theme.screen("Lives", 4)
+	local label = Theme.label(gui, "", {
+		Position = UDim2.fromOffset(18, 18),
+		Size = UDim2.fromOffset(220, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Font = Theme.Fonts.UIBold,
+		TextSize = 18,
+		TextColor3 = C.BloodBright,
+		TextStrokeTransparency = 0.5,
+	})
+	local function refresh()
+		local lives = me:GetAttribute("Lives")
+		local shown = typeof(lives) == "number" and lives >= 0 and me:GetAttribute("InCutscene") ~= true
+		label.Visible = shown
+		if shown then
+			label.Text = Lang.f("Lives: %d", lives :: number)
+		end
+	end
+	me:GetAttributeChangedSignal("Lives"):Connect(refresh)
+	me:GetAttributeChangedSignal("InCutscene"):Connect(refresh)
+	refresh()
+end
+
 -- Game servers only (Main calls it once the lobby is behind us).
 function PartyMarkers.init()
+	livesCounter()
 	for _, player in Players:GetPlayers() do
 		watch(player)
 	end

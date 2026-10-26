@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
@@ -17,7 +18,41 @@ local Story = require(script.Parent.Story)
 
 local PlayerService = {}
 
+local checkGameOver: () -> ()
+
 local playing: { [Player]: boolean } = {}
+local over = false
+
+-- Everyone who's playing is out of lives: the family ate well. Everyone
+-- sees it, and after a while they're all sent back to the lobby.
+checkGameOver = function()
+	if over then
+		return
+	end
+	local anyone = false
+	for player in playing do
+		if player.Parent then
+			anyone = true
+			if player:GetAttribute("Out") ~= true then
+				return
+			end
+		end
+	end
+	if not anyone then
+		return
+	end
+	over = true
+	task.delay(4, function()
+		Net.event("GameOver"):FireAllClients()
+		task.wait(40)
+		for _, player in Players:GetPlayers() do
+			Profiles.save(player)
+			pcall(function()
+				TeleportService:TeleportAsync(game.PlaceId, { player })
+			end)
+		end
+	end)
+end
 
 local function setupCharacter(player: Player, character: Model)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
@@ -44,9 +79,23 @@ local function setupCharacter(player: Player, character: Model)
 	humanoid.Died:Connect(function()
 		local killer = player:GetAttribute("LastAttacker")
 		Profiles.record(player, "deaths")
+		-- one life gone (Easy has no limit: -1)
+		local lives = player:GetAttribute("Lives")
+		if typeof(lives) == "number" and lives > 0 then
+			lives -= 1
+			player:SetAttribute("Lives", lives)
+		end
+		local out = lives == 0
+		if out then
+			player:SetAttribute("Out", true)
+		end
 		Net.event("Caught"):FireClient(player, killer)
 		Hiding.leave(player, true)
 		Cannibals.forgetPlayer(player)
+		if out then
+			checkGameOver()
+			return
+		end
 		task.delay(Config.RespawnDelay, function()
 			if player.Parent and playing[player] then
 				PlayerService.spawn(player)
@@ -106,6 +155,7 @@ function PlayerService.init()
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		playing[player] = nil
+		task.defer(checkGameOver)
 	end)
 
 	Net.event("RequestPlay").OnServerEvent:Connect(function(player)
@@ -114,6 +164,10 @@ function PlayerService.init()
 		end
 		playing[player] = true
 		Store.grantPerks(player) -- what they stocked up on in the lobby store
+		-- lives for this run (a player who rejoined keeps what they had left)
+		if player:GetAttribute("Lives") == nil then
+			player:SetAttribute("Lives", Difficulty.lives())
+		end
 		PlayerService.spawn(player)
 		Story.begin()
 	end)

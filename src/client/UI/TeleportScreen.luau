@@ -26,6 +26,7 @@ local LINES = {
 }
 
 local DIFFICULTY_COLORS: { [string]: Color3 } = {
+	Easy = C.Sickly,
 	Normal = C.Bone,
 	Hard = C.Warn,
 	Nightmare = C.BloodBright,

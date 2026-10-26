@@ -36,6 +36,7 @@ local EVENTS = {
 	"RequestHint",
 	"LeaveHiding",
 	"PlayAgain",
+	"GameOver", -- the whole party is out of lives
 	"StruggleResult",
 	"StoreBuy", -- lobby store: buy a perk
 	"SaveSettings", -- settings kept with the profile

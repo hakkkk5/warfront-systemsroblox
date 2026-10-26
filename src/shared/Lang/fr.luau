@@ -78,6 +78,17 @@ return {
 	["Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone."] = "Appuie sur Prêt (R) quand tu es paré : dès que tout le monde à bord est prêt, le pick-up part. L'hôte peut aussi partir tout de suite, réserver le pick-up à ses amis ou exclure quelqu'un.",
 	["No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone."] = "Pas de groupe ? Partie rapide te place dans le meilleur pick-up ici, Trouver des joueurs te réunit avec des joueurs d'autres serveurs, et Jouer en solo t'emmène seul.",
 	["Find players"] = "Trouver des joueurs",
+	-- lives
+	["Infinite lives. They're slower to notice you and hit softer."] = "Vies infinies. Ils te repèrent moins vite et frappent moins fort.",
+	["Lives: %d"] = "Vies : %d",
+	["%d lives left"] = "%d vies restantes",
+	["No lives left."] = "Plus de vies.",
+	["Watching %s"] = "Tu regardes %s",
+	["Next"] = "Suivant",
+	["Back to the lobby"] = "Retour au lobby",
+	["THE FAMILY ATE WELL TONIGHT"] = "LA FAMILLE A BIEN MANGÉ CE SOIR",
+	["Nobody made it out."] = "Personne ne s'en est sorti.",
+	["Back to the lobby in a moment."] = "Retour au lobby dans un instant.",
 	-- party markers
 	["Party markers"] = "Repères du groupe",
 	["%s was caught."] = "%s s'est fait attraper.",

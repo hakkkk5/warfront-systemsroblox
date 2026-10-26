@@ -9,9 +9,10 @@ local Config = require(script.Parent.Config)
 
 local Difficulty = {}
 
-Difficulty.NAMES = { "Normal", "Hard", "Nightmare" }
+Difficulty.NAMES = { "Easy", "Normal", "Hard", "Nightmare" }
 
 Difficulty.INFO = {
+	Easy = "Infinite lives. They're slower to notice you and hit softer.",
 	Normal = "The intended scare.",
 	Hard = "They hear more, search longer and hit harder. Your light dies faster.",
 	Nightmare = "No hints. They see further, run faster and sedatives barely work.",
@@ -26,6 +27,21 @@ type Scale = {
 }
 
 local SCALES: { [string]: Scale } = {
+	Easy = {
+		cannibal = {
+			DetectRate = 0.7,
+			HearSprint = 0.85,
+			HearWalk = 0.8,
+			LoseSightTime = 0.75,
+			SearchTime = 0.75,
+			AttackCooldown = 1.25,
+			SedateTime = 1.3,
+		},
+		player = { FlashlightDrain = 0.75, HintCooldown = 0.5 },
+		survive = 0.85,
+		respawn = 0.75,
+		speed = 0.94,
+	},
 	Normal = { cannibal = {}, player = {}, survive = 1, respawn = 1, speed = 1 },
 	Hard = {
 		cannibal = {
@@ -85,6 +101,18 @@ end
 -- Hard and Nightmare: one blow from the family kills.
 function Difficulty.oneShot(): boolean
 	return current == "Hard" or current == "Nightmare"
+end
+
+-- What a blow does on this difficulty (Easy: softer).
+function Difficulty.damageScale(): number
+	return if current == "Easy" then 0.7 else 1
+end
+
+-- How many times you can be caught in a run before you're out; -1 is no
+-- limit (Easy).
+local LIVES: { [string]: number } = { Easy = -1, Normal = 3, Hard = 2, Nightmare = 1 }
+function Difficulty.lives(): number
+	return LIVES[current] or 3
 end
 
 function Difficulty.valid(name: any): boolean

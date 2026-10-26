@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Assets = require(ReplicatedStorage.Shared.Assets)
 local Config = require(ReplicatedStorage.Shared.Config)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
@@ -59,6 +60,51 @@ local function jumpscare(kind: string?)
 	Jumpscare.play(if known then kind else "Butcher", { tail = false, duration = 0.9 })
 end
 
+-- Out of lives: the camera follows a teammate who's still alive (Next
+-- cycles them), with a way back to the lobby. Nobody left standing: the card.
+local watching = 0
+local buttons: Frame
+local function spectate()
+	buttons.Visible = true
+	local alive: { Humanoid } = {}
+	for _, other in Players:GetPlayers() do
+		local h = other ~= player and other.Character and other.Character:FindFirstChildOfClass("Humanoid")
+		if h and h.Health > 0 then
+			table.insert(alive, h)
+		end
+	end
+	if #alive == 0 then
+		return
+	end
+	watching = watching % #alive + 1
+	Util.tween(black, 0.8, { BackgroundTransparency = 0.55 })
+	for _, l in { killerLabel, tipLabel } do
+		Util.tween(l, 0.5, { TextTransparency = 1 })
+	end
+	Util.tween(skull, 0.5, { ImageTransparency = 1 })
+	Util.tween(caption, 0.5, { TextTransparency = 1 })
+	camera.CameraType = Enum.CameraType.Custom
+	camera.CameraSubject = alive[watching]
+	local name = Players:GetPlayerFromCharacter(alive[watching].Parent)
+	countdown.Text = Lang.f("Watching %s", if name then name.DisplayName else "?")
+end
+
+local function gameOver()
+	gui.Enabled = true
+	HUD.setVisible(false)
+	buttons.Visible = true
+	black.BackgroundTransparency = 1
+	Util.tween(black, 1.5, { BackgroundTransparency = 0 })
+	caption.Text = Lang.t("THE FAMILY ATE WELL TONIGHT")
+	killerLabel.Text = Lang.t("Nobody made it out.")
+	tipLabel.Text = Lang.t("Back to the lobby in a moment.")
+	countdown.Text = ""
+	for _, l in { caption, killerLabel, tipLabel } do
+		Util.tween(l, 1.5, { TextTransparency = 0 })
+	end
+	Util.tween(skull, 1.5, { ImageTransparency = 0.2 })
+end
+
 local function onCaught(kind: string?)
 	HUD.setVisible(false)
 	Viewmodel.hidden = true
@@ -80,9 +126,18 @@ local function onCaught(kind: string?)
 	Util.tween(killerLabel, 1.6, { TextTransparency = 0 })
 	Util.tween(tipLabel, 2, { TextTransparency = 0.2 })
 	Util.tween(countdown, 2, { TextTransparency = 0.3 })
+	if player:GetAttribute("Out") == true then
+		-- no lives left: watch the rest of the party, or go back
+		countdown.Text = Lang.t("No lives left.")
+		task.wait(3)
+		spectate()
+		return
+	end
+	local lives = player:GetAttribute("Lives")
+	local left = if typeof(lives) == "number" and lives > 0 then Lang.f("%d lives left", lives) .. "  ·  " else ""
 	local remaining = Config.RespawnDelay
 	while remaining > 0 and gui.Enabled do
-		countdown.Text = string.format("Waking up in %d...", math.ceil(remaining))
+		countdown.Text = left .. Lang.f("Waking up in %d...", math.ceil(remaining))
 		task.wait(0.25)
 		remaining -= 0.25
 	end
@@ -133,9 +188,33 @@ function Death.init()
 		Font = Theme.Fonts.UI,
 	})
 
+	-- out of lives: watch the others or leave
+	buttons = Theme.frame(gui, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -76),
+		Size = UDim2.fromOffset(380, 40),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 6,
+	})
+	Util.create("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 10),
+		Parent = buttons,
+	})
+	local nextButton = Theme.button(buttons, "Next", { Size = UDim2.fromOffset(120, 40), TextSize = 18, ZIndex = 6 })
+	local lobbyButton = Theme.button(buttons, "Back to the lobby", { Size = UDim2.fromOffset(220, 40), TextSize = 18, ZIndex = 6 })
+	nextButton.Activated:Connect(spectate)
+	lobbyButton.Activated:Connect(function()
+		lobbyButton.Active = false
+		Net.event("PlayAgain"):FireServer()
+	end)
+
 	Net.event("Caught").OnClientEvent:Connect(function(kind: string?)
 		task.spawn(onCaught, kind)
 	end)
+	Net.event("GameOver").OnClientEvent:Connect(gameOver)
 
 	player.CharacterAdded:Connect(function()
 		if not gui.Enabled then

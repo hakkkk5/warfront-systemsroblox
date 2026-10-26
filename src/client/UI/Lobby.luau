@@ -32,6 +32,7 @@ local C = Theme.Colors
 local player = Players.LocalPlayer
 
 local DIFFICULTY_COLORS: { [string]: Color3 } = {
+	Easy = C.Sickly,
 	Normal = C.Bone,
 	Hard = C.Warn,
 	Nightmare = C.BloodBright,
@@ -313,7 +314,7 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 	local diffRow = row(panel, 148, 34)
 	local buttons: { [string]: TextButton } = {}
 	for i, name in Difficulty.NAMES do
-		local b = Theme.button(diffRow, name, { Size = UDim2.new(1 / 3, -6, 1, 0), TextSize = 17, LayoutOrder = i })
+		local b = Theme.button(diffRow, name, { Size = UDim2.new(1 / #Difficulty.NAMES, -6, 1, 0), TextSize = 16, LayoutOrder = i })
 		b.Activated:Connect(function()
 			action:FireServer("difficulty", name)
 		end)

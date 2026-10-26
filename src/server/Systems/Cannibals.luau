@@ -658,7 +658,7 @@ end
 
 -- How much a blow takes off: on Hard and Nightmare it kills outright.
 local function blow(humanoid: Humanoid, damage: number): number
-	return if Difficulty.oneShot() then humanoid.Health + 100 else damage
+	return if Difficulty.oneShot() then humanoid.Health + 100 else damage * Difficulty.damageScale()
 end
 
 -- Lands a blow on a player (the client gets where it came from and who, for
