@@ -111,6 +111,8 @@ Assets.Sounds = {
 	ChurchBell = "rbxassetid://9113804436", -- Pro Sound Effects: the Pinecrest bell
 	Siren = "rbxassetid://102624441028451", -- the state police arriving
 	Pant = "rbxassetid://134436716666898", -- Creator Store "male_outofbreath_03": one of the family winded, pitched down
+	Hit = "rbxassetid://132661033625159", -- Creator Store "DI_Knife_Standard_Slash_Flesh_03": a blow landing on you
+	Crickets = "rbxassetid://9112764573", -- Pro Sound Effects "Crickets Night 3": the woods at night (loop)
 }
 
 return Assets

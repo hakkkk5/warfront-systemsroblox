@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Settings = require(script.Parent.Settings)
@@ -218,12 +219,13 @@ function Effects.init()
 		hurtFlash = 1
 		CameraController.shake(math.clamp(amount / 30, 0.4, 1.6), 3)
 		Effects.flash(Color3.fromRGB(255, 80, 70), 0.25)
-		Audio.play("Impact", nil, 0.9)
+		Audio.play("Hit", nil, 0.9)
 	end)
 
 	setupTags()
 
 	local nextLightning = os.clock() + 40
+	local cricketsAt = 0
 	local stage = ""
 	RunService.RenderStepped:Connect(function(dt: number)
 		rainPart.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, 40, 0))
@@ -283,6 +285,14 @@ function Effects.init()
 			end
 		end
 		local outdoors = stage == "Forest" or stage == "Repair" or stage == "Hunt" or stage == "Power" or stage == "Survive"
+		-- the woods at night: crickets, which stop dead when one of them is
+		-- after you (and come back slowly after)
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local outside = outdoors and root ~= nil and root:IsA("BasePart") and (Vector2.new(root.Position.X, root.Position.Z) - Config.Sites.House.pos).Magnitude > Config.Sites.House.radius
+		if os.clock() - cricketsAt > 0.5 then
+			cricketsAt = os.clock()
+			Audio.loop("Crickets", outside and not chased, if outside then 0.22 * (1 - fear) else 0)
+		end
 		if outdoors and os.clock() > nextLightning then
 			nextLightning = os.clock() + math.random(35, 80)
 			Effects.lightning()

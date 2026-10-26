@@ -132,6 +132,7 @@ require(Systems.Throwing).init() -- bottles, rocks, molotovs, noise traps
 require(Systems.Crafting).init() -- the workbenches
 require(Systems.Achievements).init()
 require(Systems.Ambush).init(world) -- one of the family up a tree, outdoors
+require(Systems.OutdoorTasks).build(world) -- things to search and look at round the sites
 
 workspace:SetAttribute("WorldReady", true)
 print(string.format("[Cannibal Family] world ready in %.1fs (%s)", os.clock() - started, table.concat(marks, ", ")))
