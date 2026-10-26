@@ -238,8 +238,8 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		TextSize = 14,
 		TextColor3 = C.Warn,
 	})
-	-- one row per seat: ready light, name, and for the host Host / Kick
-	local seats: { { frame: Frame, dot: TextLabel, name: TextLabel, promote: TextButton, kick: TextButton } } = {}
+	-- one row per seat: ready light, face, name, and for the host Host / Kick
+	local seats: { { frame: Frame, dot: TextLabel, face: ImageLabel, name: TextLabel, promote: TextButton, kick: TextButton } } = {}
 	local seatIds: { number } = {}
 	for i = 1, 4 do
 		local f = Theme.frame(panel, {
@@ -254,9 +254,17 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 			Size = UDim2.fromOffset(18, 26),
 			TextSize = 16,
 		})
+		local face = Util.create("ImageLabel", {
+			Position = UDim2.fromOffset(26, 2),
+			Size = UDim2.fromOffset(22, 22),
+			BackgroundColor3 = C.Ink,
+			Image = "",
+			Parent = f,
+		}) :: ImageLabel
+		Theme.corner(face, 11)
 		local name = Theme.label(f, "", {
-			Position = UDim2.fromOffset(28, 0),
-			Size = UDim2.new(1, -160, 1, 0),
+			Position = UDim2.fromOffset(54, 0),
+			Size = UDim2.new(1, -186, 1, 0),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 16,
 		})
@@ -279,7 +287,25 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		kick.Activated:Connect(function()
 			action:FireServer("kick", seatIds[i])
 		end)
-		seats[i] = { frame = f, dot = dot, name = name, promote = promote, kick = kick }
+		seats[i] = { frame = f, dot = dot, face = face, name = name, promote = promote, kick = kick }
+	end
+	-- avatar headshots, fetched once per player
+	local faces: { [number]: string } = {}
+	local function faceOf(id: number): string
+		local known = faces[id]
+		if known then
+			return known
+		end
+		faces[id] = ""
+		task.spawn(function()
+			local ok, image = pcall(function()
+				return Players:GetUserThumbnailAsync(id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+			end)
+			if ok and typeof(image) == "string" then
+				faces[id] = image
+			end
+		end)
+		return ""
 	end
 	local diffRow = row(panel, 148, 34)
 	local buttons: { [string]: TextButton } = {}
@@ -367,6 +393,27 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 
 	local wasIn = false
 	local inParty = false
+	local lastCount = 0
+	local lastTick: number? = nil
+	local wasLeaving = false
+	-- sounds for the truck: a ping when someone climbs in, a tick for each of
+	-- the last five seconds, the engine when it goes
+	local function cues(party: PartyState)
+		if #party.members > lastCount and wasIn then
+			Audio.play("Pickup", nil, 0.35, 0.8)
+		end
+		lastCount = #party.members
+		local left = party.countdown
+		if left and left <= 5 and left > 0 and left ~= lastTick then
+			Audio.play("FlashlightClick", nil, 0.6, 1.5)
+		end
+		lastTick = left
+		if party.leaving and not wasLeaving then
+			Audio.play("EngineStart", nil, 0.8)
+		end
+		wasLeaving = party.leaving
+	end
+
 	local function render(state: State)
 		local party = state.party
 		inParty = party ~= nil
@@ -386,9 +433,11 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		end
 		if not party then
 			wasIn = false
+			lastCount, lastTick, wasLeaving = 0, nil, false
 			renderQueue(state)
 			return
 		end
+		cues(party)
 		if not wasIn then
 			wasIn = true
 			Audio.play("Whoosh", nil, 0.4)
@@ -401,6 +450,7 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 			seat.frame.Visible = m ~= nil
 			if m then
 				seatIds[i] = m.id
+				seat.face.Image = faceOf(m.id)
 				seat.dot.TextColor3 = if m.ready then C.Sickly else C.BoneDim
 				seat.name.Text = m.name .. (if m.host then Lang.t(" (host)") else "") .. (if m.me then Lang.t(" (you)") else "")
 				seat.name.TextColor3 = if m.ready then C.Bone else C.BoneDim
