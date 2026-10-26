@@ -17,21 +17,21 @@ local GamePasses = {}
 GamePasses.List = {
 	{
 		key = "ExtraLife",
-		id = 0,
+		id = 2058442287,
 		name = "Second Wind",
 		description = "One extra life every night (Normal, Hard and Nightmare).",
 		order = 1,
 	},
 	{
 		key = "DoubleTeeth",
-		id = 0,
+		id = 2058388294,
 		name = "Collector",
 		description = "Earn twice the Teeth for everything you do.",
 		order = 2,
 	},
 	{
 		key = "SurvivorKit",
-		id = 0,
+		id = 2058760281,
 		name = "Survivor Kit",
 		description = "Start every night with a bandage and a spare battery.",
 		order = 3,
