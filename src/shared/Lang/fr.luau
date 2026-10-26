@@ -83,7 +83,6 @@ return {
 	["▲ You    ● Your party    ✕ Where to go    (M to close)"] = "▲ Toi    ● Ton groupe    ✕ Où aller    (M pour fermer)",
 	["The farmhouse"] = "La ferme",
 	["Your car"] = "Ta voiture",
-	["The old truck"] = "Le vieux pick-up",
 	["Old barn"] = "Vieille grange",
 	["Hunter's camp"] = "Camp du chasseur",
 	["Doctor's trailer"] = "Caravane du docteur",
