@@ -19,7 +19,7 @@ Cutscenes.playing = false
 
 type Scene = (data: any, kit: typeof(Kit)) -> ()
 
-local SCENE_NAMES = { "Crash", "WakeUp", "TheyKnow", "TruckFound", "Drive", "DoorLock", "DoorBreak", "Radio", "Ending", "Downed", "Mine" }
+local SCENE_NAMES = { "Crash", "WakeUp", "TheyKnow", "TruckFound", "Drive", "DoorLock", "DoorBreak", "Radio", "Ending", "Downed", "Mine", "Dawn" }
 local scenes: { [string]: Scene } = {}
 
 local token = 0

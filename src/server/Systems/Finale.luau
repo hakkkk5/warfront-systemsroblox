@@ -80,6 +80,11 @@ function Finale.trueEnding(): boolean
 	return flags.pilotFreed and Cellar.rescued()
 end
 
+-- What the closing cutscene (Dawn) needs.
+function Finale.endingData(trueEnding: boolean): any
+	return { cruiser = cruiser, church = places.church.origin, trueEnding = trueEnding }
+end
+
 local function rootOf(player: Player): BasePart?
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	return if root and root:IsA("BasePart") then root else nil

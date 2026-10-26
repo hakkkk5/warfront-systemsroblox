@@ -1090,7 +1090,9 @@ end
 local function startEnding(trueEnding: boolean)
 	setStage("Ending")
 	Story.Ended:Fire()
+	local data = Finale.endingData(trueEnding)
 	Cannibals.clear()
+	playCutscene("Dawn", data, 32)
 	Net.event("Ending"):FireAllClients(if trueEnding then "true" else "normal")
 end
 

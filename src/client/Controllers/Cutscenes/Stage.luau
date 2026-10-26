@@ -42,10 +42,11 @@ local LIMITS: { [string]: number } = {
 	Ending = 56,
 	Downed = 24,
 	Mine = 18,
+	Dawn = 26,
 }
 -- How long the screen stays black after a scene (the next cutscene or a
 -- server teleport may follow), and how long the fade back takes.
-local HOLD: { [string]: number } = { Crash = 4, Drive = 1.4, Ending = 1.5, Downed = 2.5, Mine = 1.5 }
+local HOLD: { [string]: number } = { Crash = 4, Drive = 1.4, Ending = 1.5, Downed = 2.5, Mine = 1.5, Dawn = 3 }
 local FADE_BACK: { [string]: number } = { Drive = 1.2, Ending = 2.5 }
 
 local CANCEL = "CutsceneCancelled"
