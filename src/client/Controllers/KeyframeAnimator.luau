@@ -27,6 +27,9 @@ local TAG = "KeyframeAnimated"
 local FADE = 0.2
 local RANGE = 260
 local IDLES = { "Idle1", "Idle2", "Idle3", "Idle4" }
+-- players stand easy: Idle4 holds both arms straight out (a T-pose from
+-- the side) and Idle3 leans and reaches; those suit the family, not you
+local PLAYER_IDLES = { "Idle1", "Idle2" }
 
 type Clip = { length: number, fps: number, loop: boolean, joints: { string }, frames: { { CFrame } } }
 
@@ -142,11 +145,12 @@ local function track(model: Model)
 		return
 	end
 	local idle = attr(model, "AnimIdle")
+	local pool = if Players:GetPlayerFromCharacter(model) then PLAYER_IDLES else IDLES
 	rigs[model] = {
 		model = model,
 		root = root,
 		motors = motors,
-		idle = if typeof(idle) == "string" then idle else IDLES[math.random(#IDLES)],
+		idle = if typeof(idle) == "string" then idle else pool[math.random(#pool)],
 		clip = "",
 		time = math.random() * 4,
 		previous = nil,
