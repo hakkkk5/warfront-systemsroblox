@@ -105,13 +105,7 @@ local function buildRoom(parent: Folder)
 	part(Vector3.new(14, 0.08, 9), L(-21, FLOOR + 0.04, 9), rgb(30, 34, 30), M.Glass, { CanCollide = false, Transparency = 0.35, Reflectance = 0.25 })
 	part(Vector3.new(6, 0.08, 5), L(-12, FLOOR + 0.04, 19), rgb(30, 34, 30), M.Glass, { CanCollide = false, Transparency = 0.35, Reflectance = 0.25 })
 	-- the ladder down from the hatch
-	local ladder = Instance.new("TrussPart")
-	ladder.Size = Vector3.new(2, 10, 2)
-	ladder.CFrame = L(-10, FLOOR + 5, 10)
-	ladder.Anchored = true
-	ladder.Color = rgb(80, 64, 46)
-	ladder.Material = M.Wood
-	ladder.Parent = parent
+	Build.ladder(parent, Vector3.new(2, 10, 2), L(-10, FLOOR + 5, 10), rgb(80, 64, 46), M.Wood)
 	-- one bulb on a wire, mostly off
 	Build.bulb(parent, L(-18, -1.6, 12), rgb(255, 170, 110), 0.5, 22, true)
 	-- what the family keeps down here

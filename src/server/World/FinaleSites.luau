@@ -506,13 +506,7 @@ local function buildChurch(world: Instance, rng: Util.Rng): any
 	box(structure, Vector3.new(1.3, 1, 9), 4.85, BY, -24, STONE, M.Slate)
 	box(structure, Vector3.new(2, 1, 5.5), 3.2, BY, -22.25, STONE, M.Slate)
 	box(structure, Vector3.new(2, 1, 1.5), 3.2, BY, -27.75, STONE, M.Slate)
-	local truss = Instance.new("TrussPart")
-	truss.Anchored = true
-	truss.Size = Vector3.new(2, TH + 2, 2)
-	truss.CFrame = L(3.2, CY + (TH + 2) / 2, -26)
-	truss.Color = DARK_WOOD
-	truss.Material = M.Wood
-	truss.Parent = structure
+	Build.ladder(structure, Vector3.new(2, TH + 2, 2), L(3.2, CY + (TH + 2) / 2, -26), DARK_WOOD, M.Wood)
 	-- belfry: open arches, the bell, a little spire
 	for _, s in { -1, 1 } do
 		box(structure, Vector3.new(1.2, 7, 1.2), s * 4.4, CY + TH + 4.5, -27.4, STONE, M.Slate)

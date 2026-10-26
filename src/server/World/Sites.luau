@@ -647,13 +647,7 @@ local function buildTower(parent: Instance, info: Info)
 			Build.part(folder, Vector3.new(0.4, 8, 0.4), base * CF(x, h + 4.5, z), legColor, M.Wood)
 		end
 	end
-	local ladder = Instance.new("TrussPart")
-	ladder.Anchored = true
-	ladder.Size = Vector3.new(2, h + 2, 2)
-	ladder.CFrame = base * CF(4, (h + 2) / 2, -6.6)
-	ladder.Color = rgb(70, 70, 72)
-	ladder.Material = M.Metal
-	ladder.Parent = folder
+	Build.ladder(folder, Vector3.new(2, h + 2, 2), base * CF(4, (h + 2) / 2, -6.6), rgb(70, 70, 72), M.Metal)
 	Build.part(folder, Vector3.new(3, 2, 2), base * CF(-3, h + 1.4, 3), rgb(150, 30, 26), M.Metal).Name = "Toolbox"
 	info.spots.Fuse = base * CF(-3, h + 2.45, 3) * ANG(0, rad(20), 0)
 	lanternOn(folder, base * CF(2, h + 0.4, 3))

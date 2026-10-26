@@ -129,6 +129,29 @@ function Build.roofSlab(
 	return Build.part(parent, Vector3.new(size.X, t, length), slab, color, material)
 end
 
+-- A ladder: climbed like a truss (an invisible TrussPart, `size` at `cf`)
+-- but drawn as one, two rails and a rung every stud, instead of the grey
+-- truss lattice.
+function Build.ladder(parent: Instance, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material): TrussPart
+	local truss = Instance.new("TrussPart")
+	truss.Anchored = true
+	truss.Size = size
+	truss.CFrame = cf
+	truss.Transparency = 1
+	truss.Parent = parent
+	local h = size.Y
+	local look = { CanCollide = false, CanQuery = false, CanTouch = false }
+	for _, x in { -0.8, 0.8 } do
+		Build.part(parent, Vector3.new(0.22, h, 0.32), cf * CFrame.new(x, 0, 0), color, material, look)
+	end
+	local y = -h / 2 + 0.6
+	while y < h / 2 - 0.2 do
+		Build.cylinder(parent, 1.6, 0.16, cf * CFrame.new(0, y, 0), color, material, look)
+		y += 1
+	end
+	return truss
+end
+
 function Build.model(parent: Instance, name: string): Model
 	local m = Instance.new("Model")
 	m.Name = name

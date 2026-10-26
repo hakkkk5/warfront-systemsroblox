@@ -144,6 +144,8 @@ return {
 	["Helipad"] = "Héliport",
 	["Helicopter crash"] = "Crash de l'hélicoptère",
 	["MAP"] = "CARTE",
+	["Map"] = "Carte",
+	["An old county map. Shows where you are, your party and where to go next. Use it, or press M."] = "Une vieille carte du comté. Elle montre où tu es, ton groupe et où aller ensuite. Utilise-la, ou appuie sur M.",
 	-- lives
 	["Infinite lives. They're slower to notice you and hit softer."] = "Vies infinies. Ils te repèrent moins vite et frappent moins fort.",
 	["Lives: %d"] = "Vies : %d",

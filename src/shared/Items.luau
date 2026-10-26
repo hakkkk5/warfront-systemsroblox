@@ -44,6 +44,17 @@ local defs: { [string]: ItemDef } = {
 		stackable = true,
 		usable = true,
 	},
+	-- everyone starts with it (PlayerService); Use opens the map (client
+	-- UI MapView, also M)
+	Map = {
+		id = "Map",
+		name = "Map",
+		description = "An old county map. Shows where you are, your party and where to go next. Use it, or press M.",
+		model = "Note",
+		icon = Assets.Images.MapPin,
+		tint = Color3.fromRGB(214, 190, 140),
+		usable = true,
+	},
 	Bandage = {
 		id = "Bandage",
 		name = "Bandage",

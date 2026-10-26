@@ -13,6 +13,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local MeshLibrary = require(script.Parent.Parent.Controllers.MeshLibrary)
+local MapView = require(script.Parent.MapView)
 local Theme = require(script.Parent.Theme)
 
 local Inventory = {}
@@ -346,7 +347,11 @@ function Inventory.init()
 		Visible = false,
 	})
 	useButton.Activated:Connect(function()
-		if selected then
+		if selected == "Map" then
+			-- the map is read here, nothing for the server to do
+			Inventory.setOpen(false)
+			MapView.toggle(true)
+		elseif selected then
 			Net.event("InventoryAction"):FireServer("use", selected)
 		end
 	end)

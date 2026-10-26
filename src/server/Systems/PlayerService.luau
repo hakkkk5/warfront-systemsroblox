@@ -165,6 +165,10 @@ function PlayerService.init()
 		end
 		playing[player] = true
 		Store.grantPerks(player) -- what they stocked up on in the lobby store
+		-- the map (Use it, or M)
+		if not Inventory.has(player, "Map") then
+			Inventory.add(player, "Map", 1, true)
+		end
 		-- Survivor Kit (game pass)
 		if player:GetAttribute("Pass_SurvivorKit") == true then
 			Inventory.add(player, "Bandage", 1, true)
