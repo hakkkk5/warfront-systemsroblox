@@ -1318,6 +1318,10 @@ function Lobby.run()
 		while studioStart == nil do
 			for stat, label in boards do
 				local top = Leaderboards.top(stat, 10)
+				-- a list of names isn't for translating (or for Roblox to capture)
+				local names = top ~= nil and #top > 0
+				label.AutoLocalize = not names
+				label:SetAttribute("NoTranslate", names)
 				if top == nil then
 					label.Text = "<i>The records live online.\nThey show on published servers.</i>"
 				elseif #top == 0 then

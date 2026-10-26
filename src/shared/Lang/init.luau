@@ -49,10 +49,15 @@ local function tableFor(code: string): { [string]: string }?
 	return loaded
 end
 
--- The player's Roblox language, if the game has it; else English.
+-- The language the player set for Roblox (es-es, pt-br, fr-fr...), if the
+-- game has it; else English. Nobody is asked: this is what Auto means.
 function Lang.guess(): string
 	local ok, locale = pcall(function()
-		return LocalizationService.RobloxLocaleId
+		local id = LocalizationService.RobloxLocaleId
+		if id == "" then
+			id = (game:GetService("Players").LocalPlayer :: Player).LocaleId
+		end
+		return id
 	end)
 	local code = if ok and typeof(locale) == "string" then string.lower(string.sub(locale, 1, 2)) else "en"
 	for _, l in Lang.List do
@@ -184,6 +189,13 @@ function Lang.t(text: string): string
 	return lookup(t, text) or pieces(t, text) or text
 end
 
+-- Whether the game has its own table for the current language (French). For
+-- every other language the text stays English and Roblox's automatic
+-- translation (Creator Dashboard > Localization) translates it on screen.
+function Lang.hasTable(): boolean
+	return tableFor(current) ~= nil
+end
+
 -- Whether the current language has this text.
 function Lang.has(text: string): boolean
 	local t = tableFor(current)
@@ -197,6 +209,21 @@ end
 
 if RunService:IsClient() then
 	current = Lang.guess()
+end
+
+-- On Auto, follow the player changing their Roblox language mid-session.
+local auto = true
+function Lang.setAuto(on: boolean)
+	auto = on
+end
+if RunService:IsClient() then
+	pcall(function()
+		LocalizationService:GetPropertyChangedSignal("RobloxLocaleId"):Connect(function()
+			if auto then
+				Lang.set(Lang.guess())
+			end
+		end)
+	end)
 end
 
 return Lang

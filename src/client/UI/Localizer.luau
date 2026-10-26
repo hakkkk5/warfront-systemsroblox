@@ -18,7 +18,12 @@ local hooked: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: an
 local setting: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local function update(obj: TextLabel | TextButton)
+	-- names and the like: never translated, never captured by Roblox
+	local target: any = obj
 	if setting[obj] then
+		return
+	elseif obj:GetAttribute("NoTranslate") == true then
+		target.AutoLocalize = false
 		return
 	end
 	local source = obj:GetAttribute("LangSource")
@@ -29,12 +34,19 @@ local function update(obj: TextLabel | TextButton)
 			if source ~= nil then
 				obj:SetAttribute("LangSource", nil)
 			end
+			-- text we put together ourselves (already in our language) or
+			-- English: Roblox may translate only the English
+			target.AutoLocalize = Lang.code() == "en" or not Lang.hasTable()
 			return
 		end
 		source = text
 		obj:SetAttribute("LangSource", text)
 	end
 	local want = Lang.t(source :: string)
+	-- Roblox's automatic translation covers every language without a table
+	-- here; where this table translates a label, Roblox must leave it be
+	-- (and not capture the French as new English source text)
+	target.AutoLocalize = want == source
 	if obj.Text ~= want then
 		setting[obj] = true
 		(obj :: any).Text = want

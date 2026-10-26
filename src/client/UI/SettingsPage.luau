@@ -26,6 +26,7 @@ local function apply(key: string, value: number)
 	elseif key == "volume" then
 		Audio.setMasterVolume(value)
 	elseif key == "language" then
+		Lang.setAuto(math.round(value) == 0)
 		Lang.set(Lang.fromSetting(value))
 	end
 	-- reduceFlashing is read straight from Settings by the effects
