@@ -31,6 +31,11 @@ local IDLES = { "Idle1", "Idle2", "Idle3", "Idle4" }
 -- players stand easy: Idle4 holds both arms straight out (a T-pose from
 -- the side) and Idle3 leans and reaches; those suit the family, not you
 local PLAYER_IDLES = { "Idle1", "Idle2" }
+-- players' walk and run: from the walk and run packs in the place (AnimData
+-- PackWalk1-4, PackRun1-3; PlayerWalk / PlayerRun are written as code), each
+-- at its own pace at the player's walking and sprinting speed
+local PLAYER_WALK, PLAYER_WALK_AT = "PackWalk3", 11
+local PLAYER_RUN, PLAYER_RUN_AT = "PackRun2", 20
 
 type Clip = { length: number, fps: number, loop: boolean, joints: { string }, frames: { { CFrame } } }
 
@@ -210,9 +215,9 @@ local function choose(rig: Rig): (string?, number)
 		elseif speed < 0.7 then
 			return rig.idle, 1
 		elseif speed >= 15 then
-			return "PlayerRun", math.clamp(speed / 7.5, 0.7, 1.6)
+			return PLAYER_RUN, math.clamp(speed / PLAYER_RUN_AT, 0.7, 1.5)
 		end
-		return "PlayerWalk", math.clamp(speed / 6, 0.5, 1.6)
+		return PLAYER_WALK, math.clamp(speed / PLAYER_WALK_AT, 0.5, 1.5)
 	end
 	local walkClip = attr(model, "AnimWalk") or "Walk1"
 	local runClip = attr(model, "AnimRun") or "Run2"
