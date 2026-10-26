@@ -168,6 +168,7 @@ export type Cannibal = {
 	tracks: { [string]: AnimationTrack },
 	currentTrack: string?,
 	stuckSince: number?,
+	nextStare: number?, -- when it next stops dead on its patrol to stare at someone
 	lastPos: Vector3,
 	prompt: ProximityPrompt?,
 	nextHunt: number,
@@ -1055,6 +1056,28 @@ local function think(c: Cannibal, dt: number)
 			c.waitUntil = now + math.random(10, 35) / 10
 			setState(c, "Idle")
 		else
+			-- now and then it stops dead mid-step and turns to stare at whoever
+			-- is nearest, walls or no walls, then walks on as if nothing happened
+			c.nextStare = c.nextStare or now + math.random(8, 20)
+			if now > (c.nextStare :: number) then
+				c.nextStare = now + math.random(12, 30)
+				local here = c.root.Position
+				local nearest: Vector3? = nil
+				for _, player in Players:GetPlayers() do
+					local character = player.Character
+					local r = character and character:FindFirstChild("HumanoidRootPart")
+					if r and r:IsA("BasePart") and (r.Position - here).Magnitude < 70 and (not nearest or (r.Position - here).Magnitude < (nearest - here).Magnitude) then
+						nearest = r.Position
+					end
+				end
+				if nearest then
+					stop(c)
+					c.root.CFrame = CFrame.lookAt(here, Vector3.new(nearest.X, here.Y, nearest.Z))
+					c.waitUntil = now + 1.5 + math.random() * 1.5
+					setState(c, "Idle")
+					return
+				end
+			end
 			moveTo(c, goal, c.spec.walk)
 		end
 	elseif state == "Paused" then
@@ -1193,6 +1216,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 		currentTrack = nil,
 		stuckSince = nil,
 		lastPos = root.Position,
+		nextStare = nil,
 		prompt = nil,
 		nextHunt = 0,
 		struggling = false,
