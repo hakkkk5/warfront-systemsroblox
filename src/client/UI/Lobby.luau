@@ -21,6 +21,7 @@ local Effects = require(script.Parent.Parent.Controllers.Effects)
 local HUD = require(script.Parent.HUD)
 local LobbyMenu = require(script.Parent.LobbyMenu)
 local LobbyTrophyWall = require(script.Parent.LobbyTrophyWall)
+local TeleportScreen = require(script.Parent.TeleportScreen)
 local Theme = require(script.Parent.Theme)
 local Tutorial = require(script.Parent.Tutorial)
 
@@ -63,7 +64,7 @@ type TruckState = {
 type State = {
 	party: PartyState?,
 	trucks: { TruckState },
-	solo: boolean,
+	solo: string?, -- off without a truck (alone or matched): the difficulty
 	search: { difficulty: string, elapsed: number }?, -- finding players on other servers
 }
 
@@ -350,8 +351,8 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 				card.button.BackgroundColor3 = if open then C.PanelLight else C.Panel
 			end
 		end
-		quick.Active = not state.solo
-		solo.Text = Lang.t(if state.solo then "Driving out…" else "Play solo")
+		quick.Active = state.solo == nil
+		solo.Text = Lang.t(if state.solo ~= nil then "Driving out…" else "Play solo")
 		local search = state.search
 		searching = search ~= nil
 		if search then
@@ -371,6 +372,18 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		inParty = party ~= nil
 		queue.Visible = party == nil
 		panel.Visible = party ~= nil
+		-- leaving: hand Roblox the ride-out screen for the teleport
+		if party and party.leaving then
+			local riders = {}
+			for _, m in party.members do
+				table.insert(riders, m.name)
+			end
+			TeleportScreen.prepare(party.difficulty, riders)
+		elseif state.solo then
+			TeleportScreen.prepare(state.solo, {})
+		else
+			TeleportScreen.cancel()
+		end
 		if not party then
 			wasIn = false
 			renderQueue(state)
@@ -678,7 +691,7 @@ function Lobby.run()
 			screen.render({
 				party = party,
 				trucks = state.trucks,
-				solo = state.solo == true,
+				solo = if typeof(state.solo) == "string" then state.solo else nil,
 				search = if typeof(search) == "table" and typeof(search.elapsed) == "number" then search else nil,
 			})
 		end),

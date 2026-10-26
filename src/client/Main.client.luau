@@ -43,7 +43,9 @@ local Menu = require(UI.Menu)
 local SettingsPage = require(UI.SettingsPage)
 local Localizer = require(UI.Localizer)
 local TouchControls = require(UI.TouchControls)
+local TeleportScreen = require(UI.TeleportScreen)
 
+TeleportScreen.arrive() -- the ride-out screen from the lobby stays up until the woods are built
 Localizer.init()
 MeshLibrary.init()
 Audio.init()

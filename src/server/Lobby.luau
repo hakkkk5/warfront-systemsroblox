@@ -69,7 +69,7 @@ type Party = {
 local parties: { Party } = {}
 local connections: { RBXScriptConnection } = {}
 local retries: { [Player]: number } = {} -- failed teleports, by player
-local departing: { [Player]: boolean } = {} -- driving out alone
+local departing: { [Player]: string } = {} -- off without a truck (alone or matched): their difficulty
 local spawnCF = ORIGIN
 local studioStart: string? = nil
 local stateRemote: RemoteEvent
@@ -839,7 +839,7 @@ local function broadcast()
 		stateRemote:FireClient(player, {
 			party = if party then summary(party, player) else nil,
 			trucks = trucks,
-			solo = departing[player] == true,
+			solo = departing[player],
 			search = if searchDifficulty then { difficulty = searchDifficulty, elapsed = searchTime } else nil,
 		})
 	end
@@ -958,7 +958,7 @@ local function goSolo(player: Player, difficulty: string)
 		return
 	end
 	Matchmaking.cancel(player)
-	departing[player] = true
+	departing[player] = difficulty
 	notice({ player }, "Driving out alone…")
 	broadcast()
 	if not depart({ player }, difficulty) then
@@ -1003,7 +1003,7 @@ local function sendMatched(player: Player, ticket: Matchmaking.Ticket)
 	if not player.Parent or partyOf(player) or departing[player] then
 		return
 	end
-	departing[player] = true
+	departing[player] = ticket.difficulty
 	notice({ player }, "Found players. Off you go…")
 	broadcast()
 	Profiles.save(player)
