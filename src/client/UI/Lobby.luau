@@ -365,11 +365,12 @@ function Lobby.run()
 	player.CameraMinZoomDistance = 6
 	player.CameraMode = Enum.CameraMode.Classic
 	local gui = Theme.screen("Lobby", 20)
-	-- clear of the Roblox top bar and notches, laid out for 1000 x 620 and
+	-- clear of the Roblox top bar and notches, laid out for 1300 x 620 (the
+	-- nav bar and the title side by side) and
 	-- scaled down to fit phones
 	gui.IgnoreGuiInset = false
 	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
-	local canvas = Theme.canvas(gui, Vector2.new(1000, 620))
+	local canvas = Theme.canvas(gui, Vector2.new(1300, 620))
 	local render = build(canvas, actionRemote)
 	local menu = LobbyMenu.build(canvas)
 	local inParty = false

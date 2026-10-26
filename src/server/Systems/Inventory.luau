@@ -136,6 +136,15 @@ local function useItem(player: Player, id: string)
 			humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 40)
 			Interact.notify(player, "Bandaged your wounds (+40)", "item")
 		end
+	elseif id == "FirstAidKit" then
+		if humanoid.Health >= humanoid.MaxHealth then
+			Interact.notify(player, "You are not hurt.", "warn")
+			return
+		end
+		if Inventory.remove(player, "FirstAidKit") then
+			humanoid.Health = humanoid.MaxHealth
+			Interact.notify(player, "Patched up properly (full health)", "item")
+		end
 	end
 end
 

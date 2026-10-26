@@ -720,6 +720,37 @@ function Cannibals.sedate(c: Cannibal, player: Player?)
 	end
 end
 
+-- Knocked off their feet for a few seconds (a molotov): sedation, but short
+-- and without the keys prompt. Returns false if it was already down.
+function Cannibals.stun(c: Cannibal, seconds: number): boolean
+	if not c.alive or c.state == "Sedated" then
+		return false
+	end
+	setState(c, "Sedated")
+	c.sedatedUntil = os.clock() + seconds
+	stop(c)
+	c.humanoid.PlatformStand = true
+	c.root.AssemblyLinearVelocity = Vector3.new(0, 6, 0) - c.root.CFrame.LookVector * 6
+	if c.prompt then
+		c.prompt.Enabled = false
+	end
+	soundRemote:FireAllClients("Scream", c.root.Position)
+	return true
+end
+
+-- The ones that would come to a noise at `position` (not chasing anyone).
+function Cannibals.listeners(position: Vector3, radius: number): { Cannibal }
+	local found: { Cannibal } = {}
+	for _, c in list do
+		if c.alive and (c.state == "Patrol" or c.state == "Idle" or c.state == "Search" or c.state == "Investigate") then
+			if (c.root.Position - position).Magnitude < radius then
+				table.insert(found, c)
+			end
+		end
+	end
+	return found
+end
+
 ---------------------------------------------------------------- the struggle
 -- Trying to inject one that's chasing you starts a fight-back: the client
 -- plays a close-up and shows keys to hit (W A S D, or buttons on a phone).

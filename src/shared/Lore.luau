@@ -1,5 +1,8 @@
 --!strict
--- Readable notes scattered around the map.
+-- Readable notes scattered around the map, and the hidden polaroids (shared
+-- Trophies), which read as "Polaroid_<id>".
+
+local Trophies = require(script.Parent.Trophies)
 
 export type Note = { title: string, body: string }
 
@@ -100,5 +103,12 @@ local Lore: { [string]: Note } = {
 		body = "Dear Ruth,\n\nThe plant closed and the town went with it. Papa says we don't need the county, we don't need the store, we have the mine and we have each other and the road always brings us more.\n\nThey hold supper in the church now. Everyone's welcome. Nobody leaves.\n\nIf you ever come back up Hollow Road, don't stop for anybody. Not even us.\n\n- your sister",
 	},
 }
+
+for _, photo in Trophies.polaroidList() do
+	Lore["Polaroid_" .. photo.id] = {
+		title = "Polaroid - " .. photo.title,
+		body = "(" .. photo.caption .. ")\n\nWritten on the back: " .. photo.title,
+	}
+end
 
 return Lore

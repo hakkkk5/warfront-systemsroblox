@@ -11,8 +11,14 @@ local AssetService = require(script.Parent.AssetService)
 local Interact = require(script.Parent.Interact)
 local Inventory = require(script.Parent.Inventory)
 local Profiles = require(script.Parent.Profiles)
+local Signal = require(ReplicatedStorage.Shared.Signal)
 
 local Pickups = {}
+
+-- (player, note id) whenever someone reads a note
+Pickups.NoteRead = Signal.new() :: Signal.Signal<Player, string>
+-- how many notes are out in the world this night
+Pickups.notesPlaced = 0
 
 export type Options = {
 	amount: number?,
@@ -47,6 +53,11 @@ local function addGlint(part: BasePart)
 	sparkle.Color = ColorSequence.new(Color3.fromRGB(255, 236, 190))
 	sparkle.Transparency = NumberSequence.new(0.2)
 	sparkle.Parent = attachment
+end
+
+-- The sparkle that marks something you can pick up.
+function Pickups.glint(part: BasePart)
+	addGlint(part)
 end
 
 local function primary(model: Model): BasePart
@@ -100,6 +111,7 @@ function Pickups.note(noteId: string, cf: CFrame, parent: Instance): Model
 	local note = Lore[noteId]
 	assert(note, "unknown note " .. noteId)
 	local model = AssetService.create("Note")
+	Pickups.notesPlaced += 1
 	model.Name = "Note_" .. noteId
 	model:PivotTo(cf)
 	anchorAll(model)
@@ -114,6 +126,7 @@ function Pickups.note(noteId: string, cf: CFrame, parent: Instance): Model
 			soundRemote:FireClient(player, "PageTurn")
 			noteRemote:FireClient(player, noteId)
 			Profiles.awardOnce(player, "note:" .. noteId, StoreCatalog.Rewards.note, "Read: " .. note.title)
+			Pickups.NoteRead:Fire(player, noteId)
 		end,
 	})
 	return model

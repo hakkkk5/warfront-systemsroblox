@@ -27,6 +27,7 @@ local EVENTS = {
 	"Scare", -- apparitions, jumpscares, random events
 	"ChaseFX", -- spikes and falling trees during the chase
 	"StoreResult", -- lobby store: purchase outcome
+	"Crafting", -- open the workbench screen
 	-- client -> server
 	"RequestPlay",
 	"CutsceneDone",
@@ -38,6 +39,8 @@ local EVENTS = {
 	"StruggleResult",
 	"StoreBuy", -- lobby store: buy a perk
 	"SaveSettings", -- settings kept with the profile
+	"Throw", -- throw the held item (aim)
+	"Craft", -- make a recipe at a workbench
 }
 
 local folder: Folder

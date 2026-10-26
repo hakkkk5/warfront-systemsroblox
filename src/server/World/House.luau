@@ -50,6 +50,8 @@ export type Info = {
 	recordPlayer: BasePart,
 	radio: BasePart,
 	attic: Vector3,
+	polaroidSpots: { [string]: CFrame },
+	junkSpots: { CFrame },
 }
 
 local rgb = Color3.fromRGB
@@ -837,6 +839,8 @@ function House.build(parent: Instance): Info
 		recordPlayer = wings.recordPlayer,
 		radio = wings.radio,
 		attic = wings.attic,
+		polaroidSpots = wings.polaroidSpots,
+		junkSpots = wings.junkSpots,
 	}
 	-- the wings join the patrols, and hide most of what you need to get out
 	for _, p in wings.groundPatrol do

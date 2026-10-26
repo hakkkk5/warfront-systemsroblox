@@ -26,8 +26,13 @@ local Pickups = require(script.Parent.Pickups)
 local Hosts = require(script.Parent.Hosts)
 local HouseLights = require(script.Parent.HouseLights)
 local Investigation = require(script.Parent.Investigation)
+local Crafting = require(script.Parent.Crafting)
+local Polaroids = require(script.Parent.Polaroids)
 
 local Story = {}
+
+-- (new, old) every time the story moves on (Achievements)
+Story.StageChanged = Signal.new() :: Signal.Signal<string, string>
 
 -- fired once when the survivors reach the helicopter (Rewards pays out)
 Story.Ended = Signal.new() :: Signal.Signal<>
@@ -256,9 +261,11 @@ function Story.broadcast(player: Player?)
 end
 
 local function setStage(new: Stage)
+	local old = stage
 	stage = new
 	workspace:SetAttribute("Stage", new)
 	Story.broadcast()
+	Story.StageChanged:Fire(new, old)
 end
 
 function Story.stage(): Stage
@@ -476,6 +483,62 @@ local function spawnForestItems()
 	Pickups.note("RangerLog", spots.NoteRanger, items)
 	Pickups.spawn("Battery", spots.StationBattery, items)
 	Pickups.spawn("Bandage", spots.StationBandage, items)
+end
+
+-- Junk for the workbenches and things to throw: around the house from the
+-- start, at the sites in the woods and the station, rocks on the ground.
+local function spawnJunk()
+	local folder = Build.folder(world, "Junk")
+	local houseJunk = { "Bottle", "Bottle", "Bottle", "Rag", "Rag", "Moonshine", "Moonshine", "Tape", "Tape", "AlarmClock", "AlarmClock", "Bottle" }
+	local free = table.clone(house.junkSpots) :: { CFrame }
+	for _, item in houseJunk do
+		if #free == 0 then
+			break
+		end
+		local spot = table.remove(free, math.random(1, #free)) :: CFrame
+		Pickups.spawn(item, spot, folder, { yaw = math.random() * math.pi * 2 })
+	end
+	local s = sites.spots
+	local woods: { { item: string, spot: CFrame?, dx: number } } = {
+		{ item = "Bottle", spot = s.NoteBarn, dx = 1.4 },
+		{ item = "Rag", spot = s.BarnBattery, dx = -1.2 },
+		{ item = "Moonshine", spot = s.NoteCamp, dx = 1.3 },
+		{ item = "Bottle", spot = s.CampBandage, dx = -1.2 },
+		{ item = "Tape", spot = s.TrailerBattery, dx = 1.2 },
+		{ item = "AlarmClock", spot = s.NoteDoctor, dx = -1.4 },
+		{ item = "Moonshine", spot = s.StationBattery, dx = 1.2 },
+		{ item = "Rag", spot = s.StationBandage, dx = -1.2 },
+		{ item = "Bottle", spot = s.NoteRanger, dx = 1.3 },
+	}
+	for _, entry in woods do
+		if entry.spot then
+			Pickups.spawn(entry.item, entry.spot * CFrame.new(entry.dx, 0, 0), folder)
+		end
+	end
+	-- rocks in a ring around the clearings
+	for _, center in { sites.truckCF.Position, s.CampBandage.Position, s.Tire.Position } do
+		for _ = 1, 4 do
+			local a = math.random() * math.pi * 2
+			local r = 10 + math.random() * 8
+			local x, z = center.X + math.cos(a) * r, center.Z + math.sin(a) * r
+			Pickups.spawn("Rock", CFrame.new(x, Terrain.groundY(x, z) + 0.05, z), folder, { yaw = a })
+		end
+	end
+end
+
+-- The family album (Polaroids): seven in the farmhouse, five out in the
+-- valley; the last one is at the end of the road.
+local function placePolaroids()
+	local folder = Build.folder(world, "Polaroids")
+	for id, cf in house.polaroidSpots do
+		Polaroids.place(id, cf, folder)
+	end
+	local s = sites.spots
+	Polaroids.place("P03", s.NoteBarn * CFrame.new(-1.3, 0, 0.3), folder)
+	Polaroids.place("P04", s.NoteCamp * CFrame.new(-1.2, 0, 0.2), folder)
+	Polaroids.place("P07", s.NoteDoctor * CFrame.new(1.3, 0, -0.2), folder)
+	Polaroids.place("P09", s.Tire * CFrame.new(2.2, 0, 1.4), folder)
+	Polaroids.place("P10", s.NoteRanger * CFrame.new(-1.3, 0, 0.2), folder)
 end
 
 ---------------------------------------------------------------- truck
@@ -1193,6 +1256,15 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder)
 	Cellar.build(house.origin, world, Investigation.hatch())
 	spawnHouseItems()
 	spawnForestItems()
+	spawnJunk()
+	placePolaroids()
+	-- workbenches: the farmhouse workshop, and any bench a site has
+	Crafting.addBenchAt(house.workbench, world, "Workbench")
+	for _, d in world:GetDescendants() do
+		if d.Name == "Workbench" and d:IsA("BasePart") then
+			Crafting.addBench(d)
+		end
+	end
 	setupTruck()
 	setupStation()
 	Cannibals.Sedated:Connect(onSedated)

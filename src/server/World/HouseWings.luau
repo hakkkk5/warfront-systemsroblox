@@ -58,6 +58,8 @@ export type Info = {
 	recordPlayer: BasePart,
 	radio: BasePart,
 	attic: Vector3,
+	polaroidSpots: { [string]: CFrame },
+	junkSpots: { CFrame }, -- tables and shelves where workbench junk turns up
 }
 
 local rgb = Color3.fromRGB
@@ -618,6 +620,29 @@ function HouseWings.build(ctx: Ctx): Info
 		recordPlayer = recordPlayer,
 		radio = radio,
 		attic = at(0, 25.5, 0),
+		polaroidSpots = {
+			P01 = L(-55, 1.97, -11.8) * ANG(0, rad(15), 0), -- parlor coffee table
+			P05 = L(51.5, 3.27, -11.4) * ANG(0, rad(-10), 0), -- sunroom tea table
+			P08 = L(65.2, 3.02, -4.6) * ANG(0, rad(-90), 0), -- Mama's shrine
+			P11 = L(-24, 26.37, -2), -- the crib in the attic
+			P12 = L(64, U + 2.22, 21.6) * ANG(0, rad(20), 0), -- toy chest in storage
+			P06 = L(-50.8, U + 2.42, -22) * ANG(0, rad(-25), 0), -- Grandma's nightstand
+			P02 = L(26, U + 2.22, -22) * ANG(0, rad(10), 0), -- the kid's toy chest
+		},
+		junkSpots = {
+			L(-48, U + 3.35, 13.4),
+			L(-41.5, 3.42, 3.4),
+			L(53.5, 3.55, 21.8),
+			L(47.6, 3.3, -12.8),
+			L(42, U + 3.3, -20.6),
+			L(-15, 27.45, 7),
+			L(7, 27.45, 7),
+			L(-21, 3.68, 22.4),
+			L(-16.5, 3.27, 12.6),
+			L(14, 3.52, -12.9),
+			L(30.9, 5.75, 12),
+			L(-25, 1.98, -8),
+		},
 	}
 end
 

@@ -1,7 +1,8 @@
 --!strict
 -- Phone and tablet controls: big round buttons in an arc around Roblox's jump
 -- button. Run is a latch (tap to run, tap again or stop moving to walk),
--- Crouch and Light toggle, Bag opens the inventory and Hint asks where to go.
+-- Crouch and Light toggle, Bag opens the inventory, Hint asks where to go,
+-- and Throw shows up while you hold something you can throw.
 -- They light up while their thing is on. Shown only while playing on touch:
 -- hidden in menus, the lobby, cutscenes, while hiding or grabbed, and when a
 -- keyboard or gamepad is being used instead.
@@ -15,6 +16,7 @@ local Assets = require(ReplicatedStorage.Shared.Assets)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Movement = require(script.Parent.Parent.Controllers.Movement)
+local Throwing = require(script.Parent.Parent.Controllers.Throwing)
 local Viewmodel = require(script.Parent.Parent.Controllers.Viewmodel)
 local HUD = require(script.Parent.HUD)
 local Inventory = require(script.Parent.Inventory)
@@ -35,6 +37,7 @@ local LAYOUT: { [string]: Spot } = {
 	Light = { offset = Vector2.new(5, -80), size = 56 },
 	Hint = { offset = Vector2.new(-70, -125), size = 48 },
 	Bag = { offset = Vector2.new(5, -150), size = 48 },
+	Throw = { offset = Vector2.new(-140, -80), size = 56 },
 }
 local STOP_RUN_AFTER = 0.75 -- seconds standing still before Run lets go
 
@@ -141,6 +144,8 @@ function TouchControls.init()
 	local light = makeButton("Light", "LIGHT")
 	local hint = makeButton("Hint", "HINT", Assets.Images.MapPin)
 	local bag = makeButton("Bag", "BAG", Assets.Images.Backpack)
+	local throw = makeButton("Throw", "THROW")
+	throw.button.MouseButton1Down:Connect(Throwing.throw)
 
 	run.button.MouseButton1Down:Connect(function()
 		setRunning(not running)
@@ -196,6 +201,7 @@ function TouchControls.init()
 		paint(crouch, Movement.isCrouching(), C.Blood)
 		light.button.Visible = player:GetAttribute("HasFlashlight") == true
 		paint(light, Viewmodel.on, C.Warn)
+		throw.button.Visible = Throwing.held() ~= nil
 		light.label.TextColor3 = if Viewmodel.on then C.Ink else C.Bone
 		local wait = HUD.hintCooldown()
 		hint.label.Text = if wait > 0 then string.format("%ds", math.ceil(wait)) else "HINT"

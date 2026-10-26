@@ -233,7 +233,14 @@ local function renderObjectives(data: any)
 end
 
 function HUD.toast(text: string, kind: string?)
-	local color = if kind == "warn" then C.Warn elseif kind == "item" then C.Sickly else C.Bone
+	local achievement = kind == "achievement"
+	if achievement then
+		Audio.play("Unlock", nil, 0.6, 0.8)
+	end
+	local color = if kind == "warn" then C.Warn
+		elseif kind == "item" then C.Sickly
+		elseif achievement then Color3.fromRGB(240, 196, 80)
+		else C.Bone
 	local t = Theme.frame(toastHolder, {
 		Size = UDim2.new(1, 0, 0, 34),
 		BackgroundColor3 = C.Panel,
@@ -431,7 +438,7 @@ function HUD.init()
 	})
 	Theme.corner(crosshair, 2)
 
-	hintLabel = Theme.label(root, "[TAB] Inventory   [F] Flashlight   [SHIFT] Run   [C] Crouch   [H] Hint", {
+	hintLabel = Theme.label(root, "[TAB] Inventory   [F] Flashlight   [SHIFT] Run   [C] Crouch   [G] Throw   [H] Hint", {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -20, 1, -12),
 		Size = UDim2.fromOffset(560, 20),

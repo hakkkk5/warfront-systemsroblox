@@ -105,6 +105,8 @@ Assets.Sounds = {
 	FlashlightClick = "rbxassetid://116902184912832",
 	Repair = "rbxassetid://9118047781",
 	PageTurn = "rbxassetid://9118835414",
+	GlassBreak = "rbxassetid://9114592567", -- Pro Sound Effects: thrown bottles, molotovs
+	AlarmBell = "rbxassetid://72365257229690", -- noise traps ringing
 }
 
 return Assets

@@ -1,6 +1,6 @@
 --!strict
 -- The lobby menu, laid out like a web page: a nav bar along the top (Play,
--- Store, Records, Settings, Invite) with the Teeth counter, and a page for
+-- Store, Records, Trophies, Settings, Invite) with the Teeth counter, and a page for
 -- each tab over the lobby. Play is the lobby itself: walk into a truck.
 -- Store sells starting perks for Teeth (checked by server Store), Records
 -- shows the saved profile and how Teeth are earned, Settings is the shared
@@ -16,6 +16,7 @@ local SocialService = game:GetService("SocialService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
+local Trophies = require(ReplicatedStorage.Shared.Trophies)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Inventory = require(script.Parent.Inventory)
@@ -32,7 +33,7 @@ export type Menu = {
 local C = Theme.Colors
 local player = Players.LocalPlayer
 local CURRENCY = StoreCatalog.Currency
-local TABS = { "Play", "Store", "Records", "Settings" }
+local TABS = { "Play", "Store", "Records", "Trophies", "Settings" }
 local STORE_FOOTNOTE = "One of each stocked perk goes in your bag when a night starts."
 local REQUEST_GAP = 0.5 -- the server ignores purchases closer together than this
 local REQUEST_TIMEOUT = 5
@@ -474,6 +475,92 @@ local function recordsPage(body: Frame): () -> ()
 	end
 end
 
+---------------------------------------------------------------- trophies
+
+local GOLD = Color3.fromRGB(240, 196, 80)
+
+local function trophiesPage(body: Frame): () -> ()
+	local summary = Theme.label(body, "", {
+		Size = UDim2.new(1, 0, 0, 24),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Font = Theme.Fonts.UIBold,
+		TextSize = 16,
+	})
+	local scroll = Util.create("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 32),
+		Size = UDim2.new(1, 0, 1, -32),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = C.Blood,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Parent = body,
+	}) :: ScrollingFrame
+	Util.create("UIGridLayout", {
+		CellSize = UDim2.new(0.5, -8, 0, 62),
+		CellPadding = UDim2.fromOffset(10, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = scroll,
+	})
+	type Row = { a: Trophies.Achievement, frame: Frame, title: TextLabel, info: TextLabel, reward: TextLabel }
+	local rows: { Row } = {}
+	for i, a in Trophies.achievementList() do
+		local frame = Theme.frame(scroll, {
+			BackgroundColor3 = C.PanelLight,
+			BackgroundTransparency = 0.3,
+			LayoutOrder = i,
+		})
+		Theme.corner(frame, 5)
+		local title = Theme.label(frame, a.name, {
+			Position = UDim2.fromOffset(12, 6),
+			Size = UDim2.new(1, -110, 0, 24),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Font = Theme.Fonts.UIBold,
+			TextSize = 16,
+		})
+		local info = Theme.label(frame, a.description, {
+			Position = UDim2.fromOffset(12, 30),
+			Size = UDim2.new(1, -24, 0, 24),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 13,
+			TextColor3 = C.BoneDim,
+		})
+		local reward = Theme.label(frame, "+" .. a.teeth, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -34, 0, 6),
+			Size = UDim2.fromOffset(70, 24),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Font = Theme.Fonts.UIBold,
+			TextSize = 15,
+		})
+		tooth(frame, 16, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10) })
+		table.insert(rows, { a = a, frame = frame, title = title, info = info, reward = reward })
+	end
+	return function()
+		local earned = 0
+		for _, row in rows do
+			local got = player:GetAttribute("Ach_" .. row.a.id) == true
+			if got then
+				earned += 1
+			end
+			local hidden = row.a.secret and not got
+			row.title.Text = if hidden then "???" else row.a.name
+			row.info.Text = if hidden then "Keep going." else row.a.description
+			row.title.TextColor3 = if got then GOLD else C.Bone
+			row.reward.TextColor3 = if got then GOLD else C.BoneDim
+			row.frame.BackgroundTransparency = if got then 0.1 else 0.4
+		end
+		summary.Text = string.format(
+			"<font color=\"#f0c450\">Achievements %d/%d</font>     Family album: %d/%d polaroids",
+			earned,
+			#rows,
+			stat("Polaroids"),
+			#Trophies.polaroidList()
+		)
+	end
+end
+
 ---------------------------------------------------------------- settings
 
 local function settingsPage(body: Frame)
@@ -645,6 +732,19 @@ function LobbyMenu.build(canvas: Frame): Menu
 	refreshers.Records = refreshRecords
 	for _, name in { "Teeth", "Escapes", "Deaths", "ProfileReady", "ProfileOffline" } do
 		table.insert(conns, player:GetAttributeChangedSignal(name):Connect(refreshRecords))
+	end
+
+	local trophiesFrame, trophiesBody = pageShell(canvas, "Trophies", "Achievements and the family album. Both are kept for good.", close)
+	pages.Trophies = trophiesFrame
+	local refreshTrophies = trophiesPage(trophiesBody)
+	refreshers.Trophies = refreshTrophies
+	local function watchTrophies(name: string)
+		table.insert(conns, player:GetAttributeChangedSignal(name):Connect(refreshTrophies))
+	end
+	watchTrophies("Polaroids")
+	watchTrophies("ProfileReady")
+	for _, a in Trophies.achievementList() do
+		watchTrophies("Ach_" .. a.id)
 	end
 
 	local settingsFrame, settingsBody = pageShell(canvas, "Settings", "Look, sound and comfort.", close)

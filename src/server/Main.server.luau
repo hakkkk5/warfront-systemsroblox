@@ -105,6 +105,15 @@ AssetService.publishItemModels({
 	"GasCan",
 	"Note",
 	"Crowbar",
+	"Bottle",
+	"ThrowRock",
+	"Rag",
+	"Moonshine",
+	"Tape",
+	"AlarmClock",
+	"Molotov",
+	"NoiseTrap",
+	"FirstAidKit",
 })
 Cannibals.publishTemplates()
 mark("templates")
@@ -112,6 +121,9 @@ mark("templates")
 Story.init(house, sites, world)
 require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
 require(Systems.Rewards).init() -- Teeth for escaping, sedating, chores
+require(Systems.Throwing).init() -- bottles, rocks, molotovs, noise traps
+require(Systems.Crafting).init() -- the workbenches
+require(Systems.Achievements).init()
 
 workspace:SetAttribute("WorldReady", true)
 print(string.format("[Cannibal Family] world ready in %.1fs (%s)", os.clock() - started, table.concat(marks, ", ")))

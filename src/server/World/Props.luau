@@ -366,6 +366,116 @@ function Props.Crowbar(): Model
 	return finish(m)
 end
 
+-- junk for throwing and the workbenches ------------------------------------
+
+local function bottle(m: Model, glass: Color3)
+	Build.cylinder(m, 0.75, 0.32, CF(0, 0.375, 0) * ANG(0, 0, rad(90)), glass, M.Glass, { Transparency = 0.35 })
+	Build.cylinder(m, 0.3, 0.13, CF(0, 0.9, 0) * ANG(0, 0, rad(90)), glass, M.Glass, { Transparency = 0.35 })
+end
+
+function Props.Bottle(): Model
+	local m = Instance.new("Model")
+	m.Name = "Bottle"
+	bottle(m, rgb(70, 110, 70))
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.ThrowRock(): Model
+	local m = Instance.new("Model")
+	m.Name = "ThrowRock"
+	P(m, Vector3.new(0.55, 0.4, 0.45), CF(0, 0.2, 0) * ANG(0.3, 0.5, 0.2), rgb(120, 116, 110), M.Slate)
+	P(m, Vector3.new(0.35, 0.3, 0.4), CF(0.12, 0.28, 0.06) * ANG(-0.4, 0.2, 0.6), rgb(108, 104, 98), M.Slate)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.Rag(): Model
+	local m = Instance.new("Model")
+	m.Name = "Rag"
+	P(m, Vector3.new(0.8, 0.06, 0.6), CF(0, 0.03, 0) * ANG(0, 0.3, 0.05), rgb(150, 120, 90), M.Fabric)
+	P(m, Vector3.new(0.5, 0.08, 0.4), CF(0.1, 0.08, 0.05) * ANG(0, -0.5, -0.1), rgb(120, 90, 66), M.Fabric)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.Moonshine(): Model
+	local m = Instance.new("Model")
+	m.Name = "Moonshine"
+	Build.ball(m, 0.8, CF(0, 0.4, 0), rgb(210, 196, 160), M.SmoothPlastic)
+	Build.cylinder(m, 0.3, 0.22, CF(0, 0.9, 0) * ANG(0, 0, rad(90)), rgb(210, 196, 160), M.SmoothPlastic)
+	P(m, Vector3.new(0.08, 0.3, 0.3), CF(0.38, 0.6, 0), rgb(210, 196, 160), M.SmoothPlastic)
+	P(m, Vector3.new(0.3, 0.12, 0.3), CF(0, 1.08, 0), rgb(120, 90, 60), M.Wood)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.Tape(): Model
+	local m = Instance.new("Model")
+	m.Name = "Tape"
+	Build.cylinder(m, 0.22, 0.6, CF(0, 0.11, 0) * ANG(0, 0, rad(90)), rgb(170, 170, 176), M.Fabric)
+	Build.cylinder(m, 0.24, 0.3, CF(0, 0.11, 0) * ANG(0, 0, rad(90)), rgb(150, 120, 80), M.Cardboard)
+	noCollide(m)
+	return finish(m)
+end
+
+local function clock(m: Model)
+	Build.cylinder(m, 0.25, 0.6, CF(0, 0.35, 0), rgb(190, 60, 50), M.Metal)
+	Build.cylinder(m, 0.02, 0.48, CF(0, 0.35, -0.13), rgb(236, 230, 214), M.SmoothPlastic)
+	for _, s in { -1, 1 } do
+		Build.ball(m, 0.22, CF(s * 0.2, 0.7, 0), rgb(200, 190, 150), M.Metal)
+		P(m, Vector3.new(0.05, 0.25, 0.05), CF(s * 0.2, 0.1, 0), rgb(60, 60, 60), M.Metal)
+	end
+end
+
+function Props.AlarmClock(): Model
+	local m = Instance.new("Model")
+	m.Name = "AlarmClock"
+	clock(m)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.Molotov(): Model
+	local m = Instance.new("Model")
+	m.Name = "Molotov"
+	bottle(m, rgb(130, 90, 40))
+	P(m, Vector3.new(0.14, 0.45, 0.14), CF(0.03, 1.2, 0) * ANG(0, 0, 0.3), rgb(170, 140, 100), M.Fabric)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.NoiseTrap(): Model
+	local m = Instance.new("Model")
+	m.Name = "NoiseTrap"
+	clock(m)
+	for i = 0, 1 do
+		P(m, Vector3.new(0.7, 0.12, 0.66), CF(0, 0.3 + i * 0.2, 0) * ANG(0, 0, rad(i * 70 - 35)), rgb(170, 170, 176), M.Fabric)
+	end
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.FirstAidKit(): Model
+	local m = Instance.new("Model")
+	m.Name = "FirstAidKit"
+	P(m, Vector3.new(1, 0.6, 0.7), CF(0, 0.3, 0), rgb(236, 236, 230), M.SmoothPlastic)
+	P(m, Vector3.new(0.5, 0.14, 0.02), CF(0, 0.32, -0.36), rgb(200, 30, 30), M.SmoothPlastic)
+	P(m, Vector3.new(0.14, 0.5, 0.02), CF(0, 0.32, -0.36), rgb(200, 30, 30), M.SmoothPlastic)
+	P(m, Vector3.new(0.4, 0.08, 0.1), CF(0, 0.64, 0), rgb(60, 60, 60), M.Plastic)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.Polaroid(): Model
+	local m = Instance.new("Model")
+	m.Name = "Polaroid"
+	P(m, Vector3.new(0.9, 0.03, 1.08), CF(0, 0.015, 0), rgb(236, 232, 220), M.SmoothPlastic)
+	P(m, Vector3.new(0.76, 0.035, 0.76), CF(0, 0.02, -0.1), rgb(46, 38, 34), M.SmoothPlastic)
+	noCollide(m)
+	return finish(m)
+end
+
 function Props.HouseKey(): Model
 	local m = Instance.new("Model")
 	m.Name = "HouseKey"

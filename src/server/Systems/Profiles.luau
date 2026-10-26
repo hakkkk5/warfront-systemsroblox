@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local PlayerSettings = require(ReplicatedStorage.Shared.PlayerSettings)
 local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
+local Trophies = require(ReplicatedStorage.Shared.Trophies)
 
 local Profiles = {}
 
@@ -28,6 +29,8 @@ export type Data = {
 	escapes: number,
 	deaths: number,
 	settings: { [string]: number },
+	achievements: { [string]: boolean },
+	polaroids: { [string]: boolean },
 }
 
 local STORE_NAME = "CannibalFamilyProfiles_v1"
@@ -41,7 +44,7 @@ local offline: { [Player]: boolean } = {}
 local runAwards: { [Player]: { [string]: boolean } } = {}
 
 local function blank(): Data
-	return { teeth = 0, perks = {}, escapes = 0, deaths = 0, settings = {} }
+	return { teeth = 0, perks = {}, escapes = 0, deaths = 0, settings = {}, achievements = {}, polaroids = {} }
 end
 
 local function key(player: Player): string
@@ -69,6 +72,17 @@ local function sanitize(raw: any): Data
 		end
 	end
 	data.settings = PlayerSettings.sanitize(raw.settings)
+	for _, field in { "achievements", "polaroids" } do
+		local known: { [string]: any } = if field == "achievements" then Trophies.Achievements else Trophies.Polaroids
+		local saved = raw[field]
+		if typeof(saved) == "table" then
+			for id in known do
+				if saved[id] == true then
+					(data :: any)[field][id] = true
+				end
+			end
+		end
+	end
 	return data
 end
 
@@ -84,6 +98,15 @@ local function publish(player: Player)
 	for id in StoreCatalog.Perks do
 		player:SetAttribute("Perk" .. id, data.perks[id] or 0)
 	end
+	for id in data.achievements do
+		player:SetAttribute("Ach_" .. id, true)
+	end
+	local photos = 0
+	for id in data.polaroids do
+		player:SetAttribute("Pol_" .. id, true)
+		photos += 1
+	end
+	player:SetAttribute("Polaroids", photos)
 	for key, value in data.settings do
 		player:SetAttribute("Setting" .. key, value)
 	end
@@ -139,6 +162,8 @@ function Profiles.save(player: Player)
 				escapes = data.escapes,
 				deaths = data.deaths,
 				settings = table.clone(data.settings),
+				achievements = table.clone(data.achievements),
+				polaroids = table.clone(data.polaroids),
 			}
 		end)
 	end)
@@ -210,6 +235,39 @@ function Profiles.addPerk(player: Player, id: string, count: number)
 	end
 	data.perks[id] = math.clamp((data.perks[id] or 0) + count, 0, perk.max)
 	changed(player)
+end
+
+-- Marks an achievement earned; true the first time.
+function Profiles.unlock(player: Player, id: string): boolean
+	local data = profiles[player]
+	if not data or not Trophies.Achievements[id] or data.achievements[id] then
+		return false
+	end
+	data.achievements[id] = true
+	changed(player)
+	return true
+end
+
+-- Adds a polaroid to the album; true the first time.
+function Profiles.collectPolaroid(player: Player, id: string): boolean
+	local data = profiles[player]
+	if not data or not Trophies.Polaroids[id] or data.polaroids[id] then
+		return false
+	end
+	data.polaroids[id] = true
+	changed(player)
+	return true
+end
+
+function Profiles.polaroidCount(player: Player): number
+	local data = profiles[player]
+	local n = 0
+	if data then
+		for _ in data.polaroids do
+			n += 1
+		end
+	end
+	return n
 end
 
 function Profiles.record(player: Player, stat: "escapes" | "deaths")
