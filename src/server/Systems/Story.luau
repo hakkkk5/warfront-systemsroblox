@@ -28,6 +28,7 @@ local HouseLights = require(script.Parent.HouseLights)
 local Investigation = require(script.Parent.Investigation)
 local Crafting = require(script.Parent.Crafting)
 local Polaroids = require(script.Parent.Polaroids)
+local Finale = require(script.Parent.Finale)
 
 local Story = {}
 
@@ -51,6 +52,12 @@ export type Stage =
 	| "Radio"
 	| "Survive"
 	| "Extraction"
+	| "Downed"
+	| "Wreck"
+	| "Plant"
+	| "Church"
+	| "LastStand"
+	| "Getaway"
 	| "Ending"
 
 local CHAPTERS: { [string]: { string } } = {
@@ -66,6 +73,12 @@ local CHAPTERS: { [string]: { string } } = {
 	Radio = { "CHAPTER V", "The Ranger Station" },
 	Survive = { "CHAPTER VI", "Rescue" },
 	Extraction = { "CHAPTER VI", "Rescue" },
+	Downed = { "CHAPTER VII", "Hard Landing" },
+	Wreck = { "CHAPTER VII", "Hard Landing" },
+	Plant = { "CHAPTER VIII", "Hollow Meats" },
+	Church = { "CHAPTER IX", "Supper" },
+	LastStand = { "CHAPTER IX", "Supper" },
+	Getaway = { "CHAPTER IX", "Supper" },
 	Ending = { "EPILOGUE", "Dawn" },
 }
 
@@ -153,6 +166,9 @@ end
 type Objective = { text: string, done: boolean, optional: boolean? }
 
 local function objectives(): { Objective }
+	if Finale.handles(stage) then
+		return Finale.objectives()
+	end
 	local list: { Objective } = {}
 	local function add(text: string, done: boolean, optional: boolean?)
 		table.insert(list, { text = text, done = done, optional = optional })
@@ -219,6 +235,9 @@ end
 -- Where the story wants you to go next, shown on screen with its distance.
 -- Only for the big "go there" steps; searching stays up to you (and H).
 local function goal(): (Vector3?, string?)
+	if Finale.handles(stage) then
+		return Finale.goal()
+	end
 	if stage == "HouseEscape" then
 		if flags.crowbarFound and not flags.boardsOff then
 			return house.frontDoor.center, "Pry the boards off"
@@ -273,6 +292,9 @@ function Story.stage(): Stage
 end
 
 function Story.checkpoint(): CFrame
+	if Finale.handles(stage) then
+		return Finale.checkpoint()
+	end
 	if stage == "Investigate" then
 		return Investigation.spawnCF()
 	elseif stage == "Waiting" or stage == "Intro" or stage == "Captured" or stage == "HouseEscape" then
@@ -1063,12 +1085,17 @@ function Story.startSurvive()
 	end)
 end
 
-local function startEnding()
+-- The very end (Finale: in the police car on Pinecrest's Main Street). The true
+-- ending is everyone out: Ranger Ellis from the cellar and the pilot too.
+local function startEnding(trueEnding: boolean)
 	setStage("Ending")
 	Story.Ended:Fire()
-	playCutscene("Ending", { helicopter = helicopter, pad = sites.helipad }, 60)
 	Cannibals.clear()
-	Net.event("Ending"):FireAllClients()
+	Net.event("Ending"):FireAllClients(if trueEnding then "true" else "normal")
+end
+
+function Story.trueEnding(): boolean
+	return Finale.trueEnding()
 end
 
 ---------------------------------------------------------------- main sequence
@@ -1161,8 +1188,11 @@ local function watcher()
 			end
 		elseif stage == "Extraction" then
 			if anyPlayerWithin(sites.helipad.Position, 16) then
-				startEnding()
+				-- the rescue is not the end: on to the last act
+				task.spawn(Finale.takeoff)
 			end
+		elseif Finale.handles(stage) then
+			Finale.watch()
 		end
 	end
 end
@@ -1171,6 +1201,9 @@ end
 
 function Story.hintTargets(): { Vector3 }
 	local list: { Vector3 } = {}
+	if Finale.handles(stage) then
+		return Finale.hintTargets()
+	end
 	if stage == "Investigate" then
 		return Investigation.hintTargets()
 	elseif stage == "HouseEscape" then
@@ -1231,10 +1264,26 @@ end
 
 ---------------------------------------------------------------- init
 
-function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder)
+function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder, finaleSites: any)
 	house = houseInfo
 	sites = siteInfo
 	world = worldFolder
+	Finale.init({
+		say = Story.say,
+		broadcast = function()
+			Story.broadcast()
+		end,
+		setStage = function(s: string)
+			setStage(s :: any)
+		end,
+		playCutscene = playCutscene,
+		teleportAll = teleportAll,
+		helicopter = function()
+			return helicopter
+		end,
+		finish = startEnding,
+		world = worldFolder,
+	}, finaleSites)
 
 	-- front door hook
 	house.frontDoor.onOpened = function()

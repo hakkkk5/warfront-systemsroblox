@@ -63,13 +63,17 @@ function Ending.init()
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = scroller,
 	})
+	local outcome: TextLabel? = nil
 	for i, line in LINES do
-		Theme.label(scroller, line, {
+		local label = Theme.label(scroller, line, {
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			TextSize = 22,
 			LayoutOrder = i,
 		})
+		if i == 3 then
+			outcome = label
+		end
 	end
 	Util.create("ImageLabel", {
 		BackgroundTransparency = 1,
@@ -101,7 +105,12 @@ function Ending.init()
 		HUD.setVisible(true)
 	end)
 
-	Net.event("Ending").OnClientEvent:Connect(function()
+	Net.event("Ending").OnClientEvent:Connect(function(variant: any)
+		if outcome then
+			outcome.Text = if variant == "true"
+				then "Everyone made it out. Ranger Ellis, the pilot, you. Nobody left behind."
+				else "You escaped. Most never do."
+		end
 		HUD.setVisible(false)
 		gui.Enabled = true
 		Audio.music("Ending", 0.6)

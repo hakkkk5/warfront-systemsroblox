@@ -30,6 +30,11 @@ local sites: { [string]: Site } = {
 	Tower = { pos = Vector2.new(420, 405), radius = 26 },
 	Shed = { pos = Vector2.new(560, 260), radius = 22 },
 	Helipad = { pos = Vector2.new(592, 458), radius = 44 },
+	-- the last act: where the helicopter comes down, the family's meat
+	-- plant by the highway, and the church at the end of Pinecrest's Main St
+	HeliCrash = { pos = Vector2.new(560, -190), radius = 30 },
+	Plant = { pos = Vector2.new(500, -360), radius = 62 },
+	Church = { pos = Vector2.new(-520, -380), radius = 64 },
 }
 Config.Sites = sites
 
@@ -132,6 +137,25 @@ Config.Roads = {
 		width = 4,
 		material = Enum.Material.Mud,
 		points = { S.Station.pos, S.Shed.pos },
+	},
+	-- the last act (World/FinaleSites paints these onto the baked terrain)
+	{
+		name = "DragTrail",
+		width = 4,
+		material = Enum.Material.Mud,
+		points = { S.HeliCrash.pos, Vector2.new(545, -265), Vector2.new(512, -318), S.Plant.pos + Vector2.new(20, 40) },
+	},
+	{
+		name = "PlantRoad",
+		width = 9,
+		material = Enum.Material.Asphalt,
+		points = { Vector2.new(497, -496), S.Plant.pos + Vector2.new(0, -40) },
+	},
+	{
+		name = "MainStreet",
+		width = 10,
+		material = Enum.Material.Asphalt,
+		points = { Vector2.new(-520, -512), S.Church.pos + Vector2.new(0, -36) },
 	},
 } :: { Road }
 

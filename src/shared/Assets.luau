@@ -108,6 +108,8 @@ Assets.Sounds = {
 	GlassBreak = "rbxassetid://9114592567", -- Pro Sound Effects: thrown bottles, molotovs
 	AlarmBell = "rbxassetid://72365257229690", -- noise traps ringing
 	Footstep = "rbxasset://sounds/action_footsteps_plastic.mp3", -- (built in) steps behind you
+	ChurchBell = "rbxassetid://9113804436", -- Pro Sound Effects: the Pinecrest bell
+	Siren = "rbxassetid://102624441028451", -- the state police arriving
 }
 
 return Assets

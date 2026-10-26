@@ -37,6 +37,10 @@ local CUES: { [string]: { [string]: number } } = {
 	Power = { footsteps = 2, silence = 2, lights = 3, scream = 2, doorslam = 2, whisper = 1 },
 	Radio = { lights = 2, scream = 2, whisper = 2, silence = 1 },
 	Survive = { footsteps = 2, lights = 3, scream = 2, silence = 2 },
+	-- the last act
+	Wreck = { footsteps = 3, silence = 3, scream = 2, whisper = 2, thunder = 1 },
+	Plant = { footsteps = 4, doorslam = 3, silence = 3, lights = 2, whisper = 2, knock = 1 },
+	Church = { footsteps = 3, silence = 3, whisper = 3, knock = 2, doorslam = 1 },
 }
 
 -- what can follow a build-up (silence / footsteps)
@@ -48,6 +52,9 @@ local JOLTS: { [string]: { [string]: number } } = {
 	Power = { apparition = 2, shadow = 2, jumpscare = 1 },
 	Radio = { shadow = 1 },
 	Survive = { apparition = 2, shadow = 2, jumpscare = 1 },
+	Wreck = { apparition = 3, shadow = 3, jumpscare = 1 },
+	Plant = { apparition = 2, shadow = 2, jumpscare = 1 },
+	Church = { apparition = 3, shadow = 2, jumpscare = 1 },
 }
 
 type Tuning = { gap: { number }, jolt: number, nudge: number }

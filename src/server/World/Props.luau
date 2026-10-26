@@ -476,6 +476,28 @@ function Props.Polaroid(): Model
 	return finish(m)
 end
 
+function Props.Keycard(): Model
+	local m = Instance.new("Model")
+	m.Name = "Keycard"
+	P(m, Vector3.new(0.55, 0.02, 0.85), CF(0, 0.01, 0), rgb(236, 232, 224), M.SmoothPlastic)
+	P(m, Vector3.new(0.56, 0.025, 0.25), CF(0, 0.012, -0.25), rgb(200, 40, 34), M.SmoothPlastic)
+	P(m, Vector3.new(0.2, 0.026, 0.2), CF(0.12, 0.013, 0.2), rgb(200, 170, 80), M.Metal)
+	noCollide(m)
+	return finish(m)
+end
+
+function Props.CryptKey(): Model
+	local m = Instance.new("Model")
+	m.Name = "CryptKey"
+	local iron = rgb(70, 70, 76)
+	Build.cylinder(m, 0.08, 0.35, CF(-0.4, 0.04, 0) * ANG(0, 0, rad(90)), iron, M.Metal)
+	P(m, Vector3.new(0.7, 0.07, 0.07), CF(0, 0.04, 0), iron, M.Metal)
+	P(m, Vector3.new(0.07, 0.07, 0.18), CF(0.3, 0.04, 0.08), iron, M.Metal)
+	P(m, Vector3.new(0.07, 0.07, 0.14), CF(0.2, 0.04, 0.06), iron, M.Metal)
+	noCollide(m)
+	return finish(m)
+end
+
 function Props.HouseKey(): Model
 	local m = Instance.new("Model")
 	m.Name = "HouseKey"

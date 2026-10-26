@@ -85,6 +85,9 @@ mark("house")
 require(World.HidingSpots).build(house, world) -- more places to hide in the house
 local sites = Sites.build(world)
 mark("sites")
+-- the last act: crash site, Hollow Meats, Pinecrest (levels its own ground)
+local finaleSites = require(World.FinaleSites).build(world)
+mark("finale")
 Forest.build(world)
 mark("forest")
 
@@ -114,11 +117,13 @@ AssetService.publishItemModels({
 	"Molotov",
 	"NoiseTrap",
 	"FirstAidKit",
+	"Keycard",
+	"CryptKey",
 })
 Cannibals.publishTemplates()
 mark("templates")
 
-Story.init(house, sites, world)
+Story.init(house, sites, world, finaleSites)
 require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
 require(Systems.Rewards).init() -- Teeth for escaping, sedating, chores
 require(Systems.Throwing).init() -- bottles, rocks, molotovs, noise traps

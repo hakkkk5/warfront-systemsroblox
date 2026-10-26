@@ -51,6 +51,8 @@ local DANGEROUS: { [string]: string } = {
 	HouseEscape = "house",
 	Forest = "woods",
 	Repair = "woods",
+	Plant = "plant",
+	Church = "church",
 }
 
 local function onStage(new: string, old: string)
@@ -70,8 +72,15 @@ local function onStage(new: string, old: string)
 		awardAll("TruckFixed")
 	elseif new == "Radio" then
 		awardAll("PowerOn")
-	elseif new == "Ending" then
+	elseif new == "Downed" then
 		awardAll("Rescued")
+	elseif new == "Wreck" then
+		awardAll("Downed")
+	elseif new == "Church" then
+		awardAll("MineEscape")
+	end
+	if old == "Plant" and new ~= "Plant" then
+		awardAll("PlantEscape")
 	end
 end
 
@@ -106,6 +115,9 @@ function Achievements.init()
 		awardAll("Finished")
 		if Difficulty.current() == "Nightmare" then
 			awardAll("Nightmare")
+		end
+		if Story.trueEnding() then
+			awardAll("TrueEnding")
 		end
 	end)
 	Cannibals.Sedated:Connect(function(_, player)

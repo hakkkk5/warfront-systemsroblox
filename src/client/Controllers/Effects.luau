@@ -90,6 +90,14 @@ local function musicFor(stage: string): string?
 		return "Station"
 	elseif stage == "Survive" then
 		return "Tension"
+	elseif stage == "Wreck" then
+		return "Forest"
+	elseif stage == "Plant" then
+		return "House"
+	elseif stage == "Church" then
+		return "Tension"
+	elseif stage == "LastStand" or stage == "Getaway" then
+		return "Escape"
 	elseif stage == "Ending" then
 		return "Ending"
 	end
