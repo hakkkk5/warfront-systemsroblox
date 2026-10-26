@@ -223,9 +223,11 @@ function House.build(parent: Instance): Info
 			local length = rng:NextNumber(3.2, 4.8)
 			boxCF(structure, Vector3.new(width, length, 0.06), cf * CF(side * (2.4 - width / 2), 2.7 - length / 2, 0.62) * ANG(0, 0, rad(rng:NextNumber(-3, 3))), cloth, M.Fabric, { CanCollide = false, Transparency = 0.1 })
 		end
+		-- boards over the outside: part of the stand-in shell, so they go when
+		-- the Blender exterior shows (they poked through its siding)
 		if boarded then
 			for i = -1, 1 do
-				boxCF(structure, Vector3.new(4.8, 0.7, 0.25), cf * CF(0, i * 1.4, -0.45) * ANG(0, 0, rad(rng:NextNumber(-14, 14))), rgb(92, 72, 52), M.WoodPlanks)
+				boxCF(shell, Vector3.new(4.8, 0.7, 0.25), cf * CF(0, i * 1.4, -0.45) * ANG(0, 0, rad(rng:NextNumber(-14, 14))), rgb(92, 72, 52), M.WoodPlanks)
 			end
 		end
 	end
@@ -430,12 +432,13 @@ function House.build(parent: Instance): Info
 			})
 		end
 	end
-	-- shutters beside the front windows, one hanging off its hinge
+	-- shutters beside the front windows, one hanging off its hinge (shell: gone
+	-- under the Blender exterior, which has its own window trim)
 	for i, x in { -20, -12, 12, 22 } do
 		for _, side in { -1, 1 } do
 			local hanging = i == 2 and side == 1
 			local cf = CF(x + side * 3.1, 6.25, -24.9) * (if hanging then CF(0, -0.8, -0.3) * ANG(0, 0, rad(-14)) else CFrame.identity)
-			boxCF(structure, Vector3.new(1.9, 5.2, 0.2), cf, rgb(40, 52, 44), M.WoodPlanks, trimOnly)
+			boxCF(shell, Vector3.new(1.9, 5.2, 0.2), cf, rgb(40, 52, 44), M.WoodPlanks, trimOnly)
 		end
 	end
 	-- porch railing
