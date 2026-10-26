@@ -102,13 +102,53 @@ local function withNumbers(t: { [string]: string }, text: string): string?
 	end))
 end
 
-local function lookup(t: { [string]: string }, text: string): string?
-	return t[text] or withNumbers(t, text)
+-- Capitals, accented letters included (string.upper leaves UTF-8 alone).
+local ACCENTS: { [string]: string } = {
+	["à"] = "À", ["â"] = "Â", ["ç"] = "Ç", ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["ë"] = "Ë",
+	["î"] = "Î", ["ï"] = "Ï", ["ô"] = "Ô", ["ù"] = "Ù", ["û"] = "Û", ["ü"] = "Ü", ["ñ"] = "Ñ",
+	["á"] = "Á", ["í"] = "Í", ["ó"] = "Ó", ["ú"] = "Ú", ["ã"] = "Ã", ["õ"] = "Õ", ["ö"] = "Ö",
+}
+local function upper(s: string): string
+	return (string.gsub(string.upper(s), "[\192-\223][\128-\191]", function(c)
+		return ACCENTS[c] or c
+	end))
 end
 
--- Text put together from pieces: "Picked up: Bandage" (a known prefix and
--- the rest), "Spark Plugs, Spare Wheel" (a list).
+-- Labels shown in capitals ("PLAY") are looked up by their capitals too.
+local capitals: { [{ [string]: string }]: { [string]: string } } = {}
+local function capitalised(t: { [string]: string }, text: string): string?
+	if string.find(text, "%l") then
+		return nil
+	end
+	local index = capitals[t]
+	if not index then
+		local built: { [string]: string } = {}
+		for k, v in t do
+			built[upper(k)] = upper(v)
+		end
+		capitals[t] = built
+		index = built
+	end
+	return (index :: { [string]: string })[text]
+end
+
+local function lookup(t: { [string]: string }, text: string): string?
+	return t[text] or withNumbers(t, text) or capitalised(t, text)
+end
+
+-- Text put together from pieces: lines ("HOW TO SURVIVE\nWASD move..."),
+-- "Picked up: Bandage" (a known prefix and the rest), "Spark Plugs, Spare
+-- Wheel" (a list).
 local function pieces(t: { [string]: string }, text: string): string?
+	if string.find(text, "\n", 1, true) then
+		local out, any = {}, false
+		for _, line in string.split(text, "\n") do
+			local known = lookup(t, line) or pieces(t, line)
+			any = any or known ~= nil
+			table.insert(out, known or line)
+		end
+		return if any then table.concat(out, "\n") else nil
+	end
 	local cut = string.find(text, ": ", 1, true)
 	if cut then
 		local head = string.sub(text, 1, cut + 1)
