@@ -1,10 +1,11 @@
 --!strict
 -- The lobby: a roadside gas station at night, the last stop before Hollow
 -- Road. Players gather in the beds of three pickup trucks; each truck is a
--- party of up to four. The first one in is the host and picks the
--- difficulty. When the countdown runs out (or the host starts early) the
--- party is teleported into a fresh reserved server of this place, carrying
--- the difficulty in the teleport data.
+-- party of up to four (the queue: see "parties" below). The first one in is
+-- the host and picks the difficulty. When the countdown runs out, everyone
+-- is ready or the host starts early, the party is teleported into a fresh
+-- reserved server of this place, carrying the difficulty in the teleport
+-- data. A player can also drive out alone.
 --
 -- Lobby.run() is called by Main before the world is built. In a lobby
 -- server it never returns. In a game server it publishes the difficulty and
@@ -42,24 +43,32 @@ local rad = math.rad
 
 local ORIGIN = CF(0, 600, 0) -- floats high above the map
 local MAX_PARTY = 4
-local COUNTDOWN = 25
-local QUICK_START = 3
+local WAIT = 40 -- a truck waits this long after its first rider climbs in
+local JOIN_GRACE = 12 -- and never less than this after anyone new does
+local READY_GO = 5 -- everyone aboard ready: off in this long
+local QUICK_START = 3 -- the host's Start now
+local KICK_BAN = 90 -- a kicked player can't climb back into that truck for this long
 local TRUCKS = 3
 
 type Party = {
 	index: number,
 	zone: BasePart,
+	exit: CFrame, -- behind the tailgate, facing the truck
 	members: { Player },
+	ready: { [Player]: boolean },
 	host: Player?,
 	difficulty: string,
 	countdown: number?,
 	leaving: boolean,
+	locked: boolean, -- friends of the host only
+	banned: { [number]: number }, -- kicked: UserId -> os.clock() they may return
 	label: TextLabel,
 }
 
 local parties: { Party } = {}
 local connections: { RBXScriptConnection } = {}
 local retries: { [Player]: number } = {} -- failed teleports, by player
+local departing: { [Player]: boolean } = {} -- driving out alone
 local spawnCF = ORIGIN
 local studioStart: string? = nil
 local stateRemote: RemoteEvent
@@ -604,11 +613,15 @@ local function buildSet(parent: Instance): { Party }
 		local party: Party = {
 			index = i,
 			zone = zone,
+			exit = truckCF * CF(0, 3, 13),
 			members = {},
+			ready = {},
 			host = nil,
 			difficulty = "Normal",
 			countdown = nil,
 			leaving = false,
+			locked = false,
+			banned = {},
 			label = label,
 		}
 		table.insert(list, party)
@@ -631,6 +644,15 @@ function Lobby.preview(parent: Instance): Model?
 end
 
 ---------------------------------------------------------------- parties
+-- The queue. Climbing into a truck bed joins its party; the first one in
+-- is the host. A truck waits WAIT seconds after its first rider, and never
+-- less than JOIN_GRACE after someone new climbs in, so nobody gets driven
+-- off the moment they arrive. Once everyone aboard is ready it leaves in
+-- READY_GO, and the host can start it at once. The host also picks the
+-- difficulty, can make the truck friends-only, hand the truck over or kick
+-- someone out (who then can't climb back in for KICK_BAN). Players who
+-- don't want to walk can quick-join the best truck, board one from the
+-- queue panel, or drive out alone.
 
 local function rootOf(player: Player): BasePart?
 	local character = player.Character
@@ -653,59 +675,203 @@ local function partyOf(player: Player): Party?
 	return nil
 end
 
-local function notice(players: { Player }, text: string)
+local function notice(players: { Player }, text: string, ...: any)
 	for _, p in players do
-		noticeRemote:FireClient(p, text)
+		noticeRemote:FireClient(p, text, ...)
+	end
+end
+
+local function allReady(party: Party): boolean
+	if #party.members == 0 then
+		return false
+	end
+	for _, m in party.members do
+		if not party.ready[m] then
+			return false
+		end
+	end
+	return true
+end
+
+local function readyCount(party: Party): number
+	local n = 0
+	for _, m in party.members do
+		if party.ready[m] then
+			n += 1
+		end
+	end
+	return n
+end
+
+local function seconds(party: Party): number?
+	return if party.countdown then math.max(0, math.ceil(party.countdown)) else nil
+end
+
+-- Friends-only trucks ask Roblox whether you're the host's friend; the
+-- answer is kept, and nil means still asking.
+local friends: { [string]: boolean } = {}
+local asking: { [string]: boolean } = {}
+local function friendOf(player: Player, host: Player?): boolean?
+	if not host or host == player then
+		return true
+	end
+	local key = math.min(player.UserId, host.UserId) .. ":" .. math.max(player.UserId, host.UserId)
+	local known = friends[key]
+	if known ~= nil then
+		return known
+	end
+	if not asking[key] then
+		asking[key] = true
+		task.spawn(function()
+			local ok, result = pcall(function()
+				return player:IsFriendsWithAsync(host.UserId)
+			end)
+			friends[key] = ok and result == true
+			asking[key] = nil
+		end)
+	end
+	return nil
+end
+
+-- Why this player can't ride in this truck right now (nil: they can).
+local function refusal(party: Party, player: Player): string?
+	if party.leaving then
+		return "That truck is already leaving."
+	end
+	local until_ = party.banned[player.UserId]
+	if until_ and until_ > os.clock() then
+		return "You were kicked from that truck. Try another one."
+	end
+	if #party.members >= MAX_PARTY then
+		return "That truck is full."
+	end
+	if party.locked and friendOf(player, party.host) == false then
+		return "That truck is friends only."
+	end
+	return nil
+end
+
+-- Off the tailgate, facing the truck.
+local function eject(party: Party, player: Player)
+	local root = rootOf(player)
+	if root then
+		root.CFrame = party.exit * CF(math.random(-30, 30) / 10, 0, 0)
+		root.AssemblyLinearVelocity = Vector3.zero
+	end
+end
+
+-- Into the bed of the truck (the next step() picks them up).
+local function climbIn(party: Party, player: Player)
+	local root = rootOf(player)
+	if root then
+		root.CFrame = party.zone.CFrame * CF(math.random(-15, 15) / 10, -0.6, math.random(-20, 20) / 10)
+		root.AssemblyLinearVelocity = Vector3.zero
 	end
 end
 
 local function summary(party: Party, viewer: Player): { [string]: any }
-	local names = {}
+	local list = {}
 	for _, m in party.members do
-		table.insert(names, { name = m.DisplayName, host = m == party.host })
+		table.insert(list, {
+			id = m.UserId,
+			name = m.DisplayName,
+			host = m == party.host,
+			ready = party.ready[m] == true,
+			me = m == viewer,
+		})
 	end
 	return {
 		truck = party.index,
-		members = names,
+		members = list,
 		max = MAX_PARTY,
 		isHost = party.host == viewer,
+		ready = party.ready[viewer] == true,
+		readyCount = readyCount(party),
 		difficulty = party.difficulty,
-		countdown = if party.countdown then math.max(0, math.ceil(party.countdown)) else nil,
+		countdown = seconds(party),
 		leaving = party.leaving,
+		locked = party.locked,
 	}
+end
+
+-- Every truck at a glance, for the queue panel.
+local function overview(): { { [string]: any } }
+	local list = {}
+	for _, party in parties do
+		table.insert(list, {
+			truck = party.index,
+			count = #party.members,
+			max = MAX_PARTY,
+			difficulty = party.difficulty,
+			countdown = seconds(party),
+			leaving = party.leaving,
+			locked = party.locked,
+		})
+	end
+	return list
 end
 
 local function broadcast()
 	for _, party in parties do
 		local count = #party.members
+		local left = seconds(party)
 		local status = if party.leaving
 			then "Leaving…"
-			elseif party.countdown then string.format("Leaving in %ds", math.max(0, math.ceil(party.countdown)))
+			elseif count >= MAX_PARTY and left then string.format("Full  ·  Leaving in %ds", left)
+			elseif left then string.format("Leaving in %ds", left)
 			else "Step in to ride"
-		party.label.Text = string.format("TRUCK %d  ·  %d/%d\n%s  ·  %s", party.index, count, MAX_PARTY, party.difficulty, status)
+		local lines = {
+			string.format("TRUCK %d  ·  %d/%d", party.index, count, MAX_PARTY),
+			string.format("%s  ·  %s", party.difficulty, status),
+		}
+		if party.locked then
+			table.insert(lines, "Friends only")
+		elseif count > 0 and not party.leaving then
+			table.insert(lines, string.format("%d/%d ready", readyCount(party), count))
+		end
+		party.label.Text = table.concat(lines, "\n")
 	end
+	local trucks = overview()
 	for _, player in Players:GetPlayers() do
 		local party = partyOf(player)
-		stateRemote:FireClient(player, if party then summary(party, player) else nil)
+		stateRemote:FireClient(player, {
+			party = if party then summary(party, player) else nil,
+			trucks = trucks,
+			solo = departing[player] == true,
+		})
 	end
 end
 
 local function reset(party: Party)
 	party.members = {}
+	party.ready = {}
 	party.host = nil
 	party.difficulty = "Normal"
 	party.countdown = nil
 	party.leaving = false
+	party.locked = false
+	party.banned = {}
+end
+
+-- Everyone ready: go soon. Someone not ready any more: give them time.
+local function retime(party: Party)
+	if party.leaving or not party.countdown then
+		return
+	end
+	if allReady(party) then
+		party.countdown = math.min(party.countdown, READY_GO)
+	else
+		party.countdown = math.max(party.countdown, JOIN_GRACE)
+	end
 end
 
 local function join(party: Party, player: Player)
 	table.insert(party.members, player)
+	party.ready[player] = false
 	if not party.host then
 		party.host = player
 	end
-	if not party.countdown then
-		party.countdown = COUNTDOWN
-	end
+	party.countdown = math.max(party.countdown or WAIT, JOIN_GRACE)
 end
 
 local function leave(party: Party, player: Player)
@@ -713,49 +879,64 @@ local function leave(party: Party, player: Player)
 	if i then
 		table.remove(party.members, i)
 	end
+	party.ready[player] = nil
 	if party.host == player then
 		party.host = party.members[1]
+		if party.host then
+			notice(party.members, "%s is the host now.", party.host.DisplayName)
+		end
 	end
 	if #party.members == 0 then
 		reset(party)
+	else
+		retime(party)
 	end
 end
 
--- Teleport the party into a fresh reserved server of this place, all of
--- them into the same one. It is reserved first so that anyone whose
--- teleport fails can be sent after the others (TeleportInitFailed below),
--- and noted (Rejoin) so anyone who drops out of the run can get back in.
+-- Sends players into one fresh reserved server of this place. It is
+-- reserved first so that anyone whose teleport fails can be sent after the
+-- others (TeleportInitFailed in run()), and noted (Rejoin) so anyone who
+-- drops out of the run can get back in. Yields; false if it failed.
+local function depart(members: { Player }, difficulty: string): boolean
+	if RunService:IsStudio() then
+		studioStart = difficulty
+		return true
+	end
+	-- write their Teeth and perks first: the game server loads them on arrival
+	for _, member in members do
+		Profiles.save(member)
+	end
+	local ok, err = pcall(function()
+		local code, server = TeleportService:ReserveServer(game.PlaceId)
+		local ids = {}
+		for _, member in members do
+			table.insert(ids, member.UserId)
+		end
+		local options = Instance.new("TeleportOptions")
+		options.ReservedServerAccessCode = code
+		options:SetTeleportData({ difficulty = difficulty, party = ids })
+		Rejoin.remember(members, { code = code, server = server })
+		TeleportService:TeleportAsync(game.PlaceId, members, options)
+	end)
+	if not ok then
+		warn("[Lobby] teleport failed: " .. tostring(err))
+	end
+	return ok
+end
+
 local function launch(party: Party)
 	party.leaving = true
 	local members = table.clone(party.members)
 	broadcast()
-	if RunService:IsStudio() then
-		studioStart = party.difficulty
-		return
-	end
 	task.spawn(function()
-		-- write their Teeth and perks first: the game server loads them on arrival
-		for _, member in members do
-			Profiles.save(member)
-		end
-		local ok, err = pcall(function()
-			local code, server = TeleportService:ReserveServer(game.PlaceId)
-			local ids = {}
-			for _, member in members do
-				table.insert(ids, member.UserId)
-			end
-			local options = Instance.new("TeleportOptions")
-			options.ReservedServerAccessCode = code
-			options:SetTeleportData({ difficulty = party.difficulty, party = ids })
-			Rejoin.remember(members, { code = code, server = server })
-			TeleportService:TeleportAsync(game.PlaceId, members, options)
-		end)
-		if not ok then
-			warn("[Lobby] teleport failed: " .. tostring(err))
+		if not depart(members, party.difficulty) then
 			notice(members, "The truck wouldn't start. Try again in a moment.")
 			party.leaving = false
-			party.countdown = COUNTDOWN
+			party.countdown = JOIN_GRACE
 			broadcast()
+			return
+		end
+		if RunService:IsStudio() then
 			return
 		end
 		-- anyone still here after the retries didn't make it; free the truck
@@ -765,6 +946,50 @@ local function launch(party: Party)
 			broadcast()
 		end
 	end)
+end
+
+-- Drive out alone, at your own difficulty.
+local function goSolo(player: Player, difficulty: string)
+	if departing[player] or partyOf(player) then
+		return
+	end
+	departing[player] = true
+	notice({ player }, "Driving out alone…")
+	broadcast()
+	if not depart({ player }, difficulty) then
+		notice({ player }, "The truck wouldn't start. Try again in a moment.")
+		departing[player] = nil
+		broadcast()
+		return
+	end
+	task.wait(45)
+	departing[player] = nil
+end
+
+-- The best truck for someone who just wants to play: the fullest one that
+-- will take them (more company, sooner), then the one leaving soonest.
+local function quickJoin(player: Player, preferred: string?)
+	if partyOf(player) or departing[player] then
+		return
+	end
+	local best: Party? = nil
+	local bestScore = -math.huge
+	for _, party in parties do
+		if not party.locked and refusal(party, player) == nil then
+			local score = #party.members * 100 - (party.countdown or WAIT)
+			if preferred and party.difficulty == preferred and #party.members > 0 then
+				score += 50
+			end
+			if score > bestScore then
+				best, bestScore = party, score
+			end
+		end
+	end
+	if best then
+		climbIn(best, player)
+	else
+		notice({ player }, "Every truck is full or leaving. Try again in a moment.")
+	end
 end
 
 -- A player whose party is still playing (they dropped out of the run) goes
@@ -790,13 +1015,13 @@ local function step(dt: number)
 	for _, player in Players:GetPlayers() do
 		local root = rootOf(player)
 		local current = partyOf(player)
-		if current and current.leaving then
+		if (current and current.leaving) or departing[player] then
 			continue
 		end
 		local now: Party? = nil
 		if root then
 			for _, party in parties do
-				if not party.leaving and inside(party.zone, root.Position) then
+				if inside(party.zone, root.Position) then
 					now = party
 					break
 				end
@@ -807,10 +1032,14 @@ local function step(dt: number)
 				leave(current, player)
 			end
 			if now then
-				if #now.members < MAX_PARTY then
-					join(now, player)
+				local why = refusal(now, player)
+				if why then
+					eject(now, player)
+					notice({ player }, why)
+				elseif now.locked and friendOf(player, now.host) == nil then
+					-- still asking Roblox; try again next step
 				else
-					notice({ player }, "That truck is full.")
+					join(now, player)
 				end
 			end
 		end
@@ -830,9 +1059,64 @@ local function step(dt: number)
 	end
 end
 
+local function memberById(party: Party, id: any): Player?
+	for _, m in party.members do
+		if m.UserId == id then
+			return m
+		end
+	end
+	return nil
+end
+
 local function onAction(player: Player, action: any, value: any)
+	-- anyone, in a truck or not
+	if action == "quickjoin" then
+		quickJoin(player, if Difficulty.valid(value) then value else nil)
+		return
+	elseif action == "board" then
+		local party = if typeof(value) == "number" then parties[value] else nil
+		if party and partyOf(player) == nil and not departing[player] then
+			if party.locked then
+				-- worth the wait: we only let friends of the host on
+				local ok = friendOf(player, party.host)
+				while ok == nil do
+					task.wait(0.2)
+					ok = friendOf(player, party.host)
+				end
+			end
+			local why = refusal(party, player)
+			if why then
+				notice({ player }, why)
+			else
+				climbIn(party, player)
+			end
+		end
+		return
+	elseif action == "solo" then
+		if Difficulty.valid(value) then
+			goSolo(player, value)
+		end
+		return
+	end
+
 	local party = partyOf(player)
-	if not party or party.leaving or party.host ~= player then
+	if not party or party.leaving then
+		return
+	end
+	-- members
+	if action == "ready" then
+		party.ready[player] = not party.ready[player]
+		retime(party)
+		broadcast()
+		return
+	elseif action == "leave" then
+		leave(party, player)
+		eject(party, player)
+		broadcast()
+		return
+	end
+	-- the host
+	if party.host ~= player then
 		return
 	end
 	if action == "difficulty" and Difficulty.valid(value) then
@@ -840,6 +1124,23 @@ local function onAction(player: Player, action: any, value: any)
 		notice(party.members, string.format("Difficulty: %s", value))
 	elseif action == "start" then
 		party.countdown = math.min(party.countdown or QUICK_START, QUICK_START)
+	elseif action == "lock" then
+		party.locked = not party.locked
+		notice(party.members, if party.locked then "The truck is friends only now." else "Anyone can ride now.")
+	elseif action == "kick" then
+		local target = memberById(party, value)
+		if target and target ~= player then
+			party.banned[target.UserId] = os.clock() + KICK_BAN
+			leave(party, target)
+			eject(party, target)
+			notice({ target }, "The host kicked you from the truck.")
+		end
+	elseif action == "promote" then
+		local target = memberById(party, value)
+		if target and target ~= player then
+			party.host = target
+			notice(party.members, "%s is the host now.", target.DisplayName)
+		end
 	end
 	broadcast()
 end
@@ -981,6 +1282,7 @@ function Lobby.run()
 	end))
 	table.insert(connections, Players.PlayerRemoving:Connect(function(player)
 		retries[player] = nil
+		departing[player] = nil
 		local party = partyOf(player)
 		if party then
 			leave(party, player)
@@ -1003,6 +1305,7 @@ function Lobby.run()
 			return
 		end
 		retries[player] = nil
+		departing[player] = nil
 		noticeRemote:FireClient(player, "Couldn't reach your party. Rejoin the game to try again.")
 		local party = partyOf(player)
 		if party then

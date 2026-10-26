@@ -158,15 +158,18 @@ local function pieces(t: { [string]: string }, text: string): string?
 			return known .. (lookup(t, rest) or pieces(t, rest) or rest)
 		end
 	end
-	if string.find(text, ", ", 1, true) then
-		local out, any = {}, false
-		for _, item in string.split(text, ", ") do
-			local known = lookup(t, item)
-			any = any or known ~= nil
-			table.insert(out, known or item)
-		end
-		if any then
-			return table.concat(out, ", ")
+	-- "Hard  ·  Leaving in 12s" (signs and panels), "Spark Plugs, Spare Wheel"
+	for _, sep in { "  ·  ", ", " } do
+		if string.find(text, sep, 1, true) then
+			local out, any = {}, false
+			for _, item in string.split(text, sep) do
+				local known = lookup(t, item)
+				any = any or known ~= nil
+				table.insert(out, known or item)
+			end
+			if any then
+				return table.concat(out, sep)
+			end
 		end
 	end
 	return nil
