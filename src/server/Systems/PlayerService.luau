@@ -11,6 +11,7 @@ local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
 local R6Characters = require(script.Parent.R6Characters)
 local Profiles = require(script.Parent.Profiles)
+local Rejoin = require(script.Parent.Rejoin)
 local Store = require(script.Parent.Store)
 local Story = require(script.Parent.Story)
 
@@ -129,6 +130,7 @@ function PlayerService.init()
 
 	Net.event("PlayAgain").OnServerEvent:Connect(function(player)
 		Profiles.save(player) -- the lobby server reads it next
+		Rejoin.forget(player.UserId) -- leaving on purpose: don't send them back here
 		local ok, err = pcall(function()
 			TeleportService:TeleportAsync(game.PlaceId, { player })
 		end)

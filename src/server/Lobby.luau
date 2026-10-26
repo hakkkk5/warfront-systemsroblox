@@ -30,6 +30,7 @@ local Cannibals = require(script.Parent.Systems.Cannibals)
 local R6Characters = require(script.Parent.Systems.R6Characters)
 local Profiles = require(script.Parent.Systems.Profiles)
 local Leaderboards = require(script.Parent.Systems.Leaderboards)
+local Rejoin = require(script.Parent.Systems.Rejoin)
 
 local Lobby = {}
 
@@ -58,6 +59,7 @@ type Party = {
 
 local parties: { Party } = {}
 local connections: { RBXScriptConnection } = {}
+local retries: { [Player]: number } = {} -- failed teleports, by player
 local spawnCF = ORIGIN
 local studioStart: string? = nil
 local stateRemote: RemoteEvent
@@ -719,7 +721,10 @@ local function leave(party: Party, player: Player)
 	end
 end
 
--- Teleport the party into a fresh reserved server of this place.
+-- Teleport the party into a fresh reserved server of this place, all of
+-- them into the same one. It is reserved first so that anyone whose
+-- teleport fails can be sent after the others (TeleportInitFailed below),
+-- and noted (Rejoin) so anyone who drops out of the run can get back in.
 local function launch(party: Party)
 	party.leaving = true
 	local members = table.clone(party.members)
@@ -733,10 +738,16 @@ local function launch(party: Party)
 		for _, member in members do
 			Profiles.save(member)
 		end
-		local options = Instance.new("TeleportOptions")
-		options.ShouldReserveServer = true
-		options:SetTeleportData({ difficulty = party.difficulty })
 		local ok, err = pcall(function()
+			local code, server = TeleportService:ReserveServer(game.PlaceId)
+			local ids = {}
+			for _, member in members do
+				table.insert(ids, member.UserId)
+			end
+			local options = Instance.new("TeleportOptions")
+			options.ReservedServerAccessCode = code
+			options:SetTeleportData({ difficulty = party.difficulty, party = ids })
+			Rejoin.remember(members, { code = code, server = server })
 			TeleportService:TeleportAsync(game.PlaceId, members, options)
 		end)
 		if not ok then
@@ -747,13 +758,32 @@ local function launch(party: Party)
 			broadcast()
 			return
 		end
-		-- anyone still here after a while didn't make it; free the truck
-		task.wait(20)
+		-- anyone still here after the retries didn't make it; free the truck
+		task.wait(45)
 		if party.leaving then
 			reset(party)
 			broadcast()
 		end
 	end)
+end
+
+-- A player whose party is still playing (they dropped out of the run) goes
+-- straight back to it.
+local function rejoinParty(player: Player)
+	local g = Rejoin.lookup(player.UserId)
+	if not g or not player.Parent then
+		return
+	end
+	notice({ player }, "Your party is still in the woods. Taking you back…")
+	local ok, err = pcall(function()
+		local options = Instance.new("TeleportOptions")
+		options.ReservedServerAccessCode = g.code
+		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+	end)
+	if not ok then
+		warn("[Lobby] rejoin failed: " .. tostring(err))
+		notice({ player }, "Couldn't reach your party. Rejoin the game to try again.")
+	end
 end
 
 local function step(dt: number)
@@ -857,17 +887,20 @@ end
 ---------------------------------------------------------------- game servers
 
 -- Reserved game servers take the difficulty from the first arrival's
--- teleport data.
-local function readDifficulty()
+-- teleport data, and the party (Rejoin) from everyone's.
+local function readTeleportData()
 	local function fromPlayer(player: Player)
-		if Difficulty.valid(workspace:GetAttribute("Difficulty")) then
-			return
-		end
 		local ok, joinData = pcall(function()
 			return player:GetJoinData()
 		end)
 		local data = if ok and typeof(joinData) == "table" then (joinData :: any).TeleportData else nil
-		if typeof(data) == "table" and Difficulty.valid(data.difficulty) then
+		if typeof(data) ~= "table" then
+			return
+		end
+		if typeof(data.party) == "table" then
+			Rejoin.expect(data.party)
+		end
+		if not Difficulty.valid(workspace:GetAttribute("Difficulty")) and Difficulty.valid(data.difficulty) then
 			workspace:SetAttribute("Difficulty", data.difficulty)
 		end
 	end
@@ -882,7 +915,8 @@ end
 function Lobby.run()
 	if not Session.isLobby() then
 		workspace:SetAttribute("Mode", "Game")
-		readDifficulty()
+		readTeleportData()
+		Rejoin.watchGame()
 		Difficulty.watch(Cannibals.Kinds)
 		return
 	end
@@ -941,16 +975,35 @@ function Lobby.run()
 	end)
 
 	table.insert(connections, actionRemote.OnServerEvent:Connect(onAction))
-	table.insert(connections, Players.PlayerAdded:Connect(spawnPlayer))
+	table.insert(connections, Players.PlayerAdded:Connect(function(player)
+		task.spawn(rejoinParty, player)
+		spawnPlayer(player)
+	end))
 	table.insert(connections, Players.PlayerRemoving:Connect(function(player)
+		retries[player] = nil
 		local party = partyOf(player)
 		if party then
 			leave(party, player)
 		end
 	end))
-	table.insert(connections, TeleportService.TeleportInitFailed:Connect(function(player: Player, _result, message: string)
+	-- a teleport that fails for one of the party is tried again into the same
+	-- reserved server (the options carry its code), so nobody plays apart
+	table.insert(connections, TeleportService.TeleportInitFailed:Connect(function(player: Player, result: Enum.TeleportResult, message: string, placeId: number, options: TeleportOptions?)
 		warn("[Lobby] teleport of " .. player.Name .. " failed: " .. tostring(message))
-		noticeRemote:FireClient(player, "Couldn't reach the woods. Step back in to try again.")
+		local tries = (retries[player] or 0) + 1
+		retries[player] = tries
+		if options and options.ReservedServerAccessCode ~= "" and tries <= 4 then
+			noticeRemote:FireClient(player, "Lost the truck. Catching up with your party…")
+			task.wait(if result == Enum.TeleportResult.Flooded then 10 else 2 * tries)
+			if player.Parent then
+				pcall(function()
+					TeleportService:TeleportAsync(placeId, { player }, options)
+				end)
+			end
+			return
+		end
+		retries[player] = nil
+		noticeRemote:FireClient(player, "Couldn't reach your party. Rejoin the game to try again.")
 		local party = partyOf(player)
 		if party then
 			leave(party, player)
@@ -960,6 +1013,7 @@ function Lobby.run()
 		end
 	end))
 	for _, player in Players:GetPlayers() do
+		task.spawn(rejoinParty, player)
 		task.spawn(spawnPlayer, player)
 	end
 
