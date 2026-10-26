@@ -75,6 +75,19 @@ PlayerSettings.List = {
 		end,
 	},
 	{
+		-- names over your teammates when they're far off or out of sight
+		-- (client UI PartyMarkers)
+		key = "partyMarkers",
+		label = "Party markers",
+		default = 1,
+		min = 0,
+		max = 1,
+		step = 1,
+		format = function(v)
+			return if v >= 0.5 then "On" else "Off"
+		end,
+	},
+	{
 		-- 0 = the player's Roblox language (shared Lang)
 		key = "language",
 		label = "Language",

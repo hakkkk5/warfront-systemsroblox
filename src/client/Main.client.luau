@@ -74,3 +74,4 @@ SettingsPage.init() -- applies the saved settings once the profile loads
 TouchControls.init()
 require(UI.Lobby).run() -- applies the difficulty; in the lobby it holds here until the game starts
 Menu.init()
+require(UI.PartyMarkers).init()
