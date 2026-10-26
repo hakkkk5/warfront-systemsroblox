@@ -20,6 +20,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local PlayerSettings = require(ReplicatedStorage.Shared.PlayerSettings)
 local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
 local Trophies = require(ReplicatedStorage.Shared.Trophies)
+local Leaderboards = require(script.Parent.Leaderboards)
 
 local Profiles = {}
 
@@ -169,6 +170,14 @@ function Profiles.save(player: Player)
 	end)
 	if not ok then
 		warnOnce(err)
+	end
+	if ok then
+		-- the lobby's leaderboards
+		local trophies = 0
+		for _ in data.achievements do
+			trophies += 1
+		end
+		Leaderboards.post(player.UserId, { Escapes = data.escapes, Teeth = data.teeth, Trophies = trophies })
 	end
 end
 

@@ -13,6 +13,8 @@ export type Spec = {
 	format: (value: number) -> string,
 }
 
+local Lang = require(script.Parent.Lang)
+
 local PlayerSettings = {}
 
 PlayerSettings.List = {
@@ -70,6 +72,19 @@ PlayerSettings.List = {
 		step = 1,
 		format = function(v)
 			return if v >= 0.5 then "On" else "Off"
+		end,
+	},
+	{
+		-- 0 = the player's Roblox language (shared Lang)
+		key = "language",
+		label = "Language",
+		default = 0,
+		min = 0,
+		max = #Lang.List,
+		step = 1,
+		format = function(v)
+			local l = Lang.List[math.round(v)]
+			return if l then l.name else "Auto"
 		end,
 	},
 } :: { Spec }

@@ -12,12 +12,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Session = require(ReplicatedStorage.Shared.Session)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Effects = require(script.Parent.Parent.Controllers.Effects)
 local HUD = require(script.Parent.HUD)
 local LobbyMenu = require(script.Parent.LobbyMenu)
+local LobbyTrophyWall = require(script.Parent.LobbyTrophyWall)
 local Theme = require(script.Parent.Theme)
 local Tutorial = require(script.Parent.Tutorial)
 
@@ -342,6 +344,36 @@ local function vend(machine: Instance?)
 	end
 end
 
+-- the diner jukebox, a knock on room 4, the bell on the billboard (its
+-- trophy is the server's)
+local JUKEBOX = {
+	"♪ A scratchy country record about a farmhouse on Hollow Road where supper never ends. ♪",
+	"♪ A crooner, slowed right down, singing about coming home for dinner. ♪",
+	"♪ Static, then a hymn, then someone humming along who isn't on the record. ♪",
+}
+local KNOCKS = {
+	"(from inside) …we're full. Go away.",
+	"(something scratches at the door, then nothing)",
+	"(a woman, very close to the door) Is that you, sweetheart? Supper's nearly ready.",
+}
+
+local function playJukebox()
+	Audio.play("Radio", nil, 0.4, 0.8)
+	HUD.subtitle(Lang.t("Jukebox"), Lang.t(JUKEBOX[math.random(1, #JUKEBOX)]), 5)
+end
+
+local function knock()
+	Audio.play("Impact", nil, 0.35, 1.3)
+	task.delay(1.4, function()
+		HUD.subtitle("???", Lang.t(KNOCKS[math.random(1, #KNOCKS)]), 4)
+	end)
+end
+
+local function ringBell()
+	Audio.play("Impact", nil, 0.9, 0.55)
+	HUD.subtitle(Lang.t("You"), Lang.t("*CLANG* The whole truck stop heard that."), 3)
+end
+
 function Lobby.run()
 	Difficulty.watch()
 	if Session.mode() ~= "Lobby" then
@@ -373,6 +405,7 @@ function Lobby.run()
 	local canvas = Theme.canvas(gui, Vector2.new(1300, 620))
 	local render = build(canvas, actionRemote)
 	local menu = LobbyMenu.build(canvas)
+	local stopWall = LobbyTrophyWall.init()
 	local inParty = false
 	-- look at the trucks whenever we spawn
 	local function faceTrucks()
@@ -402,6 +435,12 @@ function Lobby.run()
 				answerPayphone()
 			elseif action == "vending" then
 				vend(prompt.Parent)
+			elseif action == "jukebox" then
+				playJukebox()
+			elseif action == "knock" then
+				knock()
+			elseif action == "bell" then
+				ringBell()
 			end
 		end),
 		stateRemote.OnClientEvent:Connect(function(state: any)
@@ -428,6 +467,7 @@ function Lobby.run()
 		c:Disconnect()
 	end
 	menu.destroy()
+	stopWall()
 	gui:Destroy()
 	player.CameraMode = Enum.CameraMode.LockFirstPerson
 	player.CameraMinZoomDistance = 0.5

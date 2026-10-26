@@ -39,6 +39,7 @@ local ACHIEVEMENTS: { Achievement } = {
 	{ id = "Bookworm", name = "Bookworm", description = "Read every note in one night.", teeth = 40 },
 	{ id = "Collector", name = "Family Album", description = "Find every hidden polaroid.", teeth = 150 },
 	{ id = "Hider", name = "Hold Your Breath", description = "Hide while one of the family walks right past.", teeth = 15 },
+	{ id = "Billboard", name = "Highest Point", description = "Ring the bell on top of the truck stop billboard.", teeth = 10 },
 }
 
 -- Thirteen photos hidden around the valley, one story told in pieces.

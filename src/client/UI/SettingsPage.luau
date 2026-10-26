@@ -5,6 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local PlayerSettings = require(ReplicatedStorage.Shared.PlayerSettings)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
@@ -24,6 +25,8 @@ local function apply(key: string, value: number)
 		CameraController.setBaseFov(value)
 	elseif key == "volume" then
 		Audio.setMasterVolume(value)
+	elseif key == "language" then
+		Lang.set(Lang.fromSetting(value))
 	end
 	-- reduceFlashing is read straight from Settings by the effects
 end

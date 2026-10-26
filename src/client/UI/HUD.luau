@@ -11,6 +11,7 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local Assets = require(ReplicatedStorage.Shared.Assets)
 local Config = require(ReplicatedStorage.Shared.Config)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Movement = require(script.Parent.Parent.Controllers.Movement)
@@ -206,14 +207,14 @@ local function renderObjectives(data: any)
 			c:Destroy()
 		end
 	end
-	chapterLabel.Text = string.upper(data.chapter or "")
-	titleLabel.Text = data.title or ""
+	chapterLabel.Text = string.upper(Lang.t(data.chapter or ""))
+	titleLabel.Text = Lang.t(data.title or "")
 	for i, o in data.objectives or {} do
 		local mark = if o.done then "<font color=\"#7f6f5f\"><s>" else ""
 		local close = if o.done then "</s></font>" else ""
 		local box = if o.done then "[x] " else "[  ] "
-		local opt = if o.optional then " <font color=\"#8a8070\">(optional)</font>" else ""
-		local line = Theme.label(objectiveList, box .. mark .. o.text .. close .. opt, {
+		local opt = if o.optional then " <font color=\"#8a8070\">(" .. Lang.t("optional") .. ")</font>" else ""
+		local line = Theme.label(objectiveList, box .. mark .. Lang.t(o.text) .. close .. opt, {
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -233,6 +234,7 @@ local function renderObjectives(data: any)
 end
 
 function HUD.toast(text: string, kind: string?)
+	text = Lang.t(text)
 	local achievement = kind == "achievement"
 	if achievement then
 		Audio.play("Unlock", nil, 0.6, 0.8)
@@ -273,7 +275,7 @@ function HUD.subtitle(speaker: string, text: string, duration: number?)
 	subtitleToken += 1
 	local token = subtitleToken
 	local color = if speaker == "You" then "#d9cdb4" elseif speaker == "Dispatch" or speaker == "Pilot" then "#9fc6ff" else "#e0463a"
-	subtitle.Text = string.format("<font color=\"%s\"><b>%s:</b></font> %s", color, string.upper(speaker), text)
+	subtitle.Text = string.format("<font color=\"%s\"><b>%s:</b></font> %s", color, string.upper(Lang.t(speaker)), Lang.t(text))
 	subtitle.TextTransparency = 1
 	Util.tween(subtitle, 0.3, { TextTransparency = 0 })
 	task.delay(duration or 4, function()
