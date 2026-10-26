@@ -1474,8 +1474,20 @@ function Story.init(houseInfo: any, siteInfo: any, worldFolder: Folder, finaleSi
 		lastHint[player] = now
 		Net.event("Hint"):FireClient(player, Story.hintTargets())
 	end)
+	-- the map's marks: what a hint would show, without the wait (none on
+	-- Nightmare); at most once a second
+	local lastMap: { [Player]: number } = {}
+	Net.event("RequestMap").OnServerEvent:Connect(function(player)
+		local now = os.clock()
+		if now - (lastMap[player] or -math.huge) < 1 then
+			return
+		end
+		lastMap[player] = now
+		Net.event("MapTargets"):FireClient(player, if Config.Player.HintCooldown >= 1e6 then {} else Story.hintTargets())
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		lastHint[player] = nil
+		lastMap[player] = nil
 	end)
 	task.spawn(watcher)
 end

@@ -17,6 +17,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Audio = require(script.Parent.Parent.Controllers.Audio)
 local Movement = require(script.Parent.Parent.Controllers.Movement)
 local Throwing = require(script.Parent.Parent.Controllers.Throwing)
+local MapView = require(script.Parent.MapView)
 local Viewmodel = require(script.Parent.Parent.Controllers.Viewmodel)
 local HUD = require(script.Parent.HUD)
 local Inventory = require(script.Parent.Inventory)
@@ -38,6 +39,7 @@ local LAYOUT: { [string]: Spot } = {
 	Hint = { offset = Vector2.new(-70, -125), size = 48 },
 	Bag = { offset = Vector2.new(5, -150), size = 48 },
 	Throw = { offset = Vector2.new(-140, -80), size = 56 },
+	Map = { offset = Vector2.new(-125, -150), size = 48 },
 }
 local STOP_RUN_AFTER = 0.75 -- seconds standing still before Run lets go
 
@@ -146,6 +148,10 @@ function TouchControls.init()
 	local bag = makeButton("Bag", "BAG", Assets.Images.Backpack)
 	local throw = makeButton("Throw", "THROW")
 	throw.button.MouseButton1Down:Connect(Throwing.throw)
+	local map = makeButton("Map", "MAP", Assets.Images.MapPin)
+	map.button.MouseButton1Down:Connect(function()
+		MapView.toggle()
+	end)
 
 	run.button.MouseButton1Down:Connect(function()
 		setRunning(not running)
