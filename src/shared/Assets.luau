@@ -64,6 +64,10 @@ Assets.Music = {
 	Tension = "rbxassetid://134959834418523", -- Liminal Space Creepy Music
 	Station = "rbxassetid://133838630142849", -- Scary Place
 	Chase = "rbxassetid://1848090337", -- Intense Chase
+	-- the run through the woods after the truck blows up (stage Hunt). A
+	-- licensed DistroKid track; to use a different song here (an instrumental
+	-- you have the rights to), upload it and put its id in this slot.
+	Escape = "rbxassetid://93861641415894", -- Seek and Destroy (Action Soundtrack)
 	Ending = "rbxassetid://1838635121", -- Sad End (Solo Piano)
 }
 

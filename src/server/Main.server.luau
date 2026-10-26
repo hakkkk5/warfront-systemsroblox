@@ -104,6 +104,7 @@ AssetService.publishItemModels({
 	"BoltCutters",
 	"GasCan",
 	"Note",
+	"Crowbar",
 })
 Cannibals.publishTemplates()
 mark("templates")

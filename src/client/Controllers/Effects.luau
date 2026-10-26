@@ -73,6 +73,10 @@ function Effects.lightning()
 end
 
 local function musicFor(stage: string): string?
+	-- the chase after the truck explodes has its own song, start to finish
+	if stage == "Hunt" then
+		return "Escape"
+	end
 	if player:GetAttribute("Chased") then
 		return "Chase"
 	end
@@ -80,7 +84,7 @@ local function musicFor(stage: string): string?
 		return "House"
 	elseif stage == "Forest" or stage == "Repair" then
 		return "Forest"
-	elseif stage == "Hunt" or stage == "Extraction" then
+	elseif stage == "Extraction" then
 		return "Chase"
 	elseif stage == "Power" or stage == "Radio" then
 		return "Station"

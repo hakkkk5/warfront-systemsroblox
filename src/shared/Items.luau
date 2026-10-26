@@ -52,6 +52,15 @@ local defs: { [string]: ItemDef } = {
 		stackable = true,
 		usable = true,
 	},
+	Crowbar = {
+		id = "Crowbar",
+		name = "Crowbar",
+		description = "Rusty, heavy, and one end is sticky. Pries the boards off the front door - loudly.",
+		model = "Crowbar",
+		icon = Assets.Images.Wrench,
+		tint = Color3.fromRGB(170, 60, 50),
+		questItem = true,
+	},
 	HouseKey = {
 		id = "HouseKey",
 		name = "Rusty Padlock Key",

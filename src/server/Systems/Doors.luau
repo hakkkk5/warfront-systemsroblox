@@ -19,6 +19,7 @@ export type Door = {
 	angle: NumberValue,
 	isOpen: boolean,
 	locked: boolean,
+	blockedText: string?, -- boarded up etc.: no key opens it (Doors.setBlocked)
 	swing: number,
 	prompt: ProximityPrompt?,
 	center: Vector3,
@@ -66,6 +67,11 @@ function Doors.setOpen(door: Door, open: boolean, player: Player?)
 	if open and door.onOpened then
 		door.onOpened(player)
 	end
+end
+
+-- Something other than a lock keeps it shut (boards); nil clears it.
+function Doors.setBlocked(door: Door, text: string?)
+	door.blockedText = text
 end
 
 function Doors.unlock(door: Door)
@@ -133,6 +139,10 @@ function Doors.create(parent: Instance, hinge: CFrame, width: number, height: nu
 		distance = 7,
 		hold = 0,
 		canUse = function(player)
+			if door.blockedText then
+				soundRemote:FireClient(player, "DoorLocked")
+				return false, door.blockedText
+			end
 			if o.barred then
 				return false, "It's nailed shut from the outside."
 			end

@@ -182,16 +182,22 @@ local function buildTasks(f: Folder)
 	})
 
 	-- 2. a beer for Jason (handed over by talking to him; see Chores.onTalk)
-	local fridge = anchor("Fridge", L(-28.2, 4, 4), Vector3.new(0.5, 6, 3))
-	prompt(fridge, "Take a beer", "Fridge", {
+	-- on the lower door, clear of the freezer clue above it
+	local fridge = anchor("Fridge", L(-28, 2.6, 4), Vector3.new(0.6, 3, 2.6))
+	local beerPrompt: ProximityPrompt
+	beerPrompt = prompt(fridge, "Take a beer", "Fridge", {
 		canUse = function()
 			if done.beer then
 				return false, "Jason has his beer."
+			end
+			if carrying.beer then
+				return false, "I've already got one for him."
 			end
 			return true
 		end,
 		onUse = function()
 			carrying.beer = true
+			beerPrompt.Enabled = false -- so the fridge note can be read again
 			sound("DoorOpen", fridge.Position)
 			say("You", "Beer... and behind it, something wrapped in butcher's paper. It's still warm.", 4)
 			changed()
@@ -289,7 +295,8 @@ local function buildTasks(f: Folder)
 	})
 
 	-- 6. the grandfather clock (the time is on the note on the fridge)
-	Pickups.note("FridgeNote", L(-28.2, 5.2, 5.2) * ANG(0, rad(-90), 0) * ANG(rad(90), 0, 0), f)
+	-- on the side of the fridge, away from the beer prompt on its door
+	Pickups.note("FridgeNote", L(-30, 5.2, 5.62) * ANG(rad(90), 0, 0), f)
 	local clock = anchor("Clock", L(-3.2, 5, -17.5), Vector3.new(1, 4, 2))
 	prompt(clock, "Move the hands", "Grandfather clock", {
 		hold = 0.2,

@@ -14,7 +14,7 @@ Everything else here (trim, gutters, siding on the gables, logs) is added on
 top of the walls the server already built.
 
 Run like build_props.py, e.g.
-    blender -b --factory-startup -P tools/blender/build_buildings.py -- FarmhouseExterior
+    blender -b --factory-startup -P tools/blender/build_buildings.py -- FarmhouseExteriorXL
 """
 
 import math
@@ -332,10 +332,13 @@ def corner_boards(p, mat, xs, zs, y0, y1, w=0.9):
 
 # ============================================================================ farmhouse
 def build_farmhouse():
-    """CannibalHouse (House.luau), origin O = floor level of the ground floor."""
-    p = Prop("FarmhouseExterior", pivot="origin")
+    """CannibalHouse (House.luau + HouseWings.luau), origin O = floor level of
+    the ground floor: the original two-storey core (x -32.5..32.5) with a
+    lower-roofed wing either side (out to x = +-68.5)."""
+    p = Prop("FarmhouseExteriorXL", pivot="origin")
     rng = random.Random(7)
     X0, X1 = -35.3, 35.3
+    W = 68.7  # outer face of the wing end walls
     # the hidden wedges' sloped faces: (z, y) eave (-+26, 25) -> (+-1, 36)
     front = Slope(X0, X1, (-27.0, 25 - 11 / 27), (0.0, 36 - 11 / 27))
     back = Slope(X0, X1, (27.0, 25 - 11 / 27), (0.0, 36 - 11 / 27))
@@ -345,76 +348,108 @@ def build_farmhouse():
         fascia(p, "trim", sl, 0, X0, X1)
         for x in (X0, X1):
             rake(p, "trim", sl, 0.5, x)
-        # rafter tails under the overhang
         x = X0 + 1.2
         while x < X1:
             a = sl.point(x, 0.0, -0.25)
             b = sl.point(x, 2.6, -0.25)
             beam(p, "trim", a, b, 0.35, 0.5, up=sl.n)
             x += 2.4
-        # gutters and downspouts
+        # the main gutters drain onto the wing roofs
         q = sl.point(0, 0, 0)
         zg = q.z + (-0.45 if q.z < 0 else 0.45)
-        gutter(p, X0 + 0.3, X1 - 0.3, zg, q.y - 0.3)
-        for sx in (-1, 1):
-            downspout(p, sx * 31.2, zg, 24.95 if q.z > 0 else -24.95, q.y - 0.4, -1.0)
+        gutter(p, -31.4, 31.4, zg, q.y - 0.3)
     ridge_cap(p, "shingle", (front, back), X0, X1, 0.6)
-    # gables: siding up to the roof, a louvred attic vent
+
+    # the wings: same eaves, a lower ridge (the server wedges: 8 high, 26.5 deep)
+    wing_slope = 8 / 26.5
+    for side in (-1, 1):
+        xa, xb = (-W - 1.6, -31.6) if side < 0 else (31.6, W + 1.6)
+        wf = Slope(xa, xb, (-27.3, 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
+        wb = Slope(xa, xb, (27.3, 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
+        x_end = xa if side < 0 else xb
+        for sl in (wf, wb):
+            slab(p, "roof_deck", sl, 0, sl.length + 0.02, 0, 0.45)
+            shingles(p, sl, rng, 0.45, row=1.3)  # keeps the shingle mesh under 20k tris
+            fascia(p, "trim", sl, 0, xa, xb)
+            rake(p, "trim", sl, 0.45, x_end)
+            x = xa + 1.2
+            while x < xb:
+                a = sl.point(x, 0.0, -0.25)
+                b = sl.point(x, 2.6, -0.25)
+                beam(p, "trim", a, b, 0.35, 0.5, up=sl.n)
+                x += 2.4
+            q = sl.point(0, 0, 0)
+            zg = q.z + (-0.45 if q.z < 0 else 0.45)
+            gutter(p, xa + 0.3, xb - 0.3, zg, q.y - 0.3)
+            downspout(p, side * (W - 1.6), zg, 24.95 if q.z > 0 else -24.95, q.y - 0.4, -1.0)
+            downspout(p, side * 36.0, zg, 24.95 if q.z > 0 else -24.95, q.y - 0.4, -1.0)
+        ridge_cap(p, "shingle", (wf, wb), xa, xb, 0.55)
+        # the wing's end gable, with a louvred vent
+        xf = side * W
+        gable_boards(p, "siding", xf, -24.7, 24.7, 24.0, (wf, wb), battens=True)
+        at(p, "trim", (0.3, 2.6, 3.2), xf + side * 0.4, 28.6, 0)
+        for i in range(4):
+            part(p, "wood_dark", (0.12, 0.42, 2.6), T(xf + side * 0.6, 27.7 + i * 0.6, 0) @ RZ(side * 0.6))
+    # what shows of the main gables above the wing roofs
     for xf in (-32.7, 32.7):
-        gable_boards(p, "siding", xf, -24.7, 24.7, 24.0, (front, back), battens=True)
-        out = 1 if xf > 0 else -1
-        at(p, "trim", (0.3, 3.0, 3.6), xf + out * 0.4, 30.0, 0)
-        for i in range(5):
-            part(p, "wood_dark", (0.12, 0.42, 3.0), T(xf + out * 0.6, 28.8 + i * 0.6, 0) @ RZ(out * 0.6))
-    # frieze closing the gap between the wall tops and the roof
+        gable_boards(p, "siding", xf, -12.0, 12.0, 32.6, (front, back), battens=True)
+    # frieze closing the gap between the wall tops and the roofs
     for zf in (-24.85, 24.85):
-        at(p, "trim", (65.6, 2.0, 0.3), 0, 24.8, zf)
+        at(p, "trim", (2 * W, 2.0, 0.3), 0, 24.8, zf)
 
     front_face = Face("z", -24.7, -1)
     back_face = Face("z", 24.7, 1)
-    left = Face("x", -32.7, -1)
-    right = Face("x", 32.7, 1)
-    # windows: (face, along, floor) - the same openings House.luau cuts
+    left = Face("x", -W, -1)
+    right = Face("x", W, 1)
+    # windows: (face, along, floor) - the same openings House.luau and
+    # HouseWings.luau cut
     windows = []
-    for a in (-20, -12, 12, 22):
+    for a in (-58, -42, -20, -12, 12, 22, 42, 58):
         windows += [(front_face, a, 0), (front_face, a, 13)]
-    windows += [(back_face, -20, 0), (back_face, 20, 0), (back_face, -18, 13), (back_face, 18, 13)]
-    windows += [(left, -6, 0), (left, 12, 0), (left, -12, 13), (left, 12, 13)]
-    windows += [(right, -12, 0), (right, 12, 0), (right, -12, 13), (right, 12, 13)]
+    for a in (-57, -45, -20, 20, 45, 57):
+        windows.append((back_face, a, 0))
+    for a in (-50, -18, 18, 50):
+        windows.append((back_face, a, 13))
+    windows += [(left, -12, 0), (left, -12, 13), (left, 12, 13)]
+    windows += [(right, -12, 0), (right, 14, 0), (right, -12, 13), (right, 12, 13)]
     for face, a, y0 in windows:
         window_trim(p, face, a, y0 + 4, y0 + 8.5, 4)
     door_trim(p, front_face, 0, 5, 9)
     door_trim(p, back_face, 2.5, 4.6, 9, pediment=False)
-    # belly band between the floors, water table at the bottom, corner boards
-    for face, span, doors in ((front_face, 32.7, [(-2.5, 2.5)]), (back_face, 32.7, [(0.2, 4.8)]), (left, 24.7, []), (right, 24.7, [])):
+    # belly band between the floors, water table at the bottom, corner boards,
+    # and pilasters where the wings meet the old house
+    for face, span, doors in ((front_face, W, [(-2.5, 2.5)]), (back_face, W, [(0.2, 4.8)]), (left, 24.7, []), (right, 24.7, [])):
         band(p, face, "trim", -span, span, 11.9, 12.9, 0.25)
         band(p, face, "trim", -span, span, 0.0, 0.7, 0.3, doors)
-    corner_boards(p, "trim", 32.7, 24.7, 0, 24.6)
+    corner_boards(p, "trim", W, 24.7, 0, 24.6)
+    for sx in (-1, 1):
+        for face in (front_face, back_face):
+            face.box(p, "trim", 1.1, 24.6, 0.26, sx * 32.7, 12.3, 0)
 
-    # the walls themselves: lap siding over all four faces on both floors, cut
-    # round every window and door (the server's flat siding layer is hidden).
-    # Openings: (centre, width, bottom, top) per floor, as House.luau cuts them.
+    # the walls: lap siding on every outside face, both floors, cut round
+    # every window and door (the server's flat siding layer is hidden).
+    # Openings: (centre, width, bottom, top) per floor.
     def wins(*centres):
         return [(c, 4.6, 3.8, 8.7) for c in centres]
 
     siding = (
-        (Face("z", -24.5, -1), 32.7, {0.0: [(0, 5.4, -1, 9.2)] + wins(-20, -12, 12, 22), 13.0: wins(-20, -12, 12, 22)}),
-        (Face("z", 24.5, 1), 32.7, {0.0: [(2.5, 5.0, -1, 9.2)] + wins(-20, 20), 13.0: wins(-18, 18)}),
-        (Face("x", -32.5, -1), 24.7, {0.0: wins(-6, 12), 13.0: wins(-12, 12)}),
-        (Face("x", 32.5, 1), 24.7, {0.0: wins(-12, 12), 13.0: wins(-12, 12)}),
+        (Face("z", -24.5, -1), -W + 0.2, W - 0.2, {0.0: [(0, 5.4, -1, 9.2)] + wins(-58, -42, -20, -12, 12, 22, 42, 58), 13.0: wins(-58, -42, -20, -12, 12, 22, 42, 58)}),
+        (Face("z", 24.5, 1), -W + 0.2, W - 0.2, {0.0: [(2.5, 5.0, -1, 9.2)] + wins(-57, -45, -20, 20, 45, 57), 13.0: wins(-50, -18, 18, 50)}),
+        (Face("x", -W + 0.2, -1), -24.7, 24.7, {0.0: wins(-12), 13.0: wins(-12, 12)}),
+        (Face("x", W - 0.2, 1), -24.7, 24.7, {0.0: wins(-12, 14), 13.0: wins(-12, 12)}),
     )
-    for face, half, floors in siding:
+    for face, a0, a1, floors in siding:
         for y0, ops in floors.items():
             # from the water table (ground) or the belly band (upper) to the
             # belly band or the frieze
             y, top, row = y0 + (1.0 if y0 == 0 else 0.2), y0 + (11.75 if y0 == 0 else 10.6), 0
             while y < top:
                 gaps = [(c - w / 2, c + w / 2) for (c, w, b, t) in ops if y0 + b - 0.3 < y < y0 + t + 0.3]
-                band(p, face, "clapboard_farm", -half, half, y - 0.31, y + 0.31, 0.12 if row % 2 == 0 else 0.17, gaps)
+                band(p, face, "clapboard_farm", a0, a1, y - 0.31, y + 0.31, 0.12 if row % 2 == 0 else 0.17, gaps)
                 y += 0.55
                 row += 1
-            for _ in range(14):
-                a, yy = rng.uniform(-half + 1, half - 1), rng.uniform(y0 + 1.2, top - 0.5)
+            for _ in range(int((a1 - a0) / 4)):
+                a, yy = rng.uniform(a0 + 1, a1 - 1), rng.uniform(y0 + 1.2, top - 0.5)
                 if not any(c - w / 2 - 0.6 < a < c + w / 2 + 0.6 and y0 + b - 0.6 < yy < y0 + t + 0.6 for (c, w, b, t) in ops):
                     face.box(p, "siding", rng.uniform(0.5, 2.2), rng.uniform(0.25, 0.6), 0.05, a, yy, 0.16)
 
@@ -830,7 +865,7 @@ def build_gas_station():
 
 
 BUILDINGS = {
-    "FarmhouseExterior": build_farmhouse,
+    "FarmhouseExteriorXL": build_farmhouse,
     "RangerStationExterior": build_station,
     "BarnExterior": build_barn,
     "ToolShedExterior": build_tool_shed,

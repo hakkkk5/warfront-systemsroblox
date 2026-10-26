@@ -352,6 +352,20 @@ function Props.Bandage(): Model
 	return finish(m)
 end
 
+function Props.Crowbar(): Model
+	local m = Instance.new("Model")
+	m.Name = "Crowbar"
+	local iron = rgb(150, 44, 36)
+	P(m, Vector3.new(2.6, 0.12, 0.12), CF(0, 0.06, 0), iron, M.Metal)
+	-- the hooked claw at one end, the flat chisel at the other
+	P(m, Vector3.new(0.45, 0.12, 0.12), CF(1.42, 0.2, 0) * ANG(0, 0, rad(60)), iron, M.Metal)
+	P(m, Vector3.new(0.3, 0.12, 0.12), CF(1.55, 0.42, 0) * ANG(0, 0, rad(150)), iron, M.Metal)
+	P(m, Vector3.new(0.3, 0.06, 0.16), CF(-1.42, 0.08, 0) * ANG(0, 0, rad(-12)), rgb(120, 120, 124), M.Metal)
+	P(m, Vector3.new(0.5, 0.13, 0.13), CF(0.7, 0.06, 0), rgb(110, 20, 16), M.SmoothPlastic)
+	noCollide(m)
+	return finish(m)
+end
+
 function Props.HouseKey(): Model
 	local m = Instance.new("Model")
 	m.Name = "HouseKey"

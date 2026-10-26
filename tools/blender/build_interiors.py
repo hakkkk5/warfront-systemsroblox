@@ -8,7 +8,7 @@ room, dark panelling in the trophy room, crown moulding, a carpet runner and
 newel posts on the stairs, and blood - a drag trail down the hall into the
 slaughter room, handprints, spatter. One mesh per floor:
 
-    FarmhouseInteriorGround   FarmhouseInteriorUpper
+    FarmhouseInteriorGround2   FarmhouseInteriorUpper2   (wings included)
 
 It all sits a few hundredths of a stud off the server's walls and adds no
 collisions; the room layout below mirrors House.luau (walls at x = +-5 and
@@ -36,6 +36,13 @@ STYLES = {
     "hall": ((88, 66, 50), (102, 78, 58)),
     "master": ((68, 82, 98), (82, 96, 110)),
     "kids": ((150, 104, 110), (168, 126, 128)),
+    # the wings
+    "parlor": ((74, 30, 40), (88, 40, 50)),
+    "mudroom": ((120, 112, 92), (132, 124, 104)),
+    "sun": ((140, 156, 120), (156, 170, 134)),
+    "grandma": ((124, 96, 120), (140, 112, 134)),
+    "sewing": ((176, 150, 120), (190, 166, 134)),
+    "guest": ((90, 108, 120), (104, 122, 132)),
 }
 for _name, (_a, _b) in STYLES.items():
     PALETTE["paper_" + _name + "A"] = dict(color=srgb(*_a), roblox="Fabric", rough=1.0, metal=0.0, pattern="weave")
@@ -183,21 +190,42 @@ def door(c, w=5.4, top=9.2):
 
 
 def build_ground():
-    p = Prop("FarmhouseInteriorGround", pivot="origin")
+    p = Prop("FarmhouseInteriorGround2", pivot="origin")
     rng = random.Random(41)
     h = 12.0
     room(p, rng, -31.5, -5.5, -23.5, -0.5, 0, h, "living", {
-        "n": [win(-20), win(-12)], "s": [door(-18, top=9.7)], "w": [win(-6), (-6, 9.0, -1, 8.6)], "e": [door(-11.5)],
+        "n": [win(-20), win(-12)], "s": [door(-18, top=9.7)], "w": [door(-13.75), (-6, 9.0, -1, 8.6)], "e": [door(-11.5)],
     }, lower="wainscot")
     room(p, rng, 5.5, 31.5, -23.5, -0.5, 0, h, "dining", {
-        "n": [win(12), win(22)], "e": [win(-12)], "w": [door(-11.5)],
+        "n": [win(12), win(22)], "e": [door(-8)], "w": [door(-11.5)],
     }, lower="wainscot")
     room(p, rng, -31.5, -5.5, 0.5, 23.5, 0, h, "kitchen", {
-        "n": [door(-18, top=9.7)], "s": [win(-20)], "w": [win(12)], "e": [door(4.5)],
+        "n": [door(-18, top=9.7)], "s": [win(-20)], "w": [door(8.9)], "e": [door(4.5)],
     }, lower="tile_kitchen", lower_top=4.6)
     slaughter = room(p, rng, 5.5, 31.5, 0.5, 23.5, 0, h, None, {
-        "s": [win(20)], "e": [win(12)], "w": [door(16.5)],
+        "s": [win(20)], "e": [door(20.5)], "w": [door(16.5)],
     }, lower="tile", lower_top=6.2)
+    # the wings
+    room(p, rng, -67.5, -32.5, -23.5, -0.5, 0, h, "parlor", {
+        "n": [win(-58), win(-42)], "w": [win(-12)], "e": [door(-13.75)], "s": [door(-50)],
+    }, lower="wainscot")
+    mud = room(p, rng, -67.5, -32.5, 0.5, 23.5, 0, h, "mudroom", {
+        "n": [door(-50)], "s": [win(-57), win(-45)], "e": [door(8.9)],
+    }, lower="wainscot")
+    room(p, rng, 32.5, 67.5, -23.5, -0.5, 0, h, "sun", {
+        "n": [win(42), win(58)], "e": [win(-12)], "w": [door(-8)], "s": [door(50)],
+    }, lower="wainscot")
+    shop = room(p, rng, 32.5, 67.5, 0.5, 23.5, 0, h, None, {
+        "n": [door(50)], "s": [win(45), win(57)], "e": [win(14)], "w": [door(20.5)],
+    }, lower="panel")
+    for _ in range(4):
+        splat(p, shop["n"][0], rng.uniform(34, 46), rng.uniform(2, 7), rng)
+    handprint(p, mud["s"][0], -38.0, 4.4, 0.2)
+    # something heavy dragged from the slaughter room into the workshop
+    x = 26.0
+    while x < 44:
+        floor_smear(p, x, 20.5 + math.sin(x * 0.4) * 0.6, 0.0, 1.5, rng.uniform(0.5, 0.9), math.pi / 2 + rng.uniform(-0.2, 0.2), rng)
+        x += 1.4
     hall = room(p, rng, -4.5, 4.5, -23.5, 23.5, 0, h, "hall", {
         "n": [(0, 5.4, -1, 9.3)], "s": [(2.5, 5.0, -1, 9.3)],
         "w": [door(-11.5), door(4.5), (15, 15, -1, 14)], "e": [door(-11.5), door(16.5)],
@@ -235,21 +263,39 @@ def build_ground():
 
 
 def build_upper():
-    p = Prop("FarmhouseInteriorUpper", pivot="origin")
+    p = Prop("FarmhouseInteriorUpper2", pivot="origin")
     rng = random.Random(43)
     y0, h = 13.0, 11.0
     room(p, rng, -31.5, -5.5, -23.5, -0.5, y0, h, "master", {
-        "n": [win(-20), win(-12)], "w": [win(-12)], "e": [door(-5.5)],
+        "n": [win(-20), win(-12)], "w": [door(-15)], "e": [door(-5.5)],
     }, lower="wainscot")
     room(p, rng, 5.5, 31.5, -23.5, -0.5, y0, h, "kids", {
-        "n": [win(12), win(22)], "e": [win(-12)], "w": [door(-5.5)],
+        "n": [win(12), win(22)], "e": [door(-17)], "w": [door(-5.5)],
     }, lower="wainscot")
     bath = room(p, rng, -31.5, -5.5, 0.5, 23.5, y0, h, None, {
-        "s": [win(-18)], "w": [win(12)], "e": [door(4.5)],
+        "s": [win(-18)], "w": [door(14)], "e": [door(4.5)],
     }, lower="tile", lower_top=5.5)
     room(p, rng, 5.5, 31.5, 0.5, 23.5, y0, h, None, {
-        "s": [win(18)], "e": [win(12)], "w": [door(4.5)],
+        "s": [win(18)], "e": [door(3)], "w": [door(4.5)],
     }, lower="panel")
+    # the wings
+    gran = room(p, rng, -67.5, -32.5, -23.5, -0.5, y0, h, "grandma", {
+        "n": [win(-58), win(-42)], "w": [win(-12)], "e": [door(-15)], "s": [door(-45)],
+    }, lower="wainscot")
+    sew = room(p, rng, -67.5, -32.5, 0.5, 23.5, y0, h, "sewing", {
+        "n": [door(-45)], "s": [win(-50)], "w": [win(12)], "e": [door(14)],
+    }, lower="wainscot")
+    room(p, rng, 32.5, 67.5, -23.5, -0.5, y0, h, "guest", {
+        "n": [win(42), win(58)], "e": [win(-12)], "w": [door(-17)], "s": [door(45)],
+    }, lower="wainscot")
+    room(p, rng, 32.5, 67.5, 0.5, 23.5, y0, h, None, {
+        "n": [door(45)], "s": [win(50)], "e": [win(12)], "w": [door(3)],
+    }, lower="wainscot")
+    # scratch marks in Grandma's room, and red thread all over the sewing room
+    for k in range(4):
+        handprint(p, gran["s"][0], -60.0 + k * 1.1, y0 + 2.5 + k * 0.4, 0.4 - k * 0.15)
+    for _ in range(3):
+        splat(p, sew["s"][0], rng.uniform(-60, -36), y0 + rng.uniform(2, 6), rng, size=0.4)
     hall = room(p, rng, -4.5, 4.5, -23.5, 23.5, y0, h, "hall", {
         "w": [door(-5.5), door(4.5)], "e": [door(-5.5), door(4.5)],
     }, lower="wainscot")
@@ -263,7 +309,7 @@ def build_upper():
     return p
 
 
-BUILDERS = {"FarmhouseInteriorGround": build_ground, "FarmhouseInteriorUpper": build_upper}
+BUILDERS = {"FarmhouseInteriorGround2": build_ground, "FarmhouseInteriorUpper2": build_upper}
 
 if __name__ == "__main__":
     bp.BUILDERS.update(BUILDERS)

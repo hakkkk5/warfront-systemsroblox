@@ -36,7 +36,7 @@ type Options = {
 	onComplete: () -> (),
 }
 
-type Clue = { id: string, position: Vector3, found: boolean, comment: string }
+type Clue = { id: string, position: Vector3, found: boolean, comment: string, prompt: ProximityPrompt? }
 
 local origin = CFrame.new()
 local opts: Options? = nil
@@ -164,7 +164,7 @@ local function buildClues(parent: Instance)
 	local function clue(id: string, carrier: BasePart, object: string, comment: string)
 		local entry: Clue = { id = id, position = carrier.Position, found = false, comment = comment }
 		table.insert(clues, entry)
-		Interact.add(carrier, {
+		entry.prompt = Interact.add(carrier, {
 			action = "Examine",
 			object = object,
 			distance = 7,
@@ -407,7 +407,14 @@ local function checkComplete()
 		o.say("You", "Whatever they're hiding is under that hatch... and Jason keeps a ring of keys on his belt.", 5)
 		task.wait(5.5)
 		if active then
-			-- part 2: "Make Yourself At Home"
+			-- part 2: "Make Yourself At Home". The clue prompts go: they sit
+			-- on the same furniture as some chores (the fridge) and would take
+			-- the E key from them (one prompt per key); notes stay in the journal.
+			for _, c in clues do
+				if c.prompt then
+					c.prompt.Enabled = false
+				end
+			end
 			Chores.start(o.say, o.changed, callDinner)
 		end
 	end)

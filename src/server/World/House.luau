@@ -1,5 +1,6 @@
 --!strict
--- The cannibal family's farmhouse. Two floors, eight rooms, a porch, and the
+-- The cannibal family's farmhouse: two floors, an attic, the cellar, two wings
+-- (HouseWings: sixteen rooms in all), a porch, and the
 -- slaughter room where the player wakes up.
 --
 -- Local layout (origin = centre of the ground floor, floor top at y = 0,
@@ -19,6 +20,7 @@ local Terrain = require(script.Parent.Terrain)
 local AssetService = require(script.Parent.Parent.Systems.AssetService)
 local Doors = require(script.Parent.Parent.Systems.Doors)
 local Hiding = require(script.Parent.Parent.Systems.Hiding)
+local HouseWings = require(script.Parent.HouseWings)
 
 local House = {}
 
@@ -40,9 +42,14 @@ export type Info = {
 	groundPatrol: { Vector3 },
 	upperPatrol: { Vector3 },
 	keySpots: { CFrame },
+	crowbarSpots: { CFrame },
 	spots: { [string]: CFrame },
 	actors: { [string]: CFrame },
 	center: Vector3,
+	workbench: CFrame,
+	recordPlayer: BasePart,
+	radio: BasePart,
+	attic: Vector3,
 }
 
 local rgb = Color3.fromRGB
@@ -116,14 +123,20 @@ function House.build(parent: Instance): Info
 	box(structure, Vector3.new(27, 1, 16), -18.5, 12.5, 16, rgb(150, 150, 145), M.CeramicTiles)
 	box(structure, Vector3.new(32, 1, 16), 16, 12.5, 16, FLOOR, M.WoodPlanks)
 	box(structure, Vector3.new(5, 1, 2), -2.5, 12.5, 23, FLOOR, M.WoodPlanks)
-	-- upper ceiling
-	box(structure, Vector3.new(64, 1, 48), 0, 24.5, 0, rgb(80, 70, 58), M.WoodPlanks)
+	-- upper ceiling / attic floor, with the attic hatch over the upstairs hall
+	-- (x 0.5..4.5, z -6..-2; HouseWings puts the ladder under it)
+	local ceiling = rgb(80, 70, 58)
+	box(structure, Vector3.new(32.5, 1, 48), -15.75, 24.5, 0, ceiling, M.WoodPlanks)
+	box(structure, Vector3.new(27.5, 1, 48), 18.25, 24.5, 0, ceiling, M.WoodPlanks)
+	box(structure, Vector3.new(4, 1, 18), 2.5, 24.5, -15, ceiling, M.WoodPlanks)
+	box(structure, Vector3.new(4, 1, 26), 2.5, 24.5, 11, ceiling, M.WoodPlanks)
 
 	------------------------------------------------------------ roof
 	-- roof, chimney and the porch roof and posts stand in for the Blender
 	-- exterior (tools/blender/build_buildings.py), which also adds the trim,
 	-- gutters and gable siding; these parts keep the collisions
-	local shell = Build.standIn(structure, "FarmhouseExterior")
+	-- (XL: the exterior with the wings; the old mesh no longer fits)
+	local shell = Build.standIn(structure, "FarmhouseExteriorXL")
 	local roofColor = rgb(44, 40, 38)
 	Build.wedge(shell, Vector3.new(69, 11, 27), L(0, 30.5, -12.5), roofColor, M.RoofShingles)
 	Build.wedge(shell, Vector3.new(69, 11, 27), L(0, 30.5, 12.5) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
@@ -160,13 +173,14 @@ function House.build(parent: Instance): Info
 	-- ground floor exterior
 	exterior(Vector2.new(-32.5, -24), Vector2.new(32.5, -24), 0, 12, { door(0), window(-20), window(-12), window(12), window(22) })
 	exterior(Vector2.new(-32.5, 24), Vector2.new(32.5, 24), 0, 12, { { at = 2.5, width = 4.6, bottom = 0, top = 9 }, window(-20), window(20) })
-	exterior(Vector2.new(-32, -24), Vector2.new(-32, 24), 0, 12, { window(-6), window(12) })
-	exterior(Vector2.new(32, -24), Vector2.new(32, 24), 0, 12, { window(-12), window(12) })
+	-- the old end walls open into the wings (HouseWings)
+	wall(Vector2.new(-32, -24), Vector2.new(-32, 24), 0, 12, { door(-13.75), door(8.9) }, WALL_DIRTY)
+	wall(Vector2.new(32, -24), Vector2.new(32, 24), 0, 12, { door(-8), door(20.5) }, WALL_DIRTY)
 	-- upper floor exterior
 	exterior(Vector2.new(-32.5, -24), Vector2.new(32.5, -24), 13, 11, { window(-20), window(-12), window(12), window(22) })
 	exterior(Vector2.new(-32.5, 24), Vector2.new(32.5, 24), 13, 11, { window(-18), window(18) })
-	exterior(Vector2.new(-32, -24), Vector2.new(-32, 24), 13, 11, { window(-12), window(12) })
-	exterior(Vector2.new(32, -24), Vector2.new(32, 24), 13, 11, { window(-12), window(12) })
+	wall(Vector2.new(-32, -24), Vector2.new(-32, 24), 13, 11, { door(-15), door(14) }, WALL_DIRTY)
+	wall(Vector2.new(32, -24), Vector2.new(32, 24), 13, 11, { door(-17), door(3) }, WALL_DIRTY)
 
 	-- ground floor interior
 	wall(Vector2.new(-5, -23.5), Vector2.new(-5, 0), 0, 12, { door(-11.5) })
@@ -221,14 +235,24 @@ function House.build(parent: Instance): Info
 	windowFill(CF(20, 6.25, 24) * ANG(0, math.pi, 0), true)
 	windowFill(CF(-18, 19.25, 24) * ANG(0, math.pi, 0), true)
 	windowFill(CF(18, 19.25, 24) * ANG(0, math.pi, 0), false)
-	for _, z in { -6, 12 } do
-		windowFill(CF(-32, 6.25, z) * ANG(0, rad(90), 0), z > 0)
-	end
-	for _, z in { -12, 12 } do
-		windowFill(CF(32, 6.25, z) * ANG(0, rad(-90), 0), true)
-		windowFill(CF(-32, 19.25, z) * ANG(0, rad(90), 0), false)
-		windowFill(CF(32, 19.25, z) * ANG(0, rad(-90), 0), z < 0)
-	end
+
+	------------------------------------------------------------ wings and attic
+	local wings = HouseWings.build({
+		O = O,
+		U = 13,
+		model = model,
+		structure = structure,
+		furniture = furniture,
+		lights = lights,
+		shell = shell,
+		rng = rng,
+		foundation = foundation,
+		wall = wall,
+		exterior = exterior,
+		windowFill = windowFill,
+		door = door,
+		window = window,
+	})
 
 	------------------------------------------------------------ stairs
 	local steps = 13
@@ -318,11 +342,11 @@ function House.build(parent: Instance): Info
 		Build.part(structure, Vector3.new(0.3, 0.25, 0.1), CF(x - 0.22, gy + 6.5, z - 0.5), rgb(10, 10, 10), M.SmoothPlastic)
 		Build.part(structure, Vector3.new(0.3, 0.25, 0.1), CF(x + 0.22, gy + 6.5, z - 0.5), rgb(10, 10, 10), M.SmoothPlastic)
 	end
-	-- wood pile and chopping block by the side wall
+	-- wood pile and chopping block by the west wing
 	for i = 0, 8 do
-		Build.cylinder(furniture, 4, 0.9, L(-36, -foundation + 0.45 + (i // 3) * 0.85, -14 + (i % 3) * 0.95) * ANG(0, rad(90), 0), rgb(84, 62, 44), M.Wood)
+		Build.cylinder(furniture, 4, 0.9, L(-72, -foundation + 0.45 + (i // 3) * 0.85, -14 + (i % 3) * 0.95) * ANG(0, rad(90), 0), rgb(84, 62, 44), M.Wood)
 	end
-	Build.post(furniture, 2, 2, L(-37, -foundation + 1, -6), rgb(78, 58, 42), M.Wood)
+	Build.post(furniture, 2, 2, L(-73, -foundation + 1, -6), rgb(78, 58, 42), M.Wood)
 
 	------------------------------------------------------------ detailing
 	local trimOnly = { CanCollide = false, CastShadow = false }
@@ -350,17 +374,35 @@ function House.build(parent: Instance): Info
 		end
 		box(structure, Vector3.new(length, 0.25, 0.18), mid.X, 3.4, mid.Y, TRIM, M.Wood, trimOnly)
 	end
-	for _, sideRun in {
-		{ -31.4, -23.4, -0.6 },
-		{ -31.4, 0.6, 23.4 },
-		{ 31.4, -23.4, -0.6 },
-		{ 31.4, 0.6, 23.4 },
-	} do
-		local x, z1, z2 = sideRun[1], sideRun[2], sideRun[3]
-		for _, y in { 0.3, 13.3 } do
-			box(structure, Vector3.new(0.15, 0.6, z2 - z1), x, y, (z1 + z2) / 2, TRIM, M.Wood, trimOnly)
+	-- along the end walls, broken at the doorways into the wings
+	local wingDoors: { [string]: { number } } = {
+		["-1,0"] = { -13.75, 8.9 },
+		["-1,13"] = { -15, 14 },
+		["1,0"] = { -8, 20.5 },
+		["1,13"] = { -17, 3 },
+	}
+	for _, side in { -1, 1 } do
+		for _, y0 in { 0, 13 } do
+			local cuts = wingDoors[side .. "," .. y0]
+			for _, span in { { -23.4, -0.6 }, { 0.6, 23.4 } } do
+				local from = span[1]
+				local segments: { { number } } = {}
+				for _, d in cuts do
+					if d - 2.7 > span[1] and d + 2.7 < span[2] then
+						table.insert(segments, { from, d - 2.7 })
+						from = d + 2.7
+					end
+				end
+				table.insert(segments, { from, span[2] })
+				for _, s in segments do
+					local z1, z2 = s[1], s[2]
+					box(structure, Vector3.new(0.15, 0.6, z2 - z1), side * 31.4, y0 + 0.3, (z1 + z2) / 2, TRIM, M.Wood, trimOnly)
+					if y0 == 0 then
+						box(structure, Vector3.new(0.18, 0.25, z2 - z1), side * 31.4, 3.4, (z1 + z2) / 2, TRIM, M.Wood, trimOnly)
+					end
+				end
+			end
 		end
-		box(structure, Vector3.new(0.18, 0.25, z2 - z1), x, 3.4, (z1 + z2) / 2, TRIM, M.Wood, trimOnly)
 	end
 	-- casings around the interior doorways, both sides of the wall
 	for _, d in {
@@ -408,7 +450,8 @@ function House.build(parent: Instance): Info
 	-- Blender dressing for the rooms (tools/blender/build_interiors.py):
 	-- wallpaper, wainscot, tiles, crown moulding, the stair runner, blood.
 	-- It only adds to the walls, so each stand-in holds a hidden anchor.
-	for _, meshName in { "FarmhouseInteriorGround", "FarmhouseInteriorUpper" } do
+	-- (v2: with the doorways into the wings and the wing rooms)
+	for _, meshName in { "FarmhouseInteriorGround2", "FarmhouseInteriorUpper2" } do
 		local dressing = Build.standIn(structure, meshName)
 		Build.part(dressing, Vector3.new(0.2, 0.2, 0.2), L(0, 0.1, 0), WALL, M.SmoothPlastic, {
 			Transparency = 1,
@@ -478,9 +521,9 @@ function House.build(parent: Instance): Info
 			box(mount, Vector3.new(0.8, 0.2, 0.2), x + s * 1.3, 10.6, -23.1, rgb(190, 176, 150), M.SmoothPlastic, { CanCollide = false })
 		end
 	end
-	-- bookshelf on the west wall (it used to sit inside the fireplace)
-	local bookshelf = standIn("Bookshelf", -31, 0, -17, -90)
-	box(bookshelf, Vector3.new(1.4, 9, 6), -31, 4.5, -17, TRIM, M.Wood)
+	-- bookshelf on the west wall, clear of the parlor doorway
+	local bookshelf = standIn("Bookshelf", -31, 0, -20.5, -90)
+	box(bookshelf, Vector3.new(1.4, 9, 6), -31, 4.5, -20.5, TRIM, M.Wood)
 
 	------------------------------------------------------------ dining room (NE): the family table
 	local tableWood = rgb(70, 46, 30)
@@ -789,7 +832,25 @@ function House.build(parent: Instance): Info
 			doorway = L(7, 0, 16.5),
 		},
 		center = O.Position,
+		crowbarSpots = wings.crowbarSpots,
+		workbench = wings.workbench,
+		recordPlayer = wings.recordPlayer,
+		radio = wings.radio,
+		attic = wings.attic,
 	}
+	-- the wings join the patrols, and hide most of what you need to get out
+	for _, p in wings.groundPatrol do
+		table.insert(info.groundPatrol, p)
+	end
+	for _, p in wings.upperPatrol do
+		table.insert(info.upperPatrol, p)
+	end
+	for _, cf in wings.keySpots do
+		table.insert(info.keySpots, cf)
+	end
+	for name, cf in wings.spots do
+		info.spots[name] = cf
+	end
 	return info
 end
 

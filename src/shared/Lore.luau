@@ -82,6 +82,23 @@ local Lore: { [string]: Note } = {
 		title = "Basement Hatch",
 		body = "A heavy hatch in the kitchen floor, chained shut with a padlock the size of your fist.\n\nCold air seeps up through the cracks. It smells like a butcher's shop.\n\nThe wood around the edge has been scratched, deep and frantic, from the other side.",
 	},
+	-- the wings and the attic
+	PianoNote = {
+		title = "Sheet Music",
+		body = "\"Supper Hymn\" - for Sundays at the Pinecrest church.\n\nSomeone has written over the words in pencil:\n\nPapa plays it when the truck comes back from Hollow Meats.\nPapa plays it when the meat is fresh.\nIf you hear the piano, Papa is home.",
+	},
+	GuestDiary = {
+		title = "A Guest's Diary",
+		body = "Day 1 - Lovely old couple took us in after the car died. Room smells like bleach.\n\nDay 2 - Mark went to the plant with the father to 'help with the deliveries'. HOLLOW MEATS, painted on the truck. He's not back.\n\nDay 3 - Door's locked from outside. I heard hammering downstairs. They're nailing the front door shut every night. The son keeps the crowbar in his workshop, by the bench, but he moves it around.\n\nDay",
+	},
+	SewingList = {
+		title = "Mama's Sewing List",
+		body = "- Michel's apron (let out the waist AGAIN)\n- new mask for the little one. Something with a smile.\n- Sunday dress. The good leather.\n- curtains for the church, they're coming apart at the hems\n- patch the mine cart cover before the cold\n\nThe girl from the gas station had lovely hands. Waste not.",
+	},
+	AtticLetter = {
+		title = "Letter, Never Sent",
+		body = "Dear Ruth,\n\nThe plant closed and the town went with it. Papa says we don't need the county, we don't need the store, we have the mine and we have each other and the road always brings us more.\n\nThey hold supper in the church now. Everyone's welcome. Nobody leaves.\n\nIf you ever come back up Hollow Road, don't stop for anybody. Not even us.\n\n- your sister",
+	},
 }
 
 return Lore

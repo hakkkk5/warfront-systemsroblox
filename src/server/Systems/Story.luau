@@ -79,6 +79,8 @@ local world: Folder
 
 local flags = {
 	keyFound = false,
+	crowbarFound = false,
+	boardsOff = false,
 	frontDoorOpen = false,
 	syringeFound = false,
 	keysFound = false,
@@ -99,6 +101,7 @@ local cutsceneDone: { [Player]: string } = {}
 local currentCutscene: string? = nil
 local cutsceneData: any = nil
 local keyModel: Model? = nil
+local crowbarModel: Model? = nil
 local butcherKeysDropped = false
 local helicopter: Model? = nil
 
@@ -155,7 +158,9 @@ local function objectives(): { Objective }
 	if stage == "Intro" or stage == "Captured" then
 		add("...", false)
 	elseif stage == "HouseEscape" then
-		add("Find the key to the padlock (upstairs?)", flags.keyFound)
+		add("Find something to pry the boards off the front door", flags.crowbarFound or flags.boardsOff)
+		add("Pry the boards off (it will be loud)", flags.boardsOff)
+		add("Find the key to the padlock", flags.keyFound)
 		add("Escape through the front door", flags.frontDoorOpen)
 		for _, o in Cellar.objectives() do
 			table.insert(list, o)
@@ -210,7 +215,10 @@ end
 -- Only for the big "go there" steps; searching stays up to you (and H).
 local function goal(): (Vector3?, string?)
 	if stage == "HouseEscape" then
-		if flags.keyFound and not flags.frontDoorOpen then
+		if flags.crowbarFound and not flags.boardsOff then
+			return house.frontDoor.center, "Pry the boards off"
+		end
+		if flags.keyFound and flags.boardsOff and not flags.frontDoorOpen then
 			return house.frontDoor.center, "Front door"
 		end
 	elseif stage == "Forest" then
@@ -342,6 +350,77 @@ local function spawnHouseItems()
 	Pickups.note("Diary", spots.NoteDiary, items)
 	Pickups.note("Drawing", spots.NoteDrawing, items)
 	Pickups.note("Clipping", spots.NoteClipping, items)
+	-- the wings and the attic
+	Pickups.spawn("Battery", spots.BatteryParlor, items)
+	Pickups.spawn("Battery", spots.BatteryGuest, items)
+	Pickups.spawn("Bandage", spots.BandageMudroom, items)
+	Pickups.spawn("Syringe", spots.SyringeWorkshop, items, {
+		onPicked = function()
+			flags.syringeFound = true
+		end,
+	})
+	Pickups.note("PianoNote", spots.NotePiano, items)
+	Pickups.note("GuestDiary", spots.NoteGuest, items)
+	Pickups.note("SewingList", spots.NoteSewing, items)
+	Pickups.note("AtticLetter", spots.NoteAttic, items)
+end
+
+-- After the reveal they nail the front door shut from inside: pry the boards
+-- off with a crowbar (hidden somewhere in the wings or the attic, different
+-- every night), and it is loud enough to bring the whole family.
+local function boardFrontDoor()
+	local door = house.frontDoor
+	local folder = Build.folder(world, "FrontDoorBoards")
+	local inside = house.origin * CFrame.new(0, 0, -23.1)
+	local boards: { BasePart } = {}
+	for i, y in { 2.4, 4.8, 7.2 } do
+		local tilt = math.rad(({ -9, 6, -4 })[i])
+		table.insert(boards, Build.part(folder, Vector3.new(6.4, 0.7, 0.3), inside * CFrame.new(0, y, 0) * CFrame.Angles(0, 0, tilt), Color3.fromRGB(92, 72, 52), Enum.Material.WoodPlanks))
+	end
+	Doors.setBlocked(door, "They nailed it shut from inside. I need something to pry these boards off.")
+	Interact.add(boards[2], {
+		action = "Pry off the boards",
+		object = "Front door",
+		hold = 2.5,
+		distance = 7,
+		canUse = function(player)
+			if not Inventory.has(player, "Crowbar") then
+				soundRemote:FireClient(player, "DoorLocked")
+				return false, "My hands won't do it. A crowbar, a claw hammer... anything."
+			end
+			return true
+		end,
+		onUse = function(_, prompt)
+			prompt:Destroy()
+			flags.boardsOff = true
+			Doors.setBlocked(door, nil)
+			soundRemote:FireAllClients("Chop", door.center)
+			Cannibals.noise(door.center, 150)
+			for _, b in boards do
+				b.Anchored = false
+				b.AssemblyLinearVelocity = house.origin.LookVector * 6 + Vector3.new(0, 4, 0)
+				task.delay(8, function()
+					b:Destroy()
+				end)
+			end
+			Story.say("You", if flags.keyFound then "Too loud... they heard that. The padlock, NOW!" else "Too loud... they heard that. Now the padlock key.", 4)
+			Story.broadcast()
+		end,
+	})
+end
+
+local function spawnCrowbar()
+	if crowbarModel then
+		return
+	end
+	local spot = house.crowbarSpots[math.random(1, #house.crowbarSpots)]
+	crowbarModel = Pickups.spawn("Crowbar", spot, Build.folder(world, "Crowbar"), {
+		onPicked = function()
+			flags.crowbarFound = true
+			Story.say("You", "A crowbar. The boards on the front door...", 3)
+			Story.broadcast()
+		end,
+	})
 end
 
 -- The padlock key only turns up once the hosts drop the act (reveal),
@@ -942,6 +1021,8 @@ local function reveal()
 	playCutscene("TheyKnow", Investigation.revealData(), 30)
 	setStage("HouseEscape")
 	spawnHouseKey()
+	spawnCrowbar()
+	boardFrontDoor()
 	Cellar.enable(Story.say, function()
 		Story.broadcast()
 	end)
@@ -950,7 +1031,7 @@ local function reveal()
 		Inventory.add(player, "Knife", 1, true)
 	end
 	spawnHouseCannibals()
-	Story.say("You", "They know. The front door's padlocked... the key has to be upstairs somewhere. MOVE!", 5)
+	Story.say("You", "They know. The front door's padlocked and nailed shut... I need the key and something to pry it open. MOVE!", 5.5)
 end
 
 function Story.begin()
@@ -1030,7 +1111,10 @@ function Story.hintTargets(): { Vector3 }
 	if stage == "Investigate" then
 		return Investigation.hintTargets()
 	elseif stage == "HouseEscape" then
-		if not flags.keyFound and keyModel and keyModel.Parent then
+		-- one thing at a time: the crowbar, then the key, then the door
+		if not flags.crowbarFound and not flags.boardsOff and crowbarModel and crowbarModel.Parent then
+			table.insert(list, crowbarModel:GetPivot().Position)
+		elseif not flags.keyFound and keyModel and keyModel.Parent then
 			table.insert(list, keyModel:GetPivot().Position)
 		else
 			table.insert(list, house.frontDoor.center)
