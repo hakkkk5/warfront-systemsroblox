@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Util = require(ReplicatedStorage.Shared.Util)
 local CameraController = require(script.Parent.Parent.CameraController)
 local Effects = require(script.Parent.Parent.Effects)
@@ -599,15 +600,15 @@ return Stage.scene("Crash", function(data: any)
 	-- flash there's no one there.
 	local house = Stage.cf(data.house, workspace.CurrentCamera.CFrame)
 	local function HV(x: number, y: number, z: number): Vector3
-		return house * Vector3.new(x, y, z)
+		return house * HouseLayout.at(x, y, z)
 	end
-	local watcherFloor = house * CF(-12, 13, -22.4)
+	local watcherFloor = house * CF(HouseLayout.at(-12, 13, -22.4))
 	local watcher = Cast.actor("Kin", CFrame.lookAt(watcherFloor.Position, watcherFloor.Position - house.LookVector))
 	Cast.still(watcher)
 	Cast.pose(watcher, "neck", Cast.neck(watcher, -0.1, 0, 0.12), 0)
 	-- lamplight from just inside the glass, on the figure's front (from
 	-- behind it only made a silhouette against a black room)
-	local glow = Stage.part(Vector3.one, house * CF(-12, 19.5, -23.1), rgb(0, 0, 0), nil, { Transparency = 1 })
+	local glow = Stage.part(Vector3.one, house * CF(HouseLayout.at(-12, 19.5, -23.1)), rgb(0, 0, 0), nil, { Transparency = 1 })
 	local window = Instance.new("PointLight")
 	window.Color = rgb(255, 150, 80)
 	window.Range = 9

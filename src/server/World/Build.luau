@@ -131,6 +131,53 @@ function Build.markStandIn(model: Model, origin: CFrame)
 	CollectionService:AddTag(model, "BlenderMesh")
 end
 
+-- Plain blocks, wedges and trusses; not unions or parts with a mesh of their own.
+local BAKEABLE: { [string]: boolean } = { Part = true, WedgePart = true, CornerWedgePart = true, TrussPart = true }
+
+local function bakeable(part: BasePart, group: Instance): boolean
+	if not BAKEABLE[part.ClassName] or part.Transparency >= 0.99 or part.Material == Enum.Material.Neon then
+		return false
+	end
+	if part:GetAttribute("KeepVisible") then
+		return false
+	end
+	for _, c in part:GetChildren() do
+		if c:IsA("Light") or c:IsA("Fire") or c:IsA("Smoke") or c:IsA("ParticleEmitter") or c:IsA("Decal") or c:IsA("SurfaceGui") or c:IsA("DataModelMesh") then
+			return false
+		end
+	end
+	local a = part.Parent
+	while a and a ~= group do
+		if CollectionService:HasTag(a, "BlenderMesh") or a:GetAttribute("KeepVisible") then
+			return false
+		end
+		a = a.Parent
+	end
+	return a == group
+end
+
+-- Bakes a building's plain parts (floors, walls, stairs, box furniture) into
+-- one Blender mesh (tools/blender/build_house_parts.py, modelled from these
+-- very parts as measured in Studio). Marks every visible, non-glowing part
+-- under `group` that isn't inside a stand-in or a KeepVisible model "Baked"
+-- and tags the group: clients hide just those parts and show the mesh at
+-- `origin`. Call it once the building is done; later parts stay as they are.
+function Build.bake(group: Model, meshName: string, origin: CFrame): number
+	local count = 0
+	for _, d in group:GetDescendants() do
+		if d:IsA("BasePart") and bakeable(d, group) then
+			d:SetAttribute("Baked", true)
+			count += 1
+		end
+	end
+	group.WorldPivot = origin
+	group:SetAttribute("Mesh", meshName)
+	group:SetAttribute("MeshExact", true)
+	group:SetAttribute("MeshBaked", true)
+	CollectionService:AddTag(group, "BlenderMesh")
+	return count
+end
+
 function Build.folder(parent: Instance, name: string): Folder
 	local f = Instance.new("Folder")
 	f.Name = name

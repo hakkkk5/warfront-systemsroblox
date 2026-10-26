@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Build = require(script.Parent.Parent.World.Build)
 local Props = require(script.Parent.Parent.World.Props)
 local AssetService = require(script.Parent.AssetService)
@@ -53,12 +54,17 @@ local cuttersPickup: Model? = nil
 local tom: { model: Model, humanoid: Humanoid, root: BasePart, chains: { BasePart } }? = nil
 local loiter: { [Player]: number } = {}
 
+-- The cellar keeps its size under the (bigger) kitchen: it is laid out on
+-- the house plan and moved with the hatch (HouseLayout).
+local HATCH = Vector3.new(-10, 0, 9)
+local SHIFT = HouseLayout.point(HATCH) - HATCH
+
 local function L(x: number, y: number, z: number): CFrame
-	return origin * CF(x, y, z)
+	return origin * CF(Vector3.new(x, y, z) + SHIFT)
 end
 
 local function localPos(p: Vector3): Vector3
-	return origin:PointToObjectSpace(p)
+	return origin:PointToObjectSpace(p) - SHIFT
 end
 
 local function inCellar(p: Vector3): boolean
@@ -67,7 +73,7 @@ local function inCellar(p: Vector3): boolean
 end
 
 local function insideHouse(p: Vector3): boolean
-	local v = localPos(p)
+	local v = HouseLayout.unmap(origin:PointToObjectSpace(p))
 	return math.abs(v.X) < 33 and v.Z > -25 and v.Z < 25
 end
 

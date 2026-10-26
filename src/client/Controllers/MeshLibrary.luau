@@ -69,7 +69,9 @@ local function buildTemplate(name: string): Template?
 		if original:IsA("MeshPart") then
 			local part = original:Clone()
 			-- parts are "<MeshName>_<material>"; the palette names the Roblox material
-			local entry = MeshCatalog[string.sub(part.Name, #name + 2)]
+			-- (a material too big for one mesh comes as "<material>_2", "_3"...)
+			local key = string.sub(part.Name, #name + 2)
+			local entry = MeshCatalog[key] or MeshCatalog[(string.gsub(key, "_%d+$", ""))]
 			if entry then
 				local ok, material = pcall(function()
 					return (Enum.Material :: any)[entry.material]
@@ -143,6 +145,16 @@ end
 local connections: { [Instance]: { RBXScriptConnection } } = {}
 
 local function setHidden(target: Instance, hidden: boolean)
+	if target:GetAttribute("MeshBaked") then
+		-- a building's baked parts (Build.bake): only those, not the stand-ins,
+		-- lights and pickups around them
+		for _, d in target:GetDescendants() do
+			if d:IsA("BasePart") and d:GetAttribute("Baked") then
+				d.LocalTransparencyModifier = if hidden then 1 else 0
+			end
+		end
+		return
+	end
 	local function apply(part: BasePart)
 		if part:FindFirstAncestor("BlenderVisual") then
 			return

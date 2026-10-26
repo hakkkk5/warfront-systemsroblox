@@ -333,18 +333,22 @@ def corner_boards(p, mat, xs, zs, y0, y1, w=0.9):
 # ============================================================================ farmhouse
 def build_farmhouse():
     """CannibalHouse (House.luau + HouseWings.luau), origin O = floor level of
-    the ground floor: the original two-storey core (x -32.5..32.5) with a
-    lower-roofed wing either side (out to x = +-68.5)."""
+    the ground floor: the two-storey core with a lower-roofed wing either
+    side, on the bigger floor plan (house_layout: the plan's numbers mapped,
+    windows and doors keep their width)."""
+    from house_layout import fx, fz
     p = Prop("FarmhouseExteriorXL", pivot="origin")
     rng = random.Random(7)
-    X0, X1 = -35.3, 35.3
-    W = 68.7  # outer face of the wing end walls
-    # the hidden wedges' sloped faces: (z, y) eave (-+26, 25) -> (+-1, 36)
-    front = Slope(X0, X1, (-27.0, 25 - 11 / 27), (0.0, 36 - 11 / 27))
-    back = Slope(X0, X1, (27.0, 25 - 11 / 27), (0.0, 36 - 11 / 27))
+    X0, X1 = fx(-35.3), fx(35.3)
+    W = fx(68.7)  # outer face of the wing end walls
+    # the hidden wedges' sloped faces: (z, y) eave (fz(-26), 25) -> (1, 36),
+    # and the eave a stud further out
+    k = 11 / (fz(1) - fz(-26))
+    front = Slope(X0, X1, (fz(-27), 25 - k), (0.0, 36 - k))
+    back = Slope(X0, X1, (-fz(-27), 25 - k), (0.0, 36 - k))
     for sl in (front, back):
         slab(p, "roof_deck", sl, 0, sl.length + 0.02, 0, 0.5)
-        shingles(p, sl, rng, 0.5)
+        shingles(p, sl, rng, 0.5, row=1.3)  # keeps the shingle mesh under 20k tris
         fascia(p, "trim", sl, 0, X0, X1)
         for x in (X0, X1):
             rake(p, "trim", sl, 0.5, x)
@@ -357,19 +361,20 @@ def build_farmhouse():
         # the main gutters drain onto the wing roofs
         q = sl.point(0, 0, 0)
         zg = q.z + (-0.45 if q.z < 0 else 0.45)
-        gutter(p, -31.4, 31.4, zg, q.y - 0.3)
+        gutter(p, X0 + 3.9, X1 - 3.9, zg, q.y - 0.3)
     ridge_cap(p, "shingle", (front, back), X0, X1, 0.6)
 
-    # the wings: same eaves, a lower ridge (the server wedges: 8 high, 26.5 deep)
-    wing_slope = 8 / 26.5
+    # the wings: same eaves, a lower ridge (the server wedges: 8 high, from
+    # fz(-26) to 0.5 deep)
+    wing_slope = 8 / (fz(0.5) - fz(-26))
     for side in (-1, 1):
-        xa, xb = (-W - 1.6, -31.6) if side < 0 else (31.6, W + 1.6)
-        wf = Slope(xa, xb, (-27.3, 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
-        wb = Slope(xa, xb, (27.3, 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
+        xa, xb = (-W - 1.6, fx(-31.6)) if side < 0 else (fx(31.6), W + 1.6)
+        wf = Slope(xa, xb, (fz(-27.3), 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
+        wb = Slope(xa, xb, (-fz(-27.3), 25 - wing_slope * 1.3), (0.0, 33 - wing_slope * 0.5))
         x_end = xa if side < 0 else xb
         for sl in (wf, wb):
             slab(p, "roof_deck", sl, 0, sl.length + 0.02, 0, 0.45)
-            shingles(p, sl, rng, 0.45, row=1.3)  # keeps the shingle mesh under 20k tris
+            shingles(p, sl, rng, 0.45, row=1.6)  # keeps the shingle mesh under 20k tris
             fascia(p, "trim", sl, 0, xa, xb)
             rake(p, "trim", sl, 0.45, x_end)
             x = xa + 1.2
@@ -381,62 +386,66 @@ def build_farmhouse():
             q = sl.point(0, 0, 0)
             zg = q.z + (-0.45 if q.z < 0 else 0.45)
             gutter(p, xa + 0.3, xb - 0.3, zg, q.y - 0.3)
-            downspout(p, side * (W - 1.6), zg, 24.95 if q.z > 0 else -24.95, q.y - 0.4, -1.0)
-            downspout(p, side * 36.0, zg, 24.95 if q.z > 0 else -24.95, q.y - 0.4, -1.0)
+            zw = fz(24.95) if q.z > 0 else -fz(24.95)
+            downspout(p, side * (W - 1.6), zg, zw, q.y - 0.4, -1.0)
+            downspout(p, side * fx(36.0), zg, zw, q.y - 0.4, -1.0)
         ridge_cap(p, "shingle", (wf, wb), xa, xb, 0.55)
         # the wing's end gable, with a louvred vent
         xf = side * W
-        gable_boards(p, "siding", xf, -24.7, 24.7, 24.0, (wf, wb), battens=True)
+        gable_boards(p, "siding", xf, -fz(24.7), fz(24.7), 24.0, (wf, wb), battens=True)
         at(p, "trim", (0.3, 2.6, 3.2), xf + side * 0.4, 28.6, 0)
         for i in range(4):
             part(p, "wood_dark", (0.12, 0.42, 2.6), T(xf + side * 0.6, 27.7 + i * 0.6, 0) @ RZ(side * 0.6))
     # what shows of the main gables above the wing roofs
-    for xf in (-32.7, 32.7):
-        gable_boards(p, "siding", xf, -12.0, 12.0, 32.6, (front, back), battens=True)
+    for xf in (fx(-32.7), fx(32.7)):
+        gable_boards(p, "siding", xf, -fz(12.0), fz(12.0), 32.6, (front, back), battens=True)
     # frieze closing the gap between the wall tops and the roofs
-    for zf in (-24.85, 24.85):
+    for zf in (-fz(24.85), fz(24.85)):
         at(p, "trim", (2 * W, 2.0, 0.3), 0, 24.8, zf)
 
-    front_face = Face("z", -24.7, -1)
-    back_face = Face("z", 24.7, 1)
+    front_face = Face("z", -fz(24.7), -1)
+    back_face = Face("z", fz(24.7), 1)
     left = Face("x", -W, -1)
     right = Face("x", W, 1)
     # windows: (face, along, floor) - the same openings House.luau and
-    # HouseWings.luau cut
+    # HouseWings.luau cut, at their centres in the bigger house
     windows = []
     for a in (-58, -42, -20, -12, 12, 22, 42, 58):
-        windows += [(front_face, a, 0), (front_face, a, 13)]
+        windows += [(front_face, fx(a), 0), (front_face, fx(a), 13)]
     for a in (-57, -45, -20, 20, 45, 57):
-        windows.append((back_face, a, 0))
+        windows.append((back_face, fx(a), 0))
     for a in (-50, -18, 18, 50):
-        windows.append((back_face, a, 13))
-    windows += [(left, -12, 0), (left, -12, 13), (left, 12, 13)]
-    windows += [(right, -12, 0), (right, 14, 0), (right, -12, 13), (right, 12, 13)]
+        windows.append((back_face, fx(a), 13))
+    windows += [(left, fz(-12), 0), (left, fz(-12), 13), (left, fz(12), 13)]
+    windows += [(right, fz(-12), 0), (right, fz(14), 0), (right, fz(-12), 13), (right, fz(12), 13)]
     for face, a, y0 in windows:
         window_trim(p, face, a, y0 + 4, y0 + 8.5, 4)
+    back_door = fx(2.5)
     door_trim(p, front_face, 0, 5, 9)
-    door_trim(p, back_face, 2.5, 4.6, 9, pediment=False)
+    door_trim(p, back_face, back_door, 4.6, 9, pediment=False)
     # belly band between the floors, water table at the bottom, corner boards,
     # and pilasters where the wings meet the old house
-    for face, span, doors in ((front_face, W, [(-2.5, 2.5)]), (back_face, W, [(0.2, 4.8)]), (left, 24.7, []), (right, 24.7, [])):
+    ZS = fz(24.7)
+    for face, span, doors in ((front_face, W, [(-2.5, 2.5)]), (back_face, W, [(back_door - 2.3, back_door + 2.3)]), (left, ZS, []), (right, ZS, [])):
         band(p, face, "trim", -span, span, 11.9, 12.9, 0.25)
         band(p, face, "trim", -span, span, 0.0, 0.7, 0.3, doors)
-    corner_boards(p, "trim", W, 24.7, 0, 24.6)
+    corner_boards(p, "trim", W, ZS, 0, 24.6)
     for sx in (-1, 1):
         for face in (front_face, back_face):
-            face.box(p, "trim", 1.1, 24.6, 0.26, sx * 32.7, 12.3, 0)
+            face.box(p, "trim", 1.1, 24.6, 0.26, sx * fx(32.7), 12.3, 0)
 
     # the walls: lap siding on every outside face, both floors, cut round
     # every window and door (the server's flat siding layer is hidden).
     # Openings: (centre, width, bottom, top) per floor.
-    def wins(*centres):
-        return [(c, 4.6, 3.8, 8.7) for c in centres]
+    def wins(*centres, along=fx):
+        return [(along(c), 4.6, 3.8, 8.7) for c in centres]
 
+    Z = fz(24.5)
     siding = (
-        (Face("z", -24.5, -1), -W + 0.2, W - 0.2, {0.0: [(0, 5.4, -1, 9.2)] + wins(-58, -42, -20, -12, 12, 22, 42, 58), 13.0: wins(-58, -42, -20, -12, 12, 22, 42, 58)}),
-        (Face("z", 24.5, 1), -W + 0.2, W - 0.2, {0.0: [(2.5, 5.0, -1, 9.2)] + wins(-57, -45, -20, 20, 45, 57), 13.0: wins(-50, -18, 18, 50)}),
-        (Face("x", -W + 0.2, -1), -24.7, 24.7, {0.0: wins(-12), 13.0: wins(-12, 12)}),
-        (Face("x", W - 0.2, 1), -24.7, 24.7, {0.0: wins(-12, 14), 13.0: wins(-12, 12)}),
+        (Face("z", -Z, -1), -W + 0.2, W - 0.2, {0.0: [(0, 5.4, -1, 9.2)] + wins(-58, -42, -20, -12, 12, 22, 42, 58), 13.0: wins(-58, -42, -20, -12, 12, 22, 42, 58)}),
+        (Face("z", Z, 1), -W + 0.2, W - 0.2, {0.0: [(back_door, 5.0, -1, 9.2)] + wins(-57, -45, -20, 20, 45, 57), 13.0: wins(-50, -18, 18, 50)}),
+        (Face("x", -W + 0.2, -1), -ZS, ZS, {0.0: wins(-12, along=fz), 13.0: wins(-12, 12, along=fz)}),
+        (Face("x", W - 0.2, 1), -ZS, ZS, {0.0: wins(-12, 14, along=fz), 13.0: wins(-12, 12, along=fz)}),
     )
     for face, a0, a1, floors in siding:
         for y0, ops in floors.items():
@@ -454,7 +463,7 @@ def build_farmhouse():
                     face.box(p, "siding", rng.uniform(0.5, 2.2), rng.uniform(0.25, 0.6), 0.05, a, yy, 0.16)
 
     # chimney: brick stack with a corbelled top and two clay pots
-    cx, cz = -30, -12
+    cx, cz = fx(-30), fz(-12)
     at(p, "brick", (4, 18.2, 4), cx, 28.1, cz)
     at(p, "brick", (4.5, 0.6, 4.5), cx, 35.9, cz)
     at(p, "brick", (4.9, 0.6, 4.9), cx, 36.5, cz)
@@ -466,19 +475,20 @@ def build_farmhouse():
     at(p, "iron", (4.3, 0.35, 4.3), cx, y_roof, cz)
 
     # porch: a shed roof on turned posts, header beam and brackets
-    porch = Slope(-11.0, 11.0, (-34.6, 11.25), (-24.75, 13.4))
+    px, pz = fx(11.0), fz(-33)
+    porch = Slope(-px, px, (fz(-34.6), 11.25), (fz(-24.75), 13.4))
     slab(p, "roof_deck", porch, 0, porch.length, 0, 0.35)
     shingles(p, porch, rng, 0.35, row=0.95)
-    fascia(p, "trim", porch, 0, -11.0, 11.0, depth=0.8)
-    for x in (-11.0, 11.0):
+    fascia(p, "trim", porch, 0, -px, px, depth=0.8)
+    for x in (-px, px):
         rake(p, "trim", porch, 0.35, x, depth=0.6)
-    at(p, "trim", (21.6, 0.6, 0.6), 0, 11.3, -33)
-    at(p, "trim", (22.0, 0.5, 0.4), 0, 13.1, -24.95)  # ledger on the wall
-    for x in (-9.5, 9.5):
-        lathe_post(p, "trim", bp.turned_leg(11.0, 0.36), x, 0, -33)
+    at(p, "trim", (2 * fx(10.8), 0.6, 0.6), 0, 11.3, pz)
+    at(p, "trim", (2 * px, 0.5, 0.4), 0, 13.1, fz(-24.95))  # ledger on the wall
+    for x in (fx(-9.5), fx(9.5)):
+        lathe_post(p, "trim", bp.turned_leg(11.0, 0.36), x, 0, pz)
         for side in (-1, 1):
-            if abs(x + side * 1.7) < 10.5:
-                beam(p, "trim", (x + side * 0.2, 9.3, -33), (x + side * 1.7, 11.0, -33), 0.25, 0.25)
+            if abs(x + side * 1.7) < fx(10.5):
+                beam(p, "trim", (x + side * 0.2, 9.3, pz), (x + side * 1.7, 11.0, pz), 0.25, 0.25)
     return p
 
 

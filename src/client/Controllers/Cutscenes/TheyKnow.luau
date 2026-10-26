@@ -7,6 +7,7 @@
 -- data: { camera, jason, michel, house: CFrame }
 
 local Util = require(game:GetService("ReplicatedStorage").Shared.Util)
+local HouseLayout = require(game:GetService("ReplicatedStorage").Shared.HouseLayout)
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
 local CameraController = require(script.Parent.Parent.CameraController)
 local Effects = require(script.Parent.Parent.Effects)
@@ -123,14 +124,14 @@ return Stage.scene("TheyKnow", function(data: any)
 	-- and Papa steps out of the dining room doorway, between you and them,
 	-- the chainsaw already running
 	local house = Stage.cf(data.house, cam)
-	local dining = house * CF(7, 0, -11.5)
-	local papa = Cast.actor("Papa", CFrame.lookAt(dining.Position, (house * CF(0, 0, -11.5)).Position))
+	local dining = house * CF(HouseLayout.at(7, 0, -11.5))
+	local papa = Cast.actor("Papa", CFrame.lookAt(dining.Position, (house * CF(HouseLayout.at(0, 0, -11.5))).Position))
 	Cast.play(papa, "idle")
 	Cast.pose(papa, "rightShoulder", Cast.arm(papa, true, 1.4, 0.3), 0)
 	Stage.sfx("Chainsaw", nil, dining.Position, 1, 1)
 	CameraController.shake(0.8, 2.5)
 	Stage.go(function()
-		Cast.walk(papa, { (house * CF(2.5, 0, -10)).Position }, 7)
+		Cast.walk(papa, { (house * CF(HouseLayout.at(2.5, 0, -10))).Position }, 7)
 		Cast.face(papa, camPos, 0.4)
 		Cast.laugh(papa, 1.2)
 	end)

@@ -51,7 +51,7 @@ local function startCameraDrift()
 	end
 	renderConn = RunService.RenderStepped:Connect(function()
 		local t = os.clock() * 0.035
-		local pos = center + Vector3.new(math.cos(t) * 95, 18 + math.sin(t * 2.3) * 4, math.sin(t) * 95 - 20)
+		local pos = center + Vector3.new(math.cos(t) * 150, 26 + math.sin(t * 2.3) * 4, math.sin(t) * 150 - 20)
 		camera.CFrame = CFrame.lookAt(pos, center + Vector3.new(0, -2, 0)) * CFrame.Angles(0, 0, math.sin(t * 3) * 0.02)
 	end)
 end

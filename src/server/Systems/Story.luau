@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Signal = require(ReplicatedStorage.Shared.Signal)
@@ -400,7 +401,7 @@ end
 local function boardFrontDoor()
 	local door = house.frontDoor
 	local folder = Build.folder(world, "FrontDoorBoards")
-	local inside = house.origin * CFrame.new(0, 0, -23.1)
+	local inside = house.origin * CFrame.new(HouseLayout.at(0, 0, -23.1))
 	local boards: { BasePart } = {}
 	for i, y in { 2.4, 4.8, 7.2 } do
 		local tilt = math.rad(({ -9, 6, -4 })[i])
@@ -728,8 +729,18 @@ end
 -- or after a while, crashing in through the back.
 local function spawnHouseCannibals()
 	local outside: { Vector3 } = {}
-	for _, p in { Vector2.new(0, -37), Vector2.new(-41, -24), Vector2.new(-43, 22), Vector2.new(0, 35), Vector2.new(43, 22), Vector2.new(41, -24) } do
-		local w = house.origin * CFrame.new(p.X, 0, p.Y)
+	-- a ring outside the walls (house plan, HouseLayout), wings included
+	for _, p in {
+		Vector2.new(0, -37),
+		Vector2.new(-50, -31),
+		Vector2.new(-75, 0),
+		Vector2.new(-50, 31),
+		Vector2.new(0, 35),
+		Vector2.new(50, 31),
+		Vector2.new(75, 0),
+		Vector2.new(50, -31),
+	} do
+		local w = house.origin * CFrame.new(HouseLayout.at(p.X, 0, p.Y))
 		table.insert(outside, Vector3.new(w.X, Terrain.groundY(w.X, w.Z), w.Z))
 	end
 	local otherWay: { Vector3 } = {}
@@ -757,7 +768,7 @@ local function spawnHouseCannibals()
 		if stage ~= "HouseEscape" then
 			return
 		end
-		local backDoor = (house.origin * CFrame.new(1, 4, 23)).Position
+		local backDoor = (house.origin * CFrame.new(HouseLayout.at(1, 4, 23))).Position
 		soundRemote:FireAllClients("Impact", backDoor)
 		soundRemote:FireAllClients("DoorOpen", backDoor)
 		soundRemote:FireAllClients("Growl", backDoor)
@@ -1173,8 +1184,8 @@ local function watcher()
 			for _, player in Players:GetPlayers() do
 				local root = rootOf(player)
 				if root then
-					local localPos = house.origin:PointToObjectSpace(root.Position)
-					if localPos.Z < -36 or math.abs(localPos.X) > 40 or localPos.Z > 32 then
+					local localPos = HouseLayout.unmap(house.origin:PointToObjectSpace(root.Position))
+					if localPos.Z < -36 or math.abs(localPos.X) > 72 or localPos.Z > 32 then
 						enterForest()
 						break
 					end

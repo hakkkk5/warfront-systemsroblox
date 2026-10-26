@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 
+local HouseLayout = require(game:GetService("ReplicatedStorage").Shared.HouseLayout)
 local HUD = require(script.Parent.Parent.Parent.UI.HUD)
 local Effects = require(script.Parent.Parent.Effects)
 local Stage = require(script.Parent.Stage)
@@ -27,13 +28,21 @@ return Stage.scene("WakeUp", function(data: any)
 	local exit = Stage.cf(data.exit, doorway * CF(3, 0, 0))
 	local alone = #Players:GetPlayers() <= 1
 
-	-- house frame from the doorway (L(-6.5, 0, -11.5)) and the hall (L(-3.5, 0, -11.5))
+	-- the house frame (or, from older data, worked out from the doorway at
+	-- L(-6.5, 0, -11.5) and the hall at L(-3.5, 0, -11.5)); the numbers below
+	-- are the house plan, placed in the bigger house (HouseLayout)
 	local hx = exit.Position - doorway.Position
-	local houseCF = if hx.Magnitude > 0.5
-		then CFrame.fromMatrix(doorway.Position, hx.Unit, UP) * CF(6.5, 0, 11.5)
+	local houseCF = if typeof(data.house) == "CFrame"
+		then data.house
+		elseif hx.Magnitude > 0.5 then CFrame.fromMatrix(doorway.Position, hx.Unit, UP) * CF(6.5, 0, 11.5)
 		else CF(doorway.Position) * CF(6.5, 0, 11.5)
 	local function L(x: number, y: number, z: number): Vector3
-		return (houseCF * CF(x, y, z)).Position
+		return (houseCF * CF(HouseLayout.at(x, y, z))).Position
+	end
+	-- on the sofa itself: moves with the sofa (data.sofaShift)
+	local sofaShift = if typeof(data.sofaShift) == "Vector3" then data.sofaShift else nil
+	local function onSofa(x: number, y: number, z: number): Vector3
+		return if sofaShift then (houseCF * CF(Vector3.new(x, y, z) + sofaShift)).Position else L(x, y, z)
 	end
 	local function H(x: number, z: number): Vector3
 		return L(x, 0, z)
@@ -47,7 +56,7 @@ return Stage.scene("WakeUp", function(data: any)
 	Stage.blur(8)
 
 	-- warm firelight
-	local glow = Stage.part(Vector3.one, houseCF * CF(-26, 3.5, -6), rgb(0, 0, 0), nil, { Transparency = 1 })
+	local glow = Stage.part(Vector3.one, CF(L(-26, 3.5, -6)), rgb(0, 0, 0), nil, { Transparency = 1 })
 	local fire = Instance.new("PointLight")
 	fire.Color = rgb(255, 160, 90)
 	fire.Range = 22
@@ -67,8 +76,8 @@ return Stage.scene("WakeUp", function(data: any)
 	Cast.pose(me, "neck", Cast.neck(me, 0.25, -0.3, 0), 0)
 	Cast.pose(me, "rightShoulder", Cast.arm(me, true, 0.3, 0.3), 0)
 	Cast.pose(me, "leftShoulder", Cast.arm(me, false, -0.2, 0.1), 0)
-	local lying = CFrame.fromMatrix(L(-20.3, 2.65, -6.6), -X, -Z)
-	local seatPos = L(-20.2, 2.1, -6) + UP * Cast.seatLift(me)
+	local lying = CFrame.fromMatrix(onSofa(-20.3, 2.65, -6.6), -X, -Z)
+	local seatPos = onSofa(-20.2, 2.1, -6) + UP * Cast.seatLift(me)
 	local seated = CFrame.lookAt(seatPos, seatPos - X)
 	me.root.CFrame = lying
 

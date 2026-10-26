@@ -37,8 +37,13 @@ end
 
 -- Hides a dressed stand-in's own boxes (in the saved preview only).
 local function hideStandIn(target: Instance)
+	local baked = target:GetAttribute("MeshBaked") == true
 	for _, d in target:GetDescendants() do
-		if d:IsA("BasePart") and not d:FindFirstAncestor("BlenderVisual") and not d:GetAttribute("KeepVisible") then
+		if baked then
+			if d:IsA("BasePart") and d:GetAttribute("Baked") then
+				d.Transparency = 1
+			end
+		elseif d:IsA("BasePart") and not d:FindFirstAncestor("BlenderVisual") and not d:GetAttribute("KeepVisible") then
 			d.Transparency = 1
 		end
 	end
@@ -68,12 +73,46 @@ return function(): string
 		end
 	end
 	task.wait()
+	-- the house grew (HouseLayout) past the clearing the old bake flattened:
+	-- level the ground under it, easing back into the hills around it
+	local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout) :: any
+	local Terrain = require(World.Terrain) :: any
+	local site = Config.Sites.House
+	local hx0, hx1 = site.pos.X + HouseLayout.x(-68) - 10, site.pos.X + HouseLayout.x(68) + 10
+	local hz0, hz1 = site.pos.Y + HouseLayout.z(-24) - 30, site.pos.Y + HouseLayout.z(24) + 10
+	local floorY = Terrain.siteY("House")
+	local margin, step = 26, 4
+	local levelled = 0
+	for wx = hx0 - margin, hx1 + margin, step do
+		for wz = hz0 - margin, hz1 + margin, step do
+			local dx = math.max(hx0 - wx, 0, wx - hx1)
+			local dz = math.max(hz0 - wz, 0, wz - hz1)
+			local d = math.sqrt(dx * dx + dz * dz)
+			if d < margin then
+				local current = Terrain.groundY(wx, wz)
+				local t = d / margin
+				local target = floorY + (current - floorY) * t * t * (3 - 2 * t)
+				if current > target + 0.3 then
+					workspace.Terrain:FillBlock(CFrame.new(wx, (target + current + 3) / 2, wz), Vector3.new(step, current + 3 - target, step), Enum.Material.Air)
+					levelled += 1
+				elseif current < target - 0.3 then
+					workspace.Terrain:FillBlock(CFrame.new(wx, (current - 2 + target) / 2, wz), Vector3.new(step, target - current + 2, step), Enum.Material.Ground)
+					levelled += 1
+				end
+			end
+		end
+		if levelled % 200 == 0 then
+			task.wait()
+		end
+	end
+	task.wait()
 	House.build(world)
 	task.wait()
 	FinaleSites.build(world)
 	task.wait()
 
-	-- the old bake grew trees where the new places and trails are
+	-- the old bake grew trees where the new places and trails are, and where
+	-- the house now stands
 	local clear: { { pos: Vector2, r: number } } = {}
 	for _, name in { "HeliCrash", "Plant", "Church" } do
 		local s = Config.Sites[name]
@@ -85,6 +124,12 @@ return function(): string
 		for _, d in forest:GetDescendants() do
 			if d:IsA("Model") and d.Parent and d.Parent.Parent == forest then
 				local p = d:GetPivot().Position
+				local inHouse = p.X > hx0 - 8 and p.X < hx1 + 8 and p.Z > hz0 - 8 and p.Z < hz1 + 8
+				if inHouse then
+					d:Destroy()
+					cut += 1
+					continue
+				end
 				for _, c in clear do
 					if (Vector2.new(p.X, p.Z) - c.pos).Magnitude < c.r then
 						d:Destroy()

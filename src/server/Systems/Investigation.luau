@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Build = require(script.Parent.Parent.World.Build)
 local Hosts = require(script.Parent.Hosts)
 local Chores = require(script.Parent.Chores)
@@ -52,8 +53,14 @@ local onClueFound: () -> () = function() end -- set in the tension section
 
 local NEEDED = 5
 
+-- spots on the house plan, in the bigger house (with the furniture they
+-- sit on; HouseLayout)
+local function LV(v: Vector3): CFrame
+	return origin * CF(HouseLayout.place(v))
+end
+
 local function L(x: number, y: number, z: number): CFrame
-	return origin * CF(x, y, z)
+	return LV(Vector3.new(x, y, z))
 end
 
 local function foundCount(): number
@@ -381,7 +388,7 @@ local function callDinner()
 				local character = player.Character
 				local root = character and character:FindFirstChild("HumanoidRootPart")
 				if root and root:IsA("BasePart") then
-					local v = origin:PointToObjectSpace(root.Position)
+					local v = HouseLayout.unmap(origin:PointToObjectSpace(root.Position))
 					if v.Y < 12 and v.X > 5 and v.X < 32 and v.Z < 0 and v.Z > -24 then
 						deadline = 0
 					end
@@ -424,26 +431,31 @@ end
 
 -- Where everyone comes to after the crash: by the sofa, facing the fire.
 function Investigation.spawnCF(): CFrame
-	return CFrame.lookAt((origin * CF(-22.5, 3, -6)).Position, (origin * CF(-30, 3, -6)).Position)
+	return CFrame.lookAt(L(-22.5, 3, -6).Position, L(-30, 3, -6).Position)
 end
+
+-- the living-room sofa on the house plan (it moves into the bigger room)
+local SOFA = Vector3.new(-19.8, 0, -6)
 
 -- Data for the wake-up cutscene.
 function Investigation.wakeData(): { [string]: any }
 	return {
-		eye = CFrame.lookAt((origin * CF(-20.6, 3.9, -6)).Position, (origin * CF(-28, 2.6, -6)).Position),
-		jason = CFrame.lookAt((origin * CF(-25.5, 0, -9.6)).Position, (origin * CF(-20.6, 0, -6)).Position),
-		michel = CFrame.lookAt((origin * CF(-24.4, 0, -2.6)).Position, (origin * CF(-20.6, 0, -6)).Position),
-		exit = origin * CF(-3.5, 0, -11.5),
-		doorway = origin * CF(-6.5, 0, -11.5),
+		eye = CFrame.lookAt(L(-20.6, 3.9, -6).Position, L(-28, 2.6, -6).Position),
+		jason = CFrame.lookAt(L(-25.5, 0, -9.6).Position, L(-20.6, 0, -6).Position),
+		michel = CFrame.lookAt(L(-24.4, 0, -2.6).Position, L(-20.6, 0, -6).Position),
+		exit = L(-3.5, 0, -11.5),
+		doorway = L(-6.5, 0, -11.5),
+		house = origin,
+		sofaShift = HouseLayout.place(SOFA) - SOFA,
 	}
 end
 
 -- Data for the reveal: the two of them at the front door, seen from the hall.
 function Investigation.revealData(): { [string]: any }
 	return {
-		camera = CFrame.lookAt((origin * CF(1.5, 4.6, -6)).Position, (origin * CF(0, 4.2, -18)).Position),
-		jason = CFrame.lookAt((origin * CF(-1.2, 0, -18.5)).Position, (origin * CF(0, 0, -6)).Position),
-		michel = CFrame.lookAt((origin * CF(1.6, 0, -17.5)).Position, (origin * CF(0, 0, -6)).Position),
+		camera = CFrame.lookAt(L(1.5, 4.6, -6).Position, L(0, 4.2, -18).Position),
+		jason = CFrame.lookAt(L(-1.2, 0, -18.5).Position, L(0, 0, -6).Position),
+		michel = CFrame.lookAt(L(1.6, 0, -17.5).Position, L(0, 0, -6).Position),
 		house = origin,
 	}
 end
@@ -502,7 +514,7 @@ function Investigation.start(parent: Instance, options: Options)
 				local character = player.Character
 				local root = character and character:FindFirstChild("HumanoidRootPart")
 				if root and root:IsA("BasePart") then
-					local v = origin:PointToObjectSpace(root.Position)
+					local v = HouseLayout.unmap(origin:PointToObjectSpace(root.Position))
 					if math.abs(v.X) < 33 and math.abs(v.Z) < 25 and v.Y > -2 and v.Y < 27 then
 						for name, inside in ROOMS do
 							if not visited[name] and inside(v) then
@@ -564,7 +576,7 @@ function Investigation.hintTargets(): { Vector3 }
 	local list: { Vector3 } = {}
 	if completed then
 		if dinnerCalled then
-			table.insert(list, (origin * CF(18, 3, -12)).Position)
+			table.insert(list, L(18, 3, -12).Position)
 			return list
 		end
 		return Chores.hintTargets()
@@ -578,7 +590,7 @@ function Investigation.hintTargets(): { Vector3 }
 	end
 	for name, center in ROOM_CENTERS do
 		if not visited[name] then
-			table.insert(list, (origin * CF(center)).Position)
+			table.insert(list, LV(center).Position)
 		end
 	end
 	for _, name in { "Jason", "Michel" } do

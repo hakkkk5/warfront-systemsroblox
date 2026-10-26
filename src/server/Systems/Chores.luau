@@ -21,6 +21,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Signal = require(ReplicatedStorage.Shared.Signal)
 local Build = require(script.Parent.Parent.World.Build)
 local Interact = require(script.Parent.Interact)
@@ -98,8 +99,10 @@ local spots: { [string]: Vector3 } = {}
 local clockHour = 3
 local CLOCK_TARGET = 7
 
+-- a spot on the house plan, in the bigger house (with the furniture it
+-- sits on; HouseLayout)
 local function L(x: number, y: number, z: number): CFrame
-	return origin * CF(x, y, z)
+	return origin * CF(HouseLayout.place(Vector3.new(x, y, z)))
 end
 
 local function sound(name: string, at: Vector3)

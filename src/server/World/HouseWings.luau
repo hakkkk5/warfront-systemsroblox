@@ -23,6 +23,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Build = require(script.Parent.Build)
 local Props = require(script.Parent.Props)
 local Util = require(ReplicatedStorage.Shared.Util)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local AssetService = require(script.Parent.Parent.Systems.AssetService)
 local Doors = require(script.Parent.Parent.Systems.Doors)
 local Hiding = require(script.Parent.Parent.Systems.Hiding)
@@ -46,6 +47,10 @@ export type Ctx = {
 	windowFill: (cf: CFrame, boarded: boolean) -> (),
 	door: (at: number) -> Opening,
 	window: (at: number) -> Opening,
+	-- runs once the furniture has moved into the bigger rooms
+	later: (fn: () -> ()) -> (),
+	-- a CFrame of the plan in the bigger house (call it from `later`)
+	moved: (cf: CFrame) -> CFrame,
 }
 
 export type Info = {
@@ -138,6 +143,34 @@ function HouseWings.build(ctx: Ctx): Info
 		return Build.part(p, size, O * cf, color, mat, extra)
 	end
 	local noCollide = { CanCollide = false, CastShadow = false }
+	-- as in House.luau: L and box lay furniture out on the plan (House moves
+	-- it into the bigger rooms); S, fixture, span and rect build straight
+	-- into the bigger house
+	local HL = HouseLayout
+	local function S(x: number, y: number, z: number): CFrame
+		return O * CF(HL.at(x, y, z))
+	end
+	local function fixture(p: Instance, size: Vector3, x: number, y: number, z: number, color: Color3, mat: Enum.Material, extra: { [string]: any }?): Part
+		return Build.part(p, size, S(x, y, z), color, mat, extra)
+	end
+	local function span(p: Instance, size: Vector3, x: number, y: number, z: number, color: Color3, mat: Enum.Material, extra: { [string]: any }?): Part
+		local s, c = HL.span(size, Vector3.new(x, y, z))
+		return Build.part(p, s, O * CF(c), color, mat, extra)
+	end
+	local function spanWedge(p: Instance, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material): WedgePart
+		local s, c = HL.spanCF(size, cf)
+		return Build.wedge(p, s, O * c, color, mat)
+	end
+	local function rect(p: Instance, x0: number, x1: number, z0: number, z1: number, y: number, h: number, color: Color3, mat: Enum.Material)
+		if x1 - x0 > 0.05 and z1 - z0 > 0.05 then
+			Build.part(p, Vector3.new(x1 - x0, h, z1 - z0), O * CF((x0 + x1) / 2, y, (z0 + z1) / 2), color, mat)
+		end
+	end
+	-- a beam between two points of the plan, in the bigger house
+	local function beamBetween(p: Instance, a: Vector3, b: Vector3, w: number, h: number, color: Color3, mat: Enum.Material, extra: { [string]: any }?): Part
+		local ma, mb = HL.point(a), HL.point(b)
+		return Build.part(p, Vector3.new(w, h, (mb - ma).Magnitude), O * CFrame.lookAt((ma + mb) / 2, mb), color, mat, extra)
+	end
 
 	-- A Blender furniture stand-in with its collision boxes. Returns the
 	-- model and its pivot (house-local).
@@ -170,7 +203,9 @@ function HouseWings.build(ctx: Ctx): Info
 		for _, dx in { -1.45, 1.45 } do
 			boxCF(m, Vector3.new(2.8, 8.6, 0.2), pivot * CF(dx, 4.5, -1.55), rgb(54, 38, 28), M.WoodPlanks, { CanCollide = false })
 		end
-		Hiding.add(body, O * pivot * CF(0, 3, 0.1), O * pivot * CF(0, 3, -4.4), label)
+		ctx.later(function()
+			Hiding.add(body, ctx.moved(O * pivot * CF(0, 3, 0.1)), ctx.moved(O * pivot * CF(0, 3, -4.4)), label)
+		end)
 	end
 
 	local function rug(x: number, y: number, z: number, w: number, d: number, color: Color3)
@@ -182,11 +217,12 @@ function HouseWings.build(ctx: Ctx): Info
 		boxCF(furniture, Vector3.new(w, h, 0.05), cf * CF(0, 0, -0.12), canvas, M.Fabric, noCollide)
 	end
 
+	-- x, z: already in the bigger house
 	local function truss(x: number, y0: number, z: number, height: number)
 		local t = Instance.new("TrussPart")
 		t.Anchored = true
 		t.Size = Vector3.new(2, height, 2)
-		t.CFrame = L(x, y0 + height / 2, z)
+		t.CFrame = O * CF(x, y0 + height / 2, z)
 		t.Color = rgb(96, 74, 52)
 		t.Material = M.Wood
 		t.Parent = structure
@@ -197,23 +233,29 @@ function HouseWings.build(ctx: Ctx): Info
 	for _, side in { -1, 1 } do
 		local cx = side * 50.25
 		--------------------------------------------------------- foundation, floors, ceilings
-		box(structure, Vector3.new(36.5, fh, 49), cx, -fh / 2, 0, stone, M.Cobblestone)
+		span(structure, Vector3.new(36.5, fh, 49), cx, -fh / 2, 0, stone, M.Cobblestone)
 		-- ground floors: parlor / sunroom (north), mudroom / workshop (south)
-		box(structure, Vector3.new(36, 0.4, 24), side * 50, -0.2, -12, if side < 0 then FLOOR else rgb(150, 140, 120), if side < 0 then M.WoodPlanks else M.CeramicTiles)
-		box(structure, Vector3.new(36, 0.4, 24), side * 50, -0.2, 12, if side < 0 then rgb(84, 80, 76) else rgb(90, 86, 80), if side < 0 then M.Slate else M.Concrete)
+		span(structure, Vector3.new(36, 0.4, 24), side * 50, -0.2, -12, if side < 0 then FLOOR else rgb(150, 140, 120), if side < 0 then M.WoodPlanks else M.CeramicTiles)
+		span(structure, Vector3.new(36, 0.4, 24), side * 50, -0.2, 12, if side < 0 then rgb(84, 80, 76) else rgb(90, 86, 80), if side < 0 then M.Slate else M.Concrete)
 	end
-	-- upper floors: the west one has the back stairwell (x -67.5..-62.5, z 6..20)
-	box(structure, Vector3.new(36, 1, 30), -50, 12.5, -9, FLOOR, M.WoodPlanks)
-	box(structure, Vector3.new(30.5, 1, 18), -47.25, 12.5, 15, FLOOR, M.WoodPlanks)
-	box(structure, Vector3.new(5.5, 1, 4), -65.25, 12.5, 22, FLOOR, M.WoodPlanks)
-	box(structure, Vector3.new(36, 1, 48), 50, 12.5, 0, FLOOR, M.WoodPlanks)
-	-- ceilings / loft floors; the east one has the loft hatch (x 58..62, z 1..5)
+	-- upper floors: the west one has the back stairwell along its end wall
+	-- (5 wide, from the plan's z 6 to 20, so it stretches with the room)
+	local backX0, backX1 = HL.x(-67.5), HL.x(-62.5)
+	local backZ0, backZ1 = HL.z(6), HL.z(20)
+	local wx0, wx1, wz0, wz1 = HL.x(-68), HL.x(-32), HL.z(-24), HL.z(24)
+	rect(structure, wx0, wx1, wz0, backZ0, 12.5, 1, FLOOR, M.WoodPlanks)
+	rect(structure, backX1, wx1, backZ0, wz1, 12.5, 1, FLOOR, M.WoodPlanks)
+	rect(structure, wx0, backX1, backZ1, wz1, 12.5, 1, FLOOR, M.WoodPlanks)
+	span(structure, Vector3.new(36, 1, 48), 50, 12.5, 0, FLOOR, M.WoodPlanks)
+	-- ceilings / loft floors; the east one has the 4 x 4 loft hatch
 	local ceiling = rgb(80, 70, 58)
-	box(structure, Vector3.new(36, 1, 48), -50, 24.5, 0, ceiling, M.WoodPlanks)
-	box(structure, Vector3.new(26, 1, 48), 45, 24.5, 0, ceiling, M.WoodPlanks)
-	box(structure, Vector3.new(6, 1, 48), 65, 24.5, 0, ceiling, M.WoodPlanks)
-	box(structure, Vector3.new(4, 1, 25), 60, 24.5, -11.5, ceiling, M.WoodPlanks)
-	box(structure, Vector3.new(4, 1, 19), 60, 24.5, 14.5, ceiling, M.WoodPlanks)
+	span(structure, Vector3.new(36, 1, 48), -50, 24.5, 0, ceiling, M.WoodPlanks)
+	local lh = HL.at(60, 0, 3)
+	local ex0, ex1 = HL.x(32), HL.x(68)
+	rect(structure, ex0, lh.X - 2, wz0, wz1, 24.5, 1, ceiling, M.WoodPlanks)
+	rect(structure, lh.X + 2, ex1, wz0, wz1, 24.5, 1, ceiling, M.WoodPlanks)
+	rect(structure, lh.X - 2, lh.X + 2, wz0, lh.Z - 2, 24.5, 1, ceiling, M.WoodPlanks)
+	rect(structure, lh.X - 2, lh.X + 2, lh.Z + 2, wz1, 24.5, 1, ceiling, M.WoodPlanks)
 
 	------------------------------------------------------------ walls
 	for _, side in { -1, 1 } do
@@ -255,51 +297,54 @@ function HouseWings.build(ctx: Ctx): Info
 	-- wing roofs sit lower than the main one (ridge at y 33 against 36)
 	local roofColor = rgb(44, 40, 38)
 	for _, side in { -1, 1 } do
-		Build.wedge(shell, Vector3.new(39, 8, 26.5), L(side * 50.5, 29, -12.75), roofColor, M.RoofShingles)
-		Build.wedge(shell, Vector3.new(39, 8, 26.5), L(side * 50.5, 29, 12.75) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
-		box(shell, Vector3.new(39, 0.6, 1.2), side * 50.5, 33.1, 0, rgb(34, 30, 28), M.Wood)
+		spanWedge(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, -12.75), roofColor, M.RoofShingles)
+		spanWedge(shell, Vector3.new(39, 8, 26.5), CF(side * 50.5, 29, 12.75) * ANG(0, math.pi, 0), roofColor, M.RoofShingles)
+		span(shell, Vector3.new(39, 0.6, 1.2), side * 50.5, 33.1, 0, rgb(34, 30, 28), M.Wood)
 		-- wing end gables (inside face) and their siding
-		Build.wedge(structure, Vector3.new(1, 8, 24), L(side * 68, 29, -12), rgb(96, 84, 70), M.Plaster)
-		Build.wedge(structure, Vector3.new(1, 8, 24), L(side * 68, 29, 12) * ANG(0, math.pi, 0), rgb(96, 84, 70), M.Plaster)
-		Build.wedge(shell, Vector3.new(0.2, 8, 24), L(side * 68.6, 29, -12), rgb(104, 92, 78), M.WoodPlanks)
-		Build.wedge(shell, Vector3.new(0.2, 8, 24), L(side * 68.6, 29, 12) * ANG(0, math.pi, 0), rgb(104, 92, 78), M.WoodPlanks)
+		spanWedge(structure, Vector3.new(1, 8, 24), CF(side * 68, 29, -12), rgb(96, 84, 70), M.Plaster)
+		spanWedge(structure, Vector3.new(1, 8, 24), CF(side * 68, 29, 12) * ANG(0, math.pi, 0), rgb(96, 84, 70), M.Plaster)
+		spanWedge(shell, Vector3.new(0.2, 8, 24), CF(side * 68.6, 29, -12), rgb(104, 92, 78), M.WoodPlanks)
+		spanWedge(shell, Vector3.new(0.2, 8, 24), CF(side * 68.6, 29, 12) * ANG(0, math.pi, 0), rgb(104, 92, 78), M.WoodPlanks)
 	end
 	-- the main house's gables close the attic; the east one has a crawl hole
 	-- (z -2..2, y 25..30.5) into the east wing loft
 	local gable = rgb(90, 80, 66)
 	local slope = 11 / 26
-	Build.wedge(structure, Vector3.new(1, 11, 26), L(-32.5, 30.5, -13), gable, M.WoodPlanks)
-	Build.wedge(structure, Vector3.new(1, 11, 26), L(-32.5, 30.5, 13) * ANG(0, math.pi, 0), gable, M.WoodPlanks)
+	spanWedge(structure, Vector3.new(1, 11, 26), CF(-32.5, 30.5, -13), gable, M.WoodPlanks)
+	spanWedge(structure, Vector3.new(1, 11, 26), CF(-32.5, 30.5, 13) * ANG(0, math.pi, 0), gable, M.WoodPlanks)
 	local h24 = slope * 24
-	Build.wedge(structure, Vector3.new(1, h24, 24), L(32.5, 25 + h24 / 2, -14), gable, M.WoodPlanks)
-	Build.wedge(structure, Vector3.new(1, h24, 24), L(32.5, 25 + h24 / 2, 14) * ANG(0, math.pi, 0), gable, M.WoodPlanks)
-	box(structure, Vector3.new(1, 4.8, 4), 32.5, 32.9, 0, gable, M.WoodPlanks)
+	spanWedge(structure, Vector3.new(1, h24, 24), CF(32.5, 25 + h24 / 2, -14), gable, M.WoodPlanks)
+	spanWedge(structure, Vector3.new(1, h24, 24), CF(32.5, 25 + h24 / 2, 14) * ANG(0, math.pi, 0), gable, M.WoodPlanks)
+	fixture(structure, Vector3.new(1, 4.8, 4), 32.5, 32.9, 0, gable, M.WoodPlanks)
 	for _, dz in { -2.2, 2.2 } do
-		box(structure, Vector3.new(1.2, 5.6, 0.4), 32.5, 27.8, dz, TRIM, M.Wood, noCollide)
+		fixture(structure, Vector3.new(1.2, 5.6, 0.4), 32.5, 27.8, dz, TRIM, M.Wood, noCollide)
 	end
 	-- attic: floorboards are the ceiling slab; a ladder up from the upstairs
-	-- hall (hatch x 0.5..4.5, z -6..-2, where the roof is high) and one into
-	-- the east loft
-	truss(2.5, 13, -1, 14)
-	truss(60, 13, 6, 14)
-	box(structure, Vector3.new(4.6, 0.3, 0.4), 2.5, 25.15, -6.2, TRIM, M.Wood, noCollide)
-	box(structure, Vector3.new(4.6, 0.3, 0.4), 60, 25.15, 0.8, TRIM, M.Wood, noCollide)
-	-- rafters
+	-- hall (under the 4 x 4 hatch House.luau leaves, where the roof is high)
+	-- and one into the east loft, each beside its hatch as on the plan
+	local ah = HL.at(2.5, 0, -4)
+	truss(ah.X, 13, ah.Z + 3, 14)
+	truss(lh.X, 13, lh.Z + 3, 14)
+	boxCF(structure, Vector3.new(4.6, 0.3, 0.4), CF(ah.X, 25.15, ah.Z - 2.2), TRIM, M.Wood, noCollide)
+	boxCF(structure, Vector3.new(4.6, 0.3, 0.4), CF(lh.X, 25.15, lh.Z - 2.2), TRIM, M.Wood, noCollide)
+	-- rafters, from the eaves up to the ridge of the (wider, lower-pitched) roof
 	for i = -6, 6 do
 		local x = i * 5
 		for _, s in { -1, 1 } do
-			boxCF(structure, Vector3.new(0.5, 0.6, 28.5), CF(x, 30.3, s * 12.7) * ANG(s * math.atan(slope), 0, 0), rgb(58, 44, 32), M.Wood, noCollide)
+			local cf = CF(x, 30.3, s * 12.7) * ANG(s * math.atan(slope), 0, 0)
+			beamBetween(structure, (cf * CF(0, 0, -14.25)).Position, (cf * CF(0, 0, 14.25)).Position, 0.5, 0.6, rgb(58, 44, 32), M.Wood, noCollide)
 		end
 	end
-	Build.bulb(lights, L(0, 33.5, 0), rgb(255, 170, 110), 0.25, 18, true)
-	Build.bulb(lights, L(-20, 32.5, 2), rgb(255, 150, 90), 0.15, 14, true)
+	Build.bulb(lights, S(0, 33.5, 0), rgb(255, 170, 110), 0.25, 18, true)
+	Build.bulb(lights, S(-20, 32.5, 2), rgb(255, 150, 90), 0.15, 14, true)
 
 	------------------------------------------------------------ doors
+	-- the doorway centre moves with the rooms, the door keeps its width
 	local function hingeZ(x: number, zc: number, y0: number): CFrame
-		return L(x, y0, zc - 2.4) * ANG(0, -math.pi / 2, 0)
+		return O * CF(HL.x(x), y0, HL.z(zc) - 2.4) * ANG(0, -math.pi / 2, 0)
 	end
 	local function hingeX(xc: number, z: number, y0: number): CFrame
-		return L(xc - 2.4, y0, z)
+		return O * CF(HL.x(xc) - 2.4, y0, HL.z(z))
 	end
 	local model = ctx.model
 	Doors.create(model, hingeZ(-32, -13.75, 0), 4.8, 9, { name = "ParlorDoor", swing = -1 })
@@ -312,22 +357,30 @@ function HouseWings.build(ctx: Ctx): Info
 	Doors.create(model, hingeX(50, 0, 0), 4.8, 9, { name = "SunroomDoor", swing = -1, color = rgb(180, 176, 160) })
 
 	------------------------------------------------------------ back stairs (west wing, up toward +z)
+	-- (in the bigger house: the well left in the upper floor above)
 	local steps = 13
-	local run = 14 / steps
+	local run = (backZ1 - backZ0) / steps
+	local backMid, backW = (backX0 + backX1) / 2, backX1 - backX0
 	for i = 1, steps do
-		local z0 = 6 + (i - 1) * run
-		box(structure, Vector3.new(5, i, run), -65, i / 2, z0 + run / 2, rgb(66, 48, 34), M.WoodPlanks)
+		local z0 = backZ0 + (i - 1) * run
+		Build.part(structure, Vector3.new(backW, i, run), O * CF(backMid, i / 2, z0 + run / 2), rgb(66, 48, 34), M.WoodPlanks)
 	end
-	box(structure, Vector3.new(0.3, 0.3, 14), -62.4, U + 3.2, 13, TRIM, M.Wood)
-	box(structure, Vector3.new(5, 0.3, 0.3), -65, U + 3.2, 6, TRIM, M.Wood)
-	for _, z in { 6.2, 9.5, 13, 16.5, 19.8 } do
-		box(structure, Vector3.new(0.25, 3.2, 0.25), -62.4, U + 1.6, z, TRIM, M.Wood)
+	local railX = backX1 + 0.1
+	local zMid = (backZ0 + backZ1) / 2
+	boxCF(structure, Vector3.new(0.3, 0.3, backZ1 - backZ0), CF(railX, U + 3.2, zMid), TRIM, M.Wood)
+	boxCF(structure, Vector3.new(backW, 0.3, 0.3), CF(backMid, U + 3.2, backZ0), TRIM, M.Wood)
+	local postZ = backZ0 + 0.2
+	while postZ < backZ1 do
+		boxCF(structure, Vector3.new(0.25, 3.2, 0.25), CF(railX, U + 1.6, postZ), TRIM, M.Wood)
+		postZ += 3.3
 	end
-	Build.part(structure, Vector3.new(0.3, 0.3, 19), L(-62.4, 6.5 + 3, 13) * ANG(-math.atan2(13, 14), 0, 0), TRIM, M.Wood)
+	local railA = Vector3.new(railX, 1 + 3, backZ0 + run / 2)
+	local railB = Vector3.new(railX, steps + 3, backZ1 - run / 2)
+	Build.part(structure, Vector3.new(0.3, 0.3, (railB - railA).Magnitude), O * CFrame.lookAt((railA + railB) / 2, railB), TRIM, M.Wood)
 
 	------------------------------------------------------------ parlor (west, ground north)
 	local lamp = rgb(255, 180, 110)
-	Build.bulb(lights, L(-50, 10.5, -12), lamp, 0.45, 18, true)
+	Build.bulb(lights, S(-50, 10.5, -12), lamp, 0.45, 18, true)
 	rug(-54, 0, -11, 14, 10, rgb(70, 40, 52))
 	piece("Sofa", -55, 0, -7, 0, rgb(56, 36, 30), M.Leather)
 	piece("CoffeeTable", -55, 0, -12.5, 0, TRIM, M.Wood)
@@ -367,7 +420,7 @@ function HouseWings.build(ctx: Ctx): Info
 	end
 
 	------------------------------------------------------------ mudroom (west, ground south)
-	Build.bulb(lights, L(-46, 10.5, 12), rgb(255, 196, 140), 0.35, 16, true)
+	Build.bulb(lights, S(-46, 10.5, 12), rgb(255, 196, 140), 0.35, 16, true)
 	-- coat hooks with coats that are not the family's sizes
 	box(furniture, Vector3.new(10, 0.3, 0.4), -44, 7.5, 23.3, TRIM, M.Wood, noCollide)
 	for i = 0, 5 do
@@ -387,7 +440,7 @@ function HouseWings.build(ctx: Ctx): Info
 	hideWardrobe(-56, 0, 21.8, 0, "Closet")
 
 	------------------------------------------------------------ Grandma's room (west, upper north)
-	Build.bulb(lights, L(-50, U + 9.5, -12), rgb(255, 170, 110), 0.3, 16, true)
+	Build.bulb(lights, S(-50, U + 9.5, -12), rgb(255, 170, 110), 0.3, 16, true)
 	rug(-52, U, -12, 12, 9, rgb(80, 60, 70))
 	piece("Bed", -56, U, -18.6, 180, WOOD, M.Wood)
 	piece("Nightstand", -61.2, U, -22, 180, TRIM, M.Wood)
@@ -416,7 +469,7 @@ function HouseWings.build(ctx: Ctx): Info
 	painting(CF(-67.3, U + 6, 8) * ANG(0, rad(-90), 0), 3, 4, rgb(70, 40, 40))
 
 	------------------------------------------------------------ sewing room (west, upper south)
-	Build.bulb(lights, L(-46, U + 9.5, 12), rgb(255, 210, 160), 0.4, 16, true)
+	Build.bulb(lights, S(-46, U + 9.5, 12), rgb(255, 210, 160), 0.4, 16, true)
 	-- a big cutting table covered in patterns, the machine at the end
 	box(furniture, Vector3.new(10, 0.4, 4.4), -46, U + 3.1, 12, rgb(110, 84, 58), M.Wood)
 	for _, x in { -50.5, -41.5 } do
@@ -447,7 +500,7 @@ function HouseWings.build(ctx: Ctx): Info
 	hideWardrobe(-34.6, U, 20.5, 90, "Wardrobe")
 
 	------------------------------------------------------------ sunroom (east, ground north)
-	Build.bulb(lights, L(50, 10.5, -12), rgb(220, 230, 255), 0.25, 18, true)
+	Build.bulb(lights, S(50, 10.5, -12), rgb(220, 230, 255), 0.25, 18, true)
 	-- dead plants in pots everywhere
 	for i = 0, 7 do
 		local x = 36 + (i % 4) * 9 + rng:NextNumber(-1, 1)
@@ -483,7 +536,7 @@ function HouseWings.build(ctx: Ctx): Info
 	box(furniture, Vector3.new(0.05, 0.8, 0.9), 34.0, 3.05, -14, rgb(200, 180, 120), M.Fabric, noCollide)
 
 	------------------------------------------------------------ workshop (east, ground south)
-	Build.bulb(lights, L(50, 10.5, 12), rgb(255, 200, 150), 0.55, 20, true)
+	Build.bulb(lights, S(50, 10.5, 12), rgb(255, 200, 150), 0.55, 20, true)
 	-- the crafting bench along the back wall, vise and pegboard over it
 	local benchTop = CF(56, 3.5, 21.6)
 	box(furniture, Vector3.new(10, 0.5, 3.4), 56, 3.25, 21.6, rgb(96, 72, 48), M.Wood)
@@ -516,7 +569,7 @@ function HouseWings.build(ctx: Ctx): Info
 	Build.stain(furniture, L(44, 0.05, 14), Vector2.new(2, 1.6), rng)
 
 	------------------------------------------------------------ guest room (east, upper north)
-	Build.bulb(lights, L(50, U + 9.5, -12), rgb(255, 180, 120), 0.35, 16, true)
+	Build.bulb(lights, S(50, U + 9.5, -12), rgb(255, 180, 120), 0.35, 16, true)
 	piece("Bed", 56, U, -18.6, 180, WOOD, M.Wood)
 	piece("Nightstand", 61.2, U, -22, 180, TRIM, M.Wood)
 	hideWardrobe(66, U, -5, 90, "Wardrobe")
@@ -530,7 +583,7 @@ function HouseWings.build(ctx: Ctx): Info
 	Build.stain(furniture, L(55, U + 3.0, -17), Vector2.new(1.4, 1.8), rng)
 
 	------------------------------------------------------------ storage room (east, upper south)
-	Build.bulb(lights, L(46, U + 9.5, 12), rgb(255, 170, 110), 0.25, 14, true)
+	Build.bulb(lights, S(46, U + 9.5, 12), rgb(255, 170, 110), 0.25, 14, true)
 	for i = 0, 11 do
 		local x = 36 + (i % 4) * 4.5 + rng:NextNumber(-0.6, 0.6)
 		local z = 14 + (i // 4) * 3.2
@@ -567,7 +620,7 @@ function HouseWings.build(ctx: Ctx): Info
 	for i = 0, 3 do
 		box(furniture, Vector3.new(3, 1.6, 2.4), 38 + i * 7, 25.8, (i % 2) * 2 - 6, rgb(150, 120, 84), M.Cardboard)
 	end
-	Build.bulb(lights, L(50, 31.5, 0), rgb(255, 150, 90), 0.12, 12, true)
+	Build.bulb(lights, S(50, 31.5, 0), rgb(255, 150, 90), 0.12, 12, true)
 
 	------------------------------------------------------------ gameplay data
 	return {

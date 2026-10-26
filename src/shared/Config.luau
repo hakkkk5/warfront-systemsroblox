@@ -18,7 +18,7 @@ export type Site = { pos: Vector2, radius: number }
 
 -- Named locations. radius = area that gets flattened / kept clear of trees.
 local sites: { [string]: Site } = {
-	House = { pos = Vector2.new(-120, -300), radius = 82 },
+	House = { pos = Vector2.new(-120, -300), radius = 124 }, -- the house is ~205 x 72 (HouseLayout)
 	Crash = { pos = Vector2.new(-188, -527), radius = 22 },
 	Truck = { pos = Vector2.new(170, -60), radius = 46 },
 	Barn = { pos = Vector2.new(-345, -95), radius = 48 },

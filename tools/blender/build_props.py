@@ -36,6 +36,7 @@ GLB_DIR = os.path.join(ROOT, "assets", "blender", "glb")
 PREVIEW_DIR = os.path.join(ROOT, "assets", "blender", "previews")
 LUAU_DIR = os.path.join(ROOT, "src", "shared", "Meshes")
 RENDER = os.environ.get("BH_RENDER", "1") != "0"
+TRI_LIMIT = 19000  # per mesh part; Roblox allows 20k
 
 
 def srgb(r, g, b):
@@ -1494,17 +1495,32 @@ def finalize(prop):
     for ob in prop.objects:
         groups.setdefault(ob["mat"], []).append(ob)
 
-    parts = []
+    # Roblox takes at most 20k triangles a mesh: a material with more is
+    # split into "<mat>_2", "<mat>_3"... (MeshLibrary reads those as <mat>)
+    chunks = []
     for mat, obs in groups.items():
+        cur, tris, n = [], 0, 0
+        for ob in obs:
+            t = sum(len(poly.vertices) - 2 for poly in ob.data.polygons)
+            if cur and tris + t > TRI_LIMIT:
+                chunks.append((mat, n, cur))
+                cur, tris, n = [], 0, n + 1
+            cur.append(ob)
+            tris += t
+        chunks.append((mat, n, cur))
+
+    parts = []
+    for mat, n, obs in chunks:
+        name = prop.name + "_" + mat + ("" if n == 0 else f"_{n + 1}")
         bm = bmesh.new()
         for ob in obs:
             bm.from_mesh(ob.data)
         bmesh.ops.triangulate(bm, faces=bm.faces)
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-        me = bpy.data.meshes.new(prop.name + "_" + mat)
+        me = bpy.data.meshes.new(name)
         bm.to_mesh(me)
         bm.free()
-        ob = bpy.data.objects.new(prop.name + "_" + mat, me)
+        ob = bpy.data.objects.new(name, me)
         bpy.context.collection.objects.link(ob)
         me.shade_smooth()
         me.set_sharp_from_angle(angle=math.radians(38))

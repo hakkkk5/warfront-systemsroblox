@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local HouseLayout = require(ReplicatedStorage.Shared.HouseLayout)
 local Build = require(script.Parent.Parent.World.Build)
 local Cannibals = require(script.Parent.Cannibals)
 local Interact = require(script.Parent.Interact)
@@ -93,8 +94,9 @@ end
 
 function HouseLights.build(origin: CFrame, parent: Instance, canRestore: () -> boolean)
 	local folder = Build.folder(parent, "HouseLights")
+	-- fixtures and switches are placed on the house plan (HouseLayout)
 	local function L(v: Vector3): CFrame
-		return origin * CF(v)
+		return origin * CF(HouseLayout.point(v))
 	end
 
 	for _, spec in LAYOUT do

@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_props as bp  # noqa: E402
 from build_props import PALETTE, Prop, srgb  # noqa: E402
 from build_buildings import Face, T, RY, RZ, part, ball, lathe_post  # noqa: E402
+from house_layout import fx, fz, offset_for, STAIR_X0, STAIR_X1, STAIR_FRONT, STAIR_BACK  # noqa: E402
 
 STYLES = {
     # wallpaper: two stripe colours
@@ -141,6 +142,7 @@ def handprint(p, face, a, y, tilt):
 
 
 def floor_smear(p, x, z, y, length, width, yaw, rng):
+    x, z = fx(x), fz(z)  # on the plan
     part(p, "blood", (width, 0.02, length), T(x, y + 0.025, z) @ RY(yaw))
     for _ in range(4):
         part(p, "blood", (rng.uniform(0.2, 0.6), 0.02, rng.uniform(0.2, 0.6)),
@@ -151,7 +153,16 @@ def floor_smear(p, x, z, y, length, width, yaw, rng):
 
 # A room: inner bounds and, per wall, its openings (centre, width, bottom, top)
 # measured from the room's floor. Walls: n = the -Z side, s = +Z, w = -X, e = +X.
+# All on the house plan: the bounds and opening centres are mapped into the
+# bigger house here (house_layout); the walls it returns are in the bigger house.
+# An opening with a fifth item "fixed" is already in the bigger house.
 def room(p, rng, x0, x1, z0, z1, y0, h, style, openings, lower=None, lower_top=3.3, crown_on=True):
+    x0, x1, z0, z1 = fx(x0), fx(x1), fz(z0), fz(z1)
+    mapped = {}
+    for side, ops in openings.items():
+        f = fx if side in ("n", "s") else fz
+        mapped[side] = [(o[0] if len(o) > 4 else f(o[0]), o[1], o[2], o[3]) for o in ops]
+    openings = mapped
     walls = {
         "n": (Face("z", z0, 1), x0, x1),
         "s": (Face("z", z1, -1), x0, x1),
@@ -193,8 +204,11 @@ def build_ground():
     p = Prop("FarmhouseInteriorGround2", pivot="origin")
     rng = random.Random(41)
     h = 12.0
+    # the fireplace stands against the west wall and moves with it, not with
+    # the room's middle (House.luau settles the furniture)
+    _, fire_dz = offset_for((-31.85, -10.5), (-28.4, -1.5))
     room(p, rng, -31.5, -5.5, -23.5, -0.5, 0, h, "living", {
-        "n": [win(-20), win(-12)], "s": [door(-18, top=9.7)], "w": [door(-13.75), (-6, 9.0, -1, 8.6)], "e": [door(-11.5)],
+        "n": [win(-20), win(-12)], "s": [door(-18, top=9.7)], "w": [door(-13.75), (-6 + fire_dz, 9.0, -1, 8.6, "fixed")], "e": [door(-11.5)],
     }, lower="wainscot")
     room(p, rng, 5.5, 31.5, -23.5, -0.5, 0, h, "dining", {
         "n": [win(12), win(22)], "e": [door(-8)], "w": [door(-11.5)],
@@ -219,8 +233,8 @@ def build_ground():
         "n": [door(50)], "s": [win(45), win(57)], "e": [win(14)], "w": [door(20.5)],
     }, lower="panel")
     for _ in range(4):
-        splat(p, shop["n"][0], rng.uniform(34, 46), rng.uniform(2, 7), rng)
-    handprint(p, mud["s"][0], -38.0, 4.4, 0.2)
+        splat(p, shop["n"][0], fx(rng.uniform(34, 46)), rng.uniform(2, 7), rng)
+    handprint(p, mud["s"][0], fx(-38.0), 4.4, 0.2)
     # something heavy dragged from the slaughter room into the workshop
     x = 26.0
     while x < 44:
@@ -228,14 +242,14 @@ def build_ground():
         x += 1.4
     hall = room(p, rng, -4.5, 4.5, -23.5, 23.5, 0, h, "hall", {
         "n": [(0, 5.4, -1, 9.3)], "s": [(2.5, 5.0, -1, 9.3)],
-        "w": [door(-11.5), door(4.5), (15, 15, -1, 14)], "e": [door(-11.5), door(16.5)],
+        "w": [door(-11.5), door(4.5)], "e": [door(-11.5), door(16.5)],
     }, lower="wainscot")
     # the slaughter room: spatter up the walls, pools and a drain gutter
     for side, (face, a0, a1) in slaughter.items():
         for _ in range(5):
             splat(p, face, rng.uniform(a0 + 1, a1 - 1), rng.uniform(1.5, 7.5), rng, size=rng.uniform(0.4, 0.9))
     for _ in range(5):
-        part(p, "blood", (rng.uniform(1.5, 3.5), 0.02, rng.uniform(1.2, 3)), T(rng.uniform(9, 28), 0.03, rng.uniform(4, 20)) @ RY(rng.uniform(0, 3)))
+        part(p, "blood", (rng.uniform(1.5, 3.5), 0.02, rng.uniform(1.2, 3)), T(fx(rng.uniform(9, 28)), 0.03, fz(rng.uniform(4, 20))) @ RY(rng.uniform(0, 3)))
     # a drag trail from the front door down the hall to the slaughter room door
     z = -20.0
     while z < 15.5:
@@ -243,22 +257,26 @@ def build_ground():
         floor_smear(p, x, z, 0.0, 1.6, rng.uniform(0.6, 1.0), rng.uniform(-0.2, 0.2), rng)
         z += 1.4
     face_e = hall["e"][0]
-    handprint(p, face_e, 13.5, 4.2, 0.2)
-    handprint(p, face_e, 14.6, 3.6, -0.3)
-    handprint(p, hall["w"][0], -14.0, 4.6, 0.1)
-    # the stairs: a runner up the treads and risers, newel posts
-    run = 14 / 13
+    handprint(p, face_e, fz(13.5), 4.2, 0.2)
+    handprint(p, face_e, fz(14.6), 3.6, -0.3)
+    handprint(p, hall["w"][0], fz(-14.0), 4.6, 0.1)
+    # the main stairs in the middle of the hall (house_layout: rising toward
+    # the back): a runner up the treads and risers, stair rods, newel posts at
+    # the foot and the landing
+    run = (STAIR_BACK - STAIR_FRONT) / 13
+    mid = (STAIR_X0 + STAIR_X1) / 2
+    width = STAIR_X1 - STAIR_X0
     for i in range(1, 14):
-        z_near = 22 - i * run
-        part(p, "carpet", (2.8, 0.05, run), T(-2.5, i + 0.025, z_near + run / 2))
-        part(p, "carpet", (2.8, 1.0, 0.05), T(-2.5, i - 0.5, z_near + run + 0.025))
-        part(p, "brass", (2.9, 0.06, 0.06), T(-2.5, i + 0.04, z_near + run - 0.05))
+        z_front = STAIR_FRONT + (i - 1) * run
+        part(p, "carpet", (width * 0.6, 0.05, run), T(mid, i + 0.025, z_front + run / 2))
+        part(p, "carpet", (width * 0.6, 1.0, 0.05), T(mid, i - 0.5, z_front - 0.025))
+        part(p, "brass", (width * 0.6 + 0.1, 0.06, 0.06), T(mid, i + 0.04, z_front + 0.05))
         if i % 4 == 2:
-            part(p, "blood", (0.5, 0.02, 0.4), T(-2.0 + rng.uniform(-0.6, 0.6), i + 0.06, z_near + run / 2))
-    for z0 in (22.4, 8.0):
-        y0 = 0.0 if z0 > 20 else 13.0
-        lathe_post(p, "wood_dark", bp.turned_leg(4.0, 0.32), 0.1, y0, z0)
-        ball(p, "wood_dark", 0.3, 0.1, y0 + 4.2, z0)
+            part(p, "blood", (0.5, 0.02, 0.4), T(mid + 0.5 + rng.uniform(-0.6, 0.6), i + 0.06, z_front + run / 2))
+    for x in (STAIR_X0 + 0.15, STAIR_X1 - 0.15):
+        for z0, y0 in ((STAIR_FRONT - 0.3, 0.0), (STAIR_BACK + 0.3, 13.0)):
+            lathe_post(p, "wood_dark", bp.turned_leg(4.0, 0.32), x, y0, z0)
+            ball(p, "wood_dark", 0.3, x, y0 + 4.2, z0)
     return p
 
 
@@ -293,19 +311,19 @@ def build_upper():
     }, lower="wainscot")
     # scratch marks in Grandma's room, and red thread all over the sewing room
     for k in range(4):
-        handprint(p, gran["s"][0], -60.0 + k * 1.1, y0 + 2.5 + k * 0.4, 0.4 - k * 0.15)
+        handprint(p, gran["s"][0], fx(-60.0 + k * 1.1), y0 + 2.5 + k * 0.4, 0.4 - k * 0.15)
     for _ in range(3):
-        splat(p, sew["s"][0], rng.uniform(-60, -36), y0 + rng.uniform(2, 6), rng, size=0.4)
+        splat(p, sew["s"][0], fx(rng.uniform(-60, -36)), y0 + rng.uniform(2, 6), rng, size=0.4)
     hall = room(p, rng, -4.5, 4.5, -23.5, 23.5, y0, h, "hall", {
         "w": [door(-5.5), door(4.5)], "e": [door(-5.5), door(4.5)],
     }, lower="wainscot")
     # something was dragged out of the bath
     face = bath["e"][0]
     for k in range(3):
-        handprint(p, face, 2.5 + k * 0.9, y0 + 3.2 - k * 0.5, 0.3 - k * 0.2)
+        handprint(p, face, fz(2.5 + k * 0.9), y0 + 3.2 - k * 0.5, 0.3 - k * 0.2)
     for _ in range(3):
-        splat(p, bath["s"][0], rng.uniform(-28, -10), y0 + rng.uniform(2, 6), rng)
-    handprint(p, hall["e"][0], 10.0, y0 + 4.0, -0.2)
+        splat(p, bath["s"][0], fx(rng.uniform(-28, -10)), y0 + rng.uniform(2, 6), rng)
+    handprint(p, hall["e"][0], fz(10.0), y0 + 4.0, -0.2)
     return p
 
 
