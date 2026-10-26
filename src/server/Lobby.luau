@@ -31,6 +31,7 @@ local Cannibals = require(script.Parent.Systems.Cannibals)
 local R6Characters = require(script.Parent.Systems.R6Characters)
 local Profiles = require(script.Parent.Systems.Profiles)
 local Leaderboards = require(script.Parent.Systems.Leaderboards)
+local Matchmaking = require(script.Parent.Systems.Matchmaking)
 local Rejoin = require(script.Parent.Systems.Rejoin)
 
 local Lobby = {}
@@ -834,10 +835,12 @@ local function broadcast()
 	local trucks = overview()
 	for _, player in Players:GetPlayers() do
 		local party = partyOf(player)
+		local searchDifficulty, searchTime = Matchmaking.status(player)
 		stateRemote:FireClient(player, {
 			party = if party then summary(party, player) else nil,
 			trucks = trucks,
 			solo = departing[player] == true,
+			search = if searchDifficulty then { difficulty = searchDifficulty, elapsed = searchTime } else nil,
 		})
 	end
 end
@@ -866,6 +869,7 @@ local function retime(party: Party)
 end
 
 local function join(party: Party, player: Player)
+	Matchmaking.cancel(player) -- found company here
 	table.insert(party.members, player)
 	party.ready[player] = false
 	if not party.host then
@@ -953,6 +957,7 @@ local function goSolo(player: Player, difficulty: string)
 	if departing[player] or partyOf(player) then
 		return
 	end
+	Matchmaking.cancel(player)
 	departing[player] = true
 	notice({ player }, "Driving out alone…")
 	broadcast()
@@ -989,6 +994,31 @@ local function quickJoin(player: Player, preferred: string?)
 		climbIn(best, player)
 	else
 		notice({ player }, "Every truck is full or leaving. Try again in a moment.")
+	end
+end
+
+-- Matchmaking found this player company on other servers: off to the game
+-- it reserved for them.
+local function sendMatched(player: Player, ticket: Matchmaking.Ticket)
+	if not player.Parent or partyOf(player) or departing[player] then
+		return
+	end
+	departing[player] = true
+	notice({ player }, "Found players. Off you go…")
+	broadcast()
+	Profiles.save(player)
+	local ok, err = pcall(function()
+		local options = Instance.new("TeleportOptions")
+		options.ReservedServerAccessCode = ticket.code
+		options:SetTeleportData({ difficulty = ticket.difficulty, party = ticket.party })
+		Rejoin.remember({ player }, { code = ticket.code, server = ticket.server })
+		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+	end)
+	if not ok then
+		warn("[Lobby] matched teleport failed: " .. tostring(err))
+		notice({ player }, "Couldn't reach your party. Rejoin the game to try again.")
+		departing[player] = nil
+		broadcast()
 	end
 end
 
@@ -1096,6 +1126,20 @@ local function onAction(player: Player, action: any, value: any)
 		if Difficulty.valid(value) then
 			goSolo(player, value)
 		end
+		return
+	elseif action == "search" then
+		if Difficulty.valid(value) and not partyOf(player) and not departing[player] then
+			if Matchmaking.search(player, value) then
+				notice({ player }, "Looking for players on other servers…")
+			else
+				notice({ player }, "Finding players works on live servers only.")
+			end
+			broadcast()
+		end
+		return
+	elseif action == "cancelsearch" then
+		Matchmaking.cancel(player)
+		broadcast()
 		return
 	end
 
@@ -1276,6 +1320,7 @@ function Lobby.run()
 	end)
 
 	table.insert(connections, actionRemote.OnServerEvent:Connect(onAction))
+	Matchmaking.start(sendMatched)
 	table.insert(connections, Players.PlayerAdded:Connect(function(player)
 		task.spawn(rejoinParty, player)
 		spawnPlayer(player)

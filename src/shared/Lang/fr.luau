@@ -76,7 +76,12 @@ return {
 	["Step into the bed of a truck to form a party (up to 4). The first one in is the host and picks the difficulty."] = "Monte à l'arrière d'un pick-up pour former un groupe (jusqu'à 4). Le premier monté est l'hôte et choisit la difficulté.",
 	["Step out of the truck to leave the party."] = "Descends du pick-up pour quitter le groupe.",
 	["Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone."] = "Appuie sur Prêt (R) quand tu es paré : dès que tout le monde à bord est prêt, le pick-up part. L'hôte peut aussi partir tout de suite, réserver le pick-up à ses amis ou exclure quelqu'un.",
-	["No party? Quick join puts you in the best truck, and Play solo drives you out alone."] = "Pas de groupe ? Partie rapide te place dans le meilleur pick-up, et Jouer en solo t'emmène seul.",
+	["No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone."] = "Pas de groupe ? Partie rapide te place dans le meilleur pick-up ici, Trouver des joueurs te réunit avec des joueurs d'autres serveurs, et Jouer en solo t'emmène seul.",
+	["Find players"] = "Trouver des joueurs",
+	["Searching %d:%02d · cancel"] = "Recherche %d:%02d · annuler",
+	["Looking for players on other servers…"] = "Recherche de joueurs sur d'autres serveurs…",
+	["Finding players works on live servers only."] = "La recherche de joueurs ne marche que sur les serveurs en ligne.",
+	["Found players. Off you go…"] = "Joueurs trouvés. C'est parti…",
 	-- the queue
 	["RIDES OUT TONIGHT"] = "DÉPARTS DE CE SOIR",
 	["TRUCK %d  ·  %d/%d"] = "PICK-UP %d  ·  %d/%d",

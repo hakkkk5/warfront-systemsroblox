@@ -60,7 +60,12 @@ type TruckState = {
 	locked: boolean,
 }
 
-type State = { party: PartyState?, trucks: { TruckState }, solo: boolean }
+type State = {
+	party: PartyState?,
+	trucks: { TruckState },
+	solo: boolean,
+	search: { difficulty: string, elapsed: number }?, -- finding players on other servers
+}
 
 type Screen = {
 	render: (state: State) -> (),
@@ -148,6 +153,14 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		return r
 	end
 
+	-- a button in a row of them whose text shrinks to fit (French runs long)
+	local function fitted(parent: Instance, text: string, width: number, order: number): TextButton
+		local b = Theme.button(parent, text, { Size = UDim2.new(width, -6, 1, 0), TextScaled = true, LayoutOrder = order })
+		Util.create("UITextSizeConstraint", { MaxTextSize = 17, MinTextSize = 9, Parent = b })
+		Util.create("UIPadding", { PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), Parent = b })
+		return b
+	end
+
 	------------------------------------------------------------ the queue
 	-- not in a truck: every truck at a glance (click one to climb in), quick
 	-- join, or drive out alone, at the difficulty picked here
@@ -180,10 +193,15 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		cards[i] = card
 	end
 	local soloDifficulty = "Normal"
+	local searching = false
 	local bottom = row(queue, 116, 38)
-	local quick = Theme.button(bottom, "Quick join", { Size = UDim2.new(0.36, -6, 1, 0), TextSize = 18, LayoutOrder = 1 })
-	local solo = Theme.button(bottom, "Play solo", { Size = UDim2.new(0.36, -6, 1, 0), TextSize = 18, LayoutOrder = 2 })
-	local pick = Theme.button(bottom, "", { Size = UDim2.new(0.28, -4, 1, 0), TextSize = 17, LayoutOrder = 3 })
+	local quick = fitted(bottom, "Quick join", 0.25, 1)
+	local find = fitted(bottom, "Find players", 0.25, 2)
+	local solo = fitted(bottom, "Play solo", 0.25, 3)
+	local pick = fitted(bottom, "", 0.25, 4)
+	find.Activated:Connect(function()
+		action:FireServer(if searching then "cancelsearch" else "search", soloDifficulty)
+	end)
 	local function showPick()
 		pick.Text = "< " .. Lang.t(soloDifficulty) .. " >"
 		pick.TextColor3 = DIFFICULTY_COLORS[soloDifficulty] or C.Bone
@@ -288,17 +306,10 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		TextColor3 = C.Bone,
 	})
 	local actions = row(panel, 258, 38)
-	-- four to a row: the text shrinks to fit (French runs long)
-	local function actionButton(text: string, order: number): TextButton
-		local b = Theme.button(actions, text, { Size = UDim2.new(0.25, -6, 1, 0), TextScaled = true, LayoutOrder = order })
-		Util.create("UITextSizeConstraint", { MaxTextSize = 16, MinTextSize = 9, Parent = b })
-		Util.create("UIPadding", { PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), Parent = b })
-		return b
-	end
-	local readyButton = actionButton("", 1)
-	local start = actionButton("Start now", 2)
-	local lock = actionButton("", 3)
-	local leaveButton = actionButton("Leave", 4)
+	local readyButton = fitted(actions, "", 0.25, 1)
+	local start = fitted(actions, "Start now", 0.25, 2)
+	local lock = fitted(actions, "", 0.25, 3)
+	local leaveButton = fitted(actions, "Leave", 0.25, 4)
 	readyButton.Activated:Connect(function()
 		action:FireServer("ready")
 	end)
@@ -341,6 +352,16 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 		end
 		quick.Active = not state.solo
 		solo.Text = Lang.t(if state.solo then "Driving out…" else "Play solo")
+		local search = state.search
+		searching = search ~= nil
+		if search then
+			local t = search.elapsed
+			find.Text = Lang.f("Searching %d:%02d · cancel", t // 60, t % 60)
+			find.BackgroundColor3 = C.Blood
+		else
+			find.Text = Lang.t("Find players")
+			find.BackgroundColor3 = C.PanelLight
+		end
 	end
 
 	local wasIn = false
@@ -415,7 +436,7 @@ local HOW_TO = table.concat({
 	"<b>In the lobby</b>",
 	"Step into the bed of a truck to form a party (up to 4). The first one in is the host and picks the difficulty.",
 	"Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone.",
-	"No party? Quick join puts you in the best truck, and Play solo drives you out alone.",
+	"No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone.",
 	"",
 	"<b>Controls</b>",
 	"<b>WASD</b> move   <b>Mouse</b> look   <b>Shift</b> run   <b>C</b> crouch",
@@ -653,7 +674,13 @@ function Lobby.run()
 				menu.close()
 			end
 			inParty = party ~= nil
-			screen.render({ party = party, trucks = state.trucks, solo = state.solo == true })
+			local search = state.search
+			screen.render({
+				party = party,
+				trucks = state.trucks,
+				solo = state.solo == true,
+				search = if typeof(search) == "table" and typeof(search.elapsed) == "number" then search else nil,
+			})
 		end),
 		UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 			if not processed and input.KeyCode == Enum.KeyCode.R then
