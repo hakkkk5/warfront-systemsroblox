@@ -213,6 +213,10 @@ function Profiles.award(player: Player, amount: number, reason: string?)
 	if not data or amount <= 0 then
 		return
 	end
+	-- Collector (game pass): twice the Teeth
+	if player:GetAttribute("Pass_DoubleTeeth") == true then
+		amount *= 2
+	end
 	data.teeth += math.floor(amount)
 	changed(player)
 	if reason then

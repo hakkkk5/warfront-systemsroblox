@@ -36,6 +36,7 @@ local PlayerService = require(Systems.PlayerService)
 -- saved Teeth / perks / records and the store, on lobby and game servers alike
 require(Systems.Profiles).init()
 require(Systems.Store).init()
+require(Systems.GamePasses).init() -- who owns which pass (Pass_<key>), lobby and game servers alike
 
 -- R6 bodies for everyone, before the lobby loads anyone in
 require(Systems.R6Characters).init()

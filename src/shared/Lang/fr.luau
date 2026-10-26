@@ -78,6 +78,18 @@ return {
 	["Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone."] = "Appuie sur Prêt (R) quand tu es paré : dès que tout le monde à bord est prêt, le pick-up part. L'hôte peut aussi partir tout de suite, réserver le pick-up à ses amis ou exclure quelqu'un.",
 	["No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone."] = "Pas de groupe ? Partie rapide te place dans le meilleur pick-up ici, Trouver des joueurs te réunit avec des joueurs d'autres serveurs, et Jouer en solo t'emmène seul.",
 	["Find players"] = "Trouver des joueurs",
+	-- game passes
+	["Passes"] = "Pass",
+	["Extras that stay with you for good."] = "Des bonus qui restent avec toi pour toujours.",
+	["Second Wind"] = "Second souffle",
+	["One extra life every night (Normal, Hard and Nightmare)."] = "Une vie en plus chaque nuit (Normal, Difficile et Cauchemar).",
+	["Collector"] = "Collectionneur",
+	["Earn twice the Teeth for everything you do."] = "Gagne deux fois plus de Dents pour tout ce que tu fais.",
+	["Survivor Kit"] = "Kit de survie",
+	["Start every night with a bandage and a spare battery."] = "Commence chaque nuit avec un bandage et une pile de rechange.",
+	["Owned"] = "Acheté",
+	["Buy"] = "Acheter",
+	["Coming soon"] = "Bientôt",
 	-- the map
 	["HOLLOW ROAD  ·  PINECREST COUNTY"] = "HOLLOW ROAD  ·  COMTÉ DE PINECREST",
 	["▲ You    ● Your party    ✕ Where to go    (M to close)"] = "▲ Toi    ● Ton groupe    ✕ Où aller    (M pour fermer)",

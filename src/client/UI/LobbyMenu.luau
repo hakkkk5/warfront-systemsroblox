@@ -12,8 +12,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local SocialService = game:GetService("SocialService")
 
+local GamePasses = require(ReplicatedStorage.Shared.GamePasses)
 local Net = require(ReplicatedStorage.Shared.Net)
 local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
 local Trophies = require(ReplicatedStorage.Shared.Trophies)
@@ -33,7 +35,7 @@ export type Menu = {
 local C = Theme.Colors
 local player = Players.LocalPlayer
 local CURRENCY = StoreCatalog.Currency
-local TABS = { "Play", "Store", "Records", "Trophies", "Settings" }
+local TABS = { "Play", "Store", "Passes", "Records", "Trophies", "Settings" }
 local STORE_FOOTNOTE = "One of each stocked perk goes in your bag when a night starts."
 local REQUEST_GAP = 0.5 -- the server ignores purchases closer together than this
 local REQUEST_TIMEOUT = 5
@@ -580,6 +582,66 @@ local function settingsPage(body: Frame)
 	})
 end
 
+---------------------------------------------------------------- passes
+
+-- The game passes (shared GamePasses), one card each with a buy button
+-- that opens Roblox's purchase prompt; owned ones say so.
+local function passesPage(body: Frame, conns: { RBXScriptConnection }): () -> ()
+	local list = Theme.frame(body, { Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1 })
+	Util.create("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+	local cards: { { pass: GamePasses.Pass, button: TextButton } } = {}
+	for _, pass in GamePasses.List do
+		local card = Theme.frame(list, {
+			Size = UDim2.new(1, 0, 0, 86),
+			BackgroundColor3 = C.PanelLight,
+			LayoutOrder = pass.order,
+		})
+		Theme.corner(card, 6)
+		Theme.padding(card, 12)
+		Theme.label(card, pass.name, {
+			Size = UDim2.new(1, -170, 0, 28),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Font = Theme.Fonts.UIBold,
+			TextSize = 22,
+		})
+		Theme.label(card, pass.description, {
+			Position = UDim2.fromOffset(0, 30),
+			Size = UDim2.new(1, -170, 0, 32),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextSize = 15,
+			TextColor3 = C.BoneDim,
+		})
+		local button = Theme.button(card, "", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromOffset(150, 42),
+			TextSize = 18,
+		})
+		button.Activated:Connect(function()
+			if pass.id > 0 and not GamePasses.owns(player, pass.key) then
+				pcall(function()
+					MarketplaceService:PromptGamePassPurchase(player, pass.id)
+				end)
+			end
+		end)
+		table.insert(cards, { pass = pass, button = button })
+	end
+	local function refresh()
+		for _, card in cards do
+			local owned = GamePasses.owns(player, card.pass.key)
+			card.button.Text = if owned then "Owned" elseif card.pass.id > 0 then "Buy" else "Coming soon"
+			card.button.BackgroundColor3 = if owned then C.PanelLight elseif card.pass.id > 0 then C.Blood else C.Panel
+			card.button.AutoButtonColor = not owned and card.pass.id > 0
+		end
+	end
+	for _, pass in GamePasses.List do
+		table.insert(conns, player:GetAttributeChangedSignal("Pass_" .. pass.key):Connect(refresh))
+	end
+	refresh()
+	return refresh
+end
+
 ---------------------------------------------------------------- menu
 
 local function invite()
@@ -750,6 +812,10 @@ function LobbyMenu.build(canvas: Frame): Menu
 	local settingsFrame, settingsBody = pageShell(canvas, "Settings", "Look, sound and comfort.", close)
 	pages.Settings = settingsFrame
 	settingsPage(settingsBody)
+
+	local passesFrame, passesBody = pageShell(canvas, "Passes", "Extras that stay with you for good.", close)
+	pages.Passes = passesFrame
+	refreshers.Passes = passesPage(passesBody, conns)
 
 	-- spin the store previews while the store is open
 	table.insert(

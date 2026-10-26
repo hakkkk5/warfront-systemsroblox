@@ -10,6 +10,7 @@ local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
+local Inventory = require(script.Parent.Inventory)
 local R6Characters = require(script.Parent.R6Characters)
 local Profiles = require(script.Parent.Profiles)
 local Rejoin = require(script.Parent.Rejoin)
@@ -164,9 +165,19 @@ function PlayerService.init()
 		end
 		playing[player] = true
 		Store.grantPerks(player) -- what they stocked up on in the lobby store
+		-- Survivor Kit (game pass)
+		if player:GetAttribute("Pass_SurvivorKit") == true then
+			Inventory.add(player, "Bandage", 1, true)
+			Inventory.add(player, "Battery", 1, true)
+		end
 		-- lives for this run (a player who rejoined keeps what they had left)
 		if player:GetAttribute("Lives") == nil then
-			player:SetAttribute("Lives", Difficulty.lives())
+			local lives = Difficulty.lives()
+			-- Second Wind (game pass): one more
+			if lives > 0 and player:GetAttribute("Pass_ExtraLife") == true then
+				lives += 1
+			end
+			player:SetAttribute("Lives", lives)
 		end
 		PlayerService.spawn(player)
 		Story.begin()
