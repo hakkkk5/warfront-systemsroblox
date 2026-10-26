@@ -24,6 +24,7 @@ local camera = workspace.CurrentCamera
 
 Viewmodel.battery = 100
 Viewmodel.on = false
+Viewmodel.dread = 0 -- 0..1, how close the nearest of them is (Scares)
 Viewmodel.hidden = false
 
 local SLEEVE = Color3.fromRGB(38, 44, 52)
@@ -216,8 +217,10 @@ function Viewmodel.init()
 			end
 		end
 		local low = Viewmodel.battery < 15
-		if low and Viewmodel.on then
-			if math.random() < dt * 6 then
+		-- the light gets nervous when one of them is close (Scares sets dread)
+		local nervous = Viewmodel.dread > 0.3
+		if (low or nervous) and Viewmodel.on then
+			if math.random() < dt * (if low then 6 else 5 * Viewmodel.dread) then
 				flicker = math.random() * 0.6
 			else
 				flicker = Util.lerp(flicker, 1, dt * 10)

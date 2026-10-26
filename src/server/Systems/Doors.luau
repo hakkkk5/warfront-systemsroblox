@@ -180,4 +180,17 @@ function Doors.openNear(position: Vector3, radius: number)
 	end
 end
 
+-- A working door between minR and maxR studs from `position` (the fear
+-- director slams one out of sight).
+function Doors.near(position: Vector3, minR: number, maxR: number): Door?
+	local options: { Door } = {}
+	for _, door in doors do
+		local d = (door.center - position).Magnitude
+		if d >= minR and d <= maxR and not door.locked and not door.blockedText then
+			table.insert(options, door)
+		end
+	end
+	return if #options > 0 then options[math.random(1, #options)] else nil
+end
+
 return Doors

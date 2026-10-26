@@ -107,6 +107,7 @@ Assets.Sounds = {
 	PageTurn = "rbxassetid://9118835414",
 	GlassBreak = "rbxassetid://9114592567", -- Pro Sound Effects: thrown bottles, molotovs
 	AlarmBell = "rbxassetid://72365257229690", -- noise traps ringing
+	Footstep = "rbxasset://sounds/action_footsteps_plastic.mp3", -- (built in) steps behind you
 }
 
 return Assets

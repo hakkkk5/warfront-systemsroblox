@@ -738,6 +738,17 @@ function Cannibals.stun(c: Cannibal, seconds: number): boolean
 	return true
 end
 
+-- Sends one of them to look around a spot (the fear director's nudge), if
+-- it isn't busy chasing or down.
+function Cannibals.investigate(c: Cannibal, position: Vector3): boolean
+	if not c.alive or not (c.state == "Patrol" or c.state == "Idle" or c.state == "Search") then
+		return false
+	end
+	c.investigatePos = position
+	setState(c, "Investigate")
+	return true
+end
+
 -- The ones that would come to a noise at `position` (not chasing anyone).
 function Cannibals.listeners(position: Vector3, radius: number): { Cannibal }
 	local found: { Cannibal } = {}

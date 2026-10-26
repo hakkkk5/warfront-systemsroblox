@@ -3,17 +3,21 @@
 -- for you: a monster standing far off watching you that is gone when you
 -- look straight at it, a shadow darting across the path, a monster lunging
 -- into your face with the lights strobing, whispers, lights failing around
--- you, a scream out in the trees, knocking, thunder.
+-- you, a scream out in the trees, knocking, thunder, footsteps behind you,
+-- the music cutting out, breathing outside your hiding spot. Also the tells:
+-- the flashlight flickers and your heart pounds when one of them is near.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Audio = require(script.Parent.Audio)
 local Effects = require(script.Parent.Effects)
 local Jumpscare = require(script.Parent.Jumpscare)
 local MonsterForm = require(script.Parent.MonsterForm)
+local Viewmodel = require(script.Parent.Viewmodel)
 local HUD = require(script.Parent.Parent.UI.HUD)
 
 local Scares = {}
@@ -256,6 +260,29 @@ local function play(kind: string)
 			end
 		elseif kind == "thunder" then
 			Effects.lightning()
+		elseif kind == "footsteps" then
+			-- heavy steps coming up behind you; they stop dead if you turn round
+			local cam = workspace.CurrentCamera
+			local start = cam.CFrame
+			for i = 0, math.random(4, 6) do
+				local now = cam.CFrame
+				if now.LookVector:Dot(-start.LookVector) > 0.3 then
+					break
+				end
+				local back = Vector3.new(-start.LookVector.X, 0, -start.LookVector.Z).Unit
+				Audio.play("Footstep", now.Position + back * (16 - i * 2.2) - Vector3.new(0, 4, 0), 0.9, 0.62 + math.random() * 0.05)
+				task.wait(0.62 - i * 0.04)
+			end
+		elseif kind == "silence" then
+			-- everything drops away... the director decides if anything follows
+			Audio.duck(0.03, 10)
+		elseif kind == "breath" then
+			-- right next to your hiding spot
+			local cam = workspace.CurrentCamera.CFrame
+			for _ = 1, 2 do
+				Audio.play("Growl", cam.Position + cam.RightVector * 2 + cam.LookVector * 1.5, 0.35, 0.5)
+				task.wait(2.2)
+			end
 		end
 	end)
 	if not ok then
@@ -274,6 +301,32 @@ function Scares.init()
 	Net.event("Scare").OnClientEvent:Connect(function(kind)
 		if typeof(kind) == "string" then
 			task.spawn(play, kind)
+		end
+	end)
+
+	-- Tells: when one of them is close (and not already on you) the flashlight
+	-- gets nervous and your heart starts to pound, before you see anything.
+	local heart = false
+	RunService.Heartbeat:Connect(function()
+		local cam = workspace.CurrentCamera
+		local nearest = math.huge
+		for _, rig in CollectionService:GetTagged("CannibalSkin") do
+			if rig:IsA("Model") and rig.Parent then
+				local pivot = rig:GetPivot().Position
+				nearest = math.min(nearest, (pivot - cam.CFrame.Position).Magnitude)
+			end
+		end
+		local chased = Players.LocalPlayer:GetAttribute("Chased") == true
+		local playing = HUD.visible and Players.LocalPlayer:GetAttribute("InCutscene") ~= true
+		local dread = if chased or not playing then 0 else math.clamp(1 - (nearest - 10) / 32, 0, 1)
+		Viewmodel.dread = dread
+		local want = dread > 0.35
+		if want ~= heart then
+			heart = want
+			Audio.loop("Heartbeat", want, 0.25)
+		end
+		if heart then
+			Audio.setLoopVolume("Heartbeat", 0.15 + dread * 0.55)
 		end
 	end)
 end

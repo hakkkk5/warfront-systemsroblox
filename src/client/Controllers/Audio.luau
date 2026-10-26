@@ -158,9 +158,31 @@ function Audio.music(track: string?, volume: number?)
 	currentMusic = sound
 end
 
+local master = 1
+local duck = Instance.new("NumberValue")
+duck.Value = 1
+duck.Changed:Connect(function(v: number)
+	musicGroup.Volume = 0.55 * master * v
+end)
+
 function Audio.setMasterVolume(v: number)
-	musicGroup.Volume = 0.55 * v
+	master = v
+	musicGroup.Volume = 0.55 * v * duck.Value
 	sfxGroup.Volume = v
+end
+
+-- Pulls the music down to `level` for `seconds`, then lets it back up: the
+-- fear director's "silence" (it's scarier when the music stops).
+local duckToken = 0
+function Audio.duck(level: number, seconds: number)
+	duckToken += 1
+	local token = duckToken
+	Util.tween(duck, 1.2, { Value = level })
+	task.delay(seconds, function()
+		if token == duckToken then
+			Util.tween(duck, 3, { Value = 1 })
+		end
+	end)
 end
 
 function Audio.init()
