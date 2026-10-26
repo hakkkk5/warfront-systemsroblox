@@ -51,6 +51,7 @@ MeshLibrary.init()
 Audio.init()
 CameraController.init()
 Movement.init()
+require(Controllers.BodySounds).init() -- your footsteps (with the camera bob), teammates' steps, breathing
 Effects.init()
 Viewmodel.init()
 HidingView.init()

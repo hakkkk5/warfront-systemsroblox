@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Signal = require(ReplicatedStorage.Shared.Signal)
 local Util = require(ReplicatedStorage.Shared.Util)
 
 local CameraController = {}
@@ -36,6 +37,9 @@ local wasAirborne = false
 
 CameraController.sprinting = false
 CameraController.crouching = false
+-- (floor material, "walk" | "run" | "crouch") each time a foot comes down
+CameraController.Stepped = Signal.new() :: Signal.Signal<Enum.Material, string>
+local lastStep = 0
 
 function CameraController.setEnabled(value: boolean)
 	enabled = value
@@ -126,10 +130,22 @@ function CameraController.init()
 		local amp = if CameraController.sprinting then 0.22 elseif CameraController.crouching then 0.05 else 0.09
 		if moving then
 			bobTime += dt * freq * math.clamp(speed / 11, 0.5, 1.6)
+			-- a foot comes down at the bottom of every bob (BodySounds)
+			local step = math.floor(bobTime / math.pi)
+			if step ~= lastStep then
+				lastStep = step
+				CameraController.Stepped:Fire(humanoid.FloorMaterial, if CameraController.sprinting then "run" elseif CameraController.crouching then "crouch" else "walk")
+			end
 		else
 			amp = 0
 		end
 		amp *= motion
+		-- third person (the lobby): the steps still sound, the view stays put
+		if player.CameraMode ~= Enum.CameraMode.LockFirstPerson then
+			camera.FieldOfView = baseFov + punchFov
+			camera.CFrame = camera.CFrame * CameraController.shakeOffset()
+			return
+		end
 
 		-- each step: the head rises and falls, sways side to side, rolls
 		-- with the stride and dips a little as the foot comes down

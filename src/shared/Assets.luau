@@ -113,6 +113,8 @@ Assets.Sounds = {
 	Pant = "rbxassetid://134436716666898", -- Creator Store "male_outofbreath_03": one of the family winded, pitched down
 	Hit = "rbxassetid://132661033625159", -- Creator Store "DI_Knife_Standard_Slash_Flesh_03": a blow landing on you
 	Crickets = "rbxassetid://9112764573", -- Pro Sound Effects "Crickets Night 3": the woods at night (loop)
+	StepDirt = "rbxassetid://9118686212", -- Pro Sound Effects "Rocks Dirt Impacts In Ground 22": a step in the dirt (its first crunch)
+	Breath = "rbxassetid://134436716666898", -- Creator Store "male_outofbreath_03": you, out of stamina (loop)
 }
 
 return Assets
