@@ -105,7 +105,7 @@ local function build(gui: Frame, action: RemoteEvent): Screen
 	})
 	Util.create("UITextSizeConstraint", { MaxTextSize = 48, Parent = title })
 	title.TextScaled = true
-	Theme.label(header, "LOBBY  ·  step into a truck bed to form a party (max 4)", {
+	Theme.label(header, "LOBBY  ·  stand by a truck to form a party (max 4)", {
 		Position = UDim2.fromOffset(2, 54),
 		Size = UDim2.new(1, 0, 0, 40),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -501,7 +501,7 @@ function Lobby.notice(_text: string) end
 
 local HOW_TO = table.concat({
 	"<b>In the lobby</b>",
-	"Step into the bed of a truck to form a party (up to 4). The first one in is the host and picks the difficulty.",
+	"Stand by a truck, inside its glowing outline, to form a party (up to 4). The first one there is the host and picks the difficulty.",
 	"Press Ready (R) when you're set: once everyone aboard is ready, the truck leaves. The host can also start at once, make the truck friends only, or kick someone.",
 	"No party? Quick join puts you in the best truck here, Find players matches you with players on other servers, and Play solo drives you out alone.",
 	"",

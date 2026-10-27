@@ -1,9 +1,9 @@
 --!strict
--- First-person feel on top of LockFirstPerson: head bob that rolls and dips
--- with each step, leaning into a strafe, banking into a turn at speed,
--- tipping forward into a sprint (and the FOV opening up), the knees taking
--- a landing, breathing sway, crouch height and screen shake. Settings >
--- Camera motion scales all the movement down (or off).
+-- First-person feel on top of LockFirstPerson: head bob that rolls with
+-- each step, leaning into a strafe, banking into a turn at speed, the FOV
+-- opening up at a sprint, the knees taking a landing, breathing sway,
+-- crouch height and screen shake. Settings > Camera motion scales all the
+-- movement down (or off).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,7 +29,6 @@ local crouchOffset = 0
 local baseFov = 72
 local sensitivity = 0.6
 local motion = 1 -- Settings > Camera motion: 0 off, 0.5 low, 1 full
-local lean = 0
 local lastYaw = 0
 local landing = 0
 local fallSpeed = 0
@@ -152,16 +151,14 @@ function CameraController.init()
 		local bobY = math.abs(math.sin(bobTime)) * amp
 		local bobX = math.cos(bobTime) * amp * 0.6
 		local stepRoll = math.cos(bobTime) * amp * 0.1
-		local stepPitch = -(1 - math.abs(math.sin(bobTime))) * amp * 0.06
 		local breathe = math.sin(os.clock() * 1.4) * 0.006
 
 		-- lean into where you're running: sideways into a strafe, banking
-		-- into a turn at speed, tipping forward when you sprint ahead
+		-- into a turn at speed (never pitching up or down: that read as the
+		-- view sinking at a run and tipping back walking backwards)
 		local look = camera.CFrame.LookVector
-		local flatLook = Util.flat(look)
 		local right = camera.CFrame.RightVector
 		local strafe = velocity:Dot(right) / 20
-		local ahead = if flatLook.Magnitude > 0.01 then velocity:Dot(flatLook.Unit) / 20 else 0
 		local yaw = math.atan2(-look.X, -look.Z)
 		local turn = (yaw - lastYaw + math.pi) % (2 * math.pi) - math.pi
 		lastYaw = yaw
@@ -169,8 +166,6 @@ function CameraController.init()
 		local pace = math.clamp(speed / 16, 0, 1.2)
 		local rollTarget = (-strafe * 0.075 + turnRate * 0.01 * pace) * motion
 		tilt = Util.lerp(tilt, rollTarget, math.min(1, dt * 7))
-		local leanTarget = (-ahead * (if sprinting then 0.05 else 0.02)) * motion
-		lean = Util.lerp(lean, leanTarget, math.min(1, dt * 5))
 
 		-- landing from a jump or a fall: the knees take it
 		if not grounded then
@@ -192,7 +187,7 @@ function CameraController.init()
 
 		camera.CFrame = camera.CFrame
 			* CFrame.new(bobX, bobY + breathe - landing, 0)
-			* CFrame.Angles(breathe * 0.5 + math.rad(punchFov * 0.12) + lean + stepPitch - landing * 0.12, 0, tilt + stepRoll)
+			* CFrame.Angles(breathe * 0.5 + math.rad(punchFov * 0.12) - landing * 0.12, 0, tilt + stepRoll)
 			* CameraController.shakeOffset()
 	end)
 end

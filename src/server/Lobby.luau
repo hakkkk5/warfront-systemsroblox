@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 
+local Assets = require(ReplicatedStorage.Shared.Assets)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Session = require(ReplicatedStorage.Shared.Session)
@@ -50,11 +51,18 @@ local READY_GO = 5 -- everyone aboard ready: off in this long
 local QUICK_START = 3 -- the host's Start now
 local KICK_BAN = 90 -- a kicked player can't climb back into that truck for this long
 local TRUCKS = 3
+local ZONE_W, ZONE_L = 12, 22 -- the zone round each truck (a stud short of the next one)
+local DRIVE_TIME = 3 -- pulling out onto the road before the teleport
 
 type Party = {
 	index: number,
 	zone: BasePart,
-	exit: CFrame, -- behind the tailgate, facing the truck
+	exit: CFrame, -- behind the zone, facing the truck
+	truck: Model,
+	home: CFrame, -- where the truck parks
+	ring: { BasePart }, -- the zone's outline, coloured by the party's state
+	engine: Sound,
+	exhaust: ParticleEmitter,
 	members: { Player },
 	ready: { [Player]: boolean },
 	host: Player?,
@@ -562,16 +570,30 @@ local function buildSet(parent: Instance): { Party }
 	end
 
 	------------------------------------------------------------ the trucks
-	-- party zones over their beds, a billboard above each
+	-- a ride out each: a zone right round the truck (stand anywhere in it to
+	-- join its party) outlined on the asphalt in the party's colour, a
+	-- billboard above, headlights, and the engine idling and smoking once
+	-- someone's aboard. Leaving, the truck pulls out onto the road with its
+	-- riders in the bed (launch / drive).
 	local list: { Party } = {}
 	for i = 1, TRUCKS do
 		local truckCF = L(24.5 + (i - 1) * 13, 0, -6)
 		local truck = Props.PickupTruck()
 		truck:PivotTo(truckCF)
 		truck.Parent = set
-		-- headlights on, engine running: these are the rides out
+		-- glowing things ride on the truck (and stay lit over its mesh)
+		local function onTruck(size: Vector3, cf: CFrame, color: Color3, props: { [string]: any }?): Part
+			local p = Build.part(truck, size, cf, color, M.Neon, { CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false })
+			p:SetAttribute("KeepVisible", true)
+			if props then
+				for k, v in props do
+					(p :: any)[k] = v
+				end
+			end
+			return p
+		end
 		for _, x in { -2.6, 2.6 } do
-			local beam = Build.part(parent, Vector3.new(0.6, 0.6, 0.2), truckCF * CF(x, 3.6, -8.9), rgb(255, 244, 220), M.Neon, { CanCollide = false })
+			local beam = onTruck(Vector3.new(0.6, 0.6, 0.2), truckCF * CF(x, 3.6, -8.9), rgb(255, 244, 220))
 			local light = Instance.new("SpotLight")
 			light.Face = Enum.NormalId.Front
 			light.Angle = 45
@@ -580,22 +602,61 @@ local function buildSet(parent: Instance): { Party }
 			light.Color = rgb(255, 238, 210)
 			light.Parent = beam
 		end
-		local zone = Build.part(parent, Vector3.new(8, 8, 9.4), truckCF * CF(0, 6.4, 6.2), rgb(255, 255, 255), M.SmoothPlastic, {
+		for _, x in { -2.9, 2.9 } do
+			onTruck(Vector3.new(0.5, 0.4, 0.1), truckCF * CF(x, 3.2, 9.05), rgb(170, 20, 14)) -- tail lights
+		end
+		-- the exhaust and the engine, quiet until someone climbs on
+		local pipe = onTruck(Vector3.new(0.3, 0.3, 0.3), truckCF * CF(2.4, 1.3, 8.8), rgb(30, 30, 30), { Transparency = 1 })
+		local exhaust = Instance.new("ParticleEmitter")
+		exhaust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		exhaust.Color = ColorSequence.new(rgb(110, 105, 100))
+		exhaust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) })
+		exhaust.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 2.2) })
+		exhaust.Lifetime = NumberRange.new(1.2, 2)
+		exhaust.Rate = 10
+		exhaust.Speed = NumberRange.new(2, 3)
+		exhaust.EmissionDirection = Enum.NormalId.Back
+		exhaust.Acceleration = Vector3.new(0, 2, 0)
+		exhaust.Enabled = false
+		exhaust.Parent = pipe
+		local engine = Instance.new("Sound")
+		engine.Name = "Engine"
+		engine.SoundId = Assets.Sounds.EngineLoop
+		engine.Looped = true
+		engine.Volume = 0.35
+		engine.RollOffMinDistance = 6
+		engine.RollOffMaxDistance = 70
+		engine.Parent = pipe
+		local zone = Build.part(parent, Vector3.new(ZONE_W, 12, ZONE_L), truckCF * CF(0, 5, 0), rgb(255, 255, 255), M.SmoothPlastic, {
 			Name = "PartyZone" .. i,
 			Transparency = 1,
 			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
 		})
-		local glow = Build.part(parent, Vector3.new(6.2, 0.05, 7), truckCF * CF(0, 3.25, 6.2), rgb(255, 170, 60), M.Neon, {
-			Transparency = 0.75,
+		-- the zone's outline on the asphalt, and a faint wash inside it
+		local ring: { BasePart } = {}
+		local function strip(size: Vector3, cf: CFrame)
+			local p = Build.part(parent, size, cf, rgb(255, 170, 60), M.Neon, { CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false })
+			table.insert(ring, p)
+		end
+		for _, s in { -1, 1 } do
+			strip(Vector3.new(ZONE_W, 0.06, 0.32), truckCF * CF(0, 0.34, s * ZONE_L / 2))
+			strip(Vector3.new(0.32, 0.06, ZONE_L), truckCF * CF(s * ZONE_W / 2, 0.34, 0))
+		end
+		local wash = Build.part(parent, Vector3.new(ZONE_W, 0.04, ZONE_L), truckCF * CF(0, 0.31, 0), rgb(255, 170, 60), M.Neon, {
 			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Transparency = 0.93,
 		})
-		local underglow = Instance.new("PointLight")
-		underglow.Range = 10
-		underglow.Brightness = 0.8
-		underglow.Color = rgb(255, 170, 60)
-		underglow.Parent = glow
+		table.insert(ring, wash)
+		local glow = Instance.new("PointLight")
+		glow.Range = 14
+		glow.Brightness = 0.6
+		glow.Color = rgb(255, 170, 60)
+		glow.Parent = wash
 		local billboardGui = Instance.new("BillboardGui")
 		billboardGui.Size = UDim2.fromOffset(240, 78)
 		billboardGui.StudsOffsetWorldSpace = Vector3.new(0, 5.5, 0)
@@ -615,7 +676,12 @@ local function buildSet(parent: Instance): { Party }
 		local party: Party = {
 			index = i,
 			zone = zone,
-			exit = truckCF * CF(0, 3, 13),
+			exit = truckCF * CF(0, 3, ZONE_L / 2 + 2.5),
+			truck = truck,
+			home = truckCF,
+			ring = ring,
+			engine = engine,
+			exhaust = exhaust,
 			members = {},
 			ready = {},
 			host = nil,
@@ -763,12 +829,62 @@ local function eject(party: Party, player: Player)
 end
 
 -- Into the bed of the truck (the next step() picks them up).
+-- the four places to sit in the bed, from the truck's pivot
+local SEATS = { CF(-1.5, 6.4, 4.6), CF(1.5, 6.4, 4.6), CF(-1.5, 6.4, 7.8), CF(1.5, 6.4, 7.8) }
+
 local function climbIn(party: Party, player: Player)
 	local root = rootOf(player)
 	if root then
-		root.CFrame = party.zone.CFrame * CF(math.random(-15, 15) / 10, -0.6, math.random(-20, 20) / 10)
+		root.CFrame = party.truck:GetPivot() * SEATS[math.random(#SEATS)] * CF(math.random(-3, 3) / 10, 0, 0)
 		root.AssemblyLinearVelocity = Vector3.zero
 	end
+end
+
+-- The truck pulls out onto the road with its riders sat in the bed, engine
+-- roaring, before the teleport takes them. Returns the riders it holds.
+local function drive(party: Party, members: { Player }): { BasePart }
+	local held: { [BasePart]: CFrame } = {}
+	local roots: { BasePart } = {}
+	for i, member in members do
+		local root = rootOf(member)
+		if root then
+			root.Anchored = true
+			held[root] = SEATS[(i - 1) % #SEATS + 1]
+			table.insert(roots, root)
+		end
+	end
+	local start = Instance.new("Sound")
+	start.SoundId = Assets.Sounds.EngineStart
+	start.Volume = 0.9
+	start.RollOffMaxDistance = 90
+	start.Parent = party.engine.Parent
+	start:Play()
+	task.delay(4, function()
+		start:Destroy()
+	end)
+	party.engine.Volume = 0.6
+	party.exhaust.Rate = 30
+	local began = os.clock()
+	while os.clock() - began < DRIVE_TIME do
+		local k = (os.clock() - began) / DRIVE_TIME
+		-- easing off the handbrake, then away down to the road
+		local cf = party.home * CF(0, 0, -40 * k * k)
+		party.truck:PivotTo(cf)
+		for root, seat in held do
+			if root.Parent then
+				root.CFrame = cf * seat
+			end
+		end
+		task.wait()
+	end
+	return roots
+end
+
+-- Back to its parking spot, quiet again.
+local function park(party: Party)
+	party.truck:PivotTo(party.home)
+	party.engine.Volume = 0.35
+	party.exhaust.Rate = 10
 end
 
 local function summary(party: Party, viewer: Player): { [string]: any }
@@ -832,6 +948,29 @@ local function broadcast()
 			table.insert(lines, string.format("%d/%d ready", readyCount(party), count))
 		end
 		party.label.Text = table.concat(lines, "\n")
+		-- the zone on the asphalt: dim when empty, amber with riders, green
+		-- when they're all ready, violet for friends only, red as it leaves
+		local color = if party.leaving
+			then rgb(225, 50, 40)
+			elseif count == 0 then rgb(150, 105, 50)
+			elseif allReady(party) then rgb(90, 225, 110)
+			elseif party.locked then rgb(170, 120, 255)
+			else rgb(255, 170, 60)
+		for i, p in party.ring do
+			p.Color = color
+			-- the outline (the last one is the wash inside it)
+			if i < #party.ring then
+				p.Transparency = if count == 0 and not party.leaving then 0.55 else 0.1
+			end
+		end
+		-- someone's aboard: the engine turns over and the exhaust smokes
+		local running = count > 0 or party.leaving
+		if running and not party.engine.IsPlaying then
+			party.engine:Play()
+		elseif not running and party.engine.IsPlaying then
+			party.engine:Stop()
+		end
+		party.exhaust.Enabled = running
 	end
 	local trucks = overview()
 	for _, player in Players:GetPlayers() do
@@ -934,18 +1073,30 @@ local function launch(party: Party)
 	local members = table.clone(party.members)
 	broadcast()
 	task.spawn(function()
-		if not depart(members, party.difficulty) then
+		local riders = drive(party, members)
+		local ok = depart(members, party.difficulty)
+		if RunService:IsStudio() then
+			return -- this server turns into the game
+		end
+		-- the teleport has them (or it failed): let go of anyone still here
+		task.wait(if ok then 4 else 0)
+		for _, root in riders do
+			if root.Parent then
+				root.Anchored = false
+			end
+		end
+		if not ok then
+			park(party)
 			notice(members, "The truck wouldn't start. Try again in a moment.")
 			party.leaving = false
 			party.countdown = JOIN_GRACE
 			broadcast()
 			return
 		end
-		if RunService:IsStudio() then
-			return
-		end
+		task.wait(16)
+		park(party)
 		-- anyone still here after the retries didn't make it; free the truck
-		task.wait(45)
+		task.wait(25)
 		if party.leaving then
 			reset(party)
 			broadcast()
