@@ -16,6 +16,7 @@ local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 
 local Difficulty = require(game:GetService("ReplicatedStorage").Shared.Difficulty)
+local Places = require(game:GetService("ReplicatedStorage").Shared.Places)
 
 local Matchmaking = {}
 
@@ -155,7 +156,7 @@ local function matchmake(difficulty: string)
 			table.insert(group, table.remove(ids, 1) :: number)
 		end
 		local reserved, code, server = pcall(function()
-			return TeleportService:ReserveServer(game.PlaceId)
+			return TeleportService:ReserveServer(Places.game())
 		end)
 		if not reserved then
 			warn("[Matchmaking] couldn't reserve a server: " .. tostring(code))

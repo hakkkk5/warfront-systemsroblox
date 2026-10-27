@@ -1,6 +1,7 @@
 --!strict
--- Which kind of server this is. Public and VIP servers run the lobby; the
--- reserved servers a lobby party is teleported into run the game.
+-- Which kind of server this is. The game place (Places) always runs the game.
+-- In the lobby place, public and VIP servers run the lobby; reserved servers
+-- there (where parties went before the game place existed) run the game.
 --
 -- In Studio the lobby runs first (teleports don't work there, so when a party
 -- leaves, the same server turns into the game). Set the workspace attribute
@@ -9,6 +10,8 @@
 -- The server publishes the result as workspace.Mode ("Lobby" | "Game").
 
 local RunService = game:GetService("RunService")
+
+local Places = require(script.Parent.Places)
 
 local Session = {}
 
@@ -20,7 +23,7 @@ function Session.isLobby(): boolean
 	elseif mode == "Lobby" then
 		return true
 	end
-	if workspace:GetAttribute("SkipLobby") == true then
+	if workspace:GetAttribute("SkipLobby") == true or Places.inGamePlace() then
 		return false
 	end
 	if RunService:IsStudio() then

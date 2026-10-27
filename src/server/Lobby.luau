@@ -20,6 +20,7 @@ local TeleportService = game:GetService("TeleportService")
 local Assets = require(ReplicatedStorage.Shared.Assets)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Items = require(ReplicatedStorage.Shared.Items)
+local Places = require(ReplicatedStorage.Shared.Places)
 local Session = require(ReplicatedStorage.Shared.Session)
 local StoreCatalog = require(ReplicatedStorage.Shared.StoreCatalog)
 local Trophies = require(ReplicatedStorage.Shared.Trophies)
@@ -1037,7 +1038,7 @@ local function leave(party: Party, player: Player)
 	end
 end
 
--- Sends players into one fresh reserved server of this place. It is
+-- Sends players into one fresh reserved server of the game place (Places). It is
 -- reserved first so that anyone whose teleport fails can be sent after the
 -- others (TeleportInitFailed in run()), and noted (Rejoin) so anyone who
 -- drops out of the run can get back in. Yields; false if it failed.
@@ -1051,7 +1052,8 @@ local function depart(members: { Player }, difficulty: string): boolean
 		Profiles.save(member)
 	end
 	local ok, err = pcall(function()
-		local code, server = TeleportService:ReserveServer(game.PlaceId)
+		local place = Places.game()
+		local code, server = TeleportService:ReserveServer(place)
 		local ids = {}
 		for _, member in members do
 			table.insert(ids, member.UserId)
@@ -1060,7 +1062,7 @@ local function depart(members: { Player }, difficulty: string): boolean
 		options.ReservedServerAccessCode = code
 		options:SetTeleportData({ difficulty = difficulty, party = ids })
 		Rejoin.remember(members, { code = code, server = server })
-		TeleportService:TeleportAsync(game.PlaceId, members, options)
+		TeleportService:TeleportAsync(place, members, options)
 	end)
 	if not ok then
 		warn("[Lobby] teleport failed: " .. tostring(err))
@@ -1164,7 +1166,7 @@ local function sendMatched(player: Player, ticket: Matchmaking.Ticket)
 		options.ReservedServerAccessCode = ticket.code
 		options:SetTeleportData({ difficulty = ticket.difficulty, party = ticket.party })
 		Rejoin.remember({ player }, { code = ticket.code, server = ticket.server })
-		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+		TeleportService:TeleportAsync(Places.game(), { player }, options)
 	end)
 	if not ok then
 		warn("[Lobby] matched teleport failed: " .. tostring(err))
@@ -1198,7 +1200,7 @@ local function rejoinParty(player: Player)
 	local ok, err = pcall(function()
 		local options = Instance.new("TeleportOptions")
 		options.ReservedServerAccessCode = g.code
-		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+		TeleportService:TeleportAsync(Places.game(), { player }, options)
 	end)
 	if not ok then
 		warn("[Lobby] rejoin failed: " .. tostring(err))
@@ -1426,6 +1428,19 @@ end
 function Lobby.run()
 	if not Session.isLobby() then
 		workspace:SetAttribute("Mode", "Game")
+		-- a public server of the game place (someone joined it directly): the
+		-- game only runs for parties the lobby sends, so off to the lobby
+		if Places.inGamePlace() and game.PrivateServerId == "" and not RunService:IsStudio() then
+			local function toLobby(player: Player)
+				pcall(function()
+					TeleportService:TeleportAsync(Places.LOBBY, { player })
+				end)
+			end
+			Players.PlayerAdded:Connect(toLobby)
+			for _, player in Players:GetPlayers() do
+				task.spawn(toLobby, player)
+			end
+		end
 		readTeleportData()
 		Rejoin.watchGame()
 		Difficulty.watch(Cannibals.Kinds)

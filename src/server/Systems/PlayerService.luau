@@ -8,6 +8,7 @@ local TeleportService = game:GetService("TeleportService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Places = require(ReplicatedStorage.Shared.Places)
 local Cannibals = require(script.Parent.Cannibals)
 local Hiding = require(script.Parent.Hiding)
 local Inventory = require(script.Parent.Inventory)
@@ -49,7 +50,7 @@ checkGameOver = function()
 		for _, player in Players:GetPlayers() do
 			Profiles.save(player)
 			pcall(function()
-				TeleportService:TeleportAsync(game.PlaceId, { player })
+				TeleportService:TeleportAsync(Places.LOBBY, { player })
 			end)
 		end
 	end)
@@ -201,7 +202,7 @@ function PlayerService.init()
 		Profiles.save(player) -- the lobby server reads it next
 		Rejoin.forget(player.UserId) -- leaving on purpose: don't send them back here
 		local ok, err = pcall(function()
-			TeleportService:TeleportAsync(game.PlaceId, { player })
+			TeleportService:TeleportAsync(Places.LOBBY, { player })
 		end)
 		if not ok then
 			warn("[PlayerService] teleport failed: " .. tostring(err))
