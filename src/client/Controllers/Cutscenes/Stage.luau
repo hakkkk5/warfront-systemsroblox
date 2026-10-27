@@ -109,6 +109,13 @@ function Stage.folder(): Folder
 	return created
 end
 
+-- Cuts the running scene short (the admin's skip): it cleans up as if it
+-- had ended.
+local skipRequested = false
+function Stage.skip()
+	skipRequested = true
+end
+
 -- Yields; unwinds the scene thread if the scene was cut short.
 function Stage.sleep(seconds: number)
 	task.wait(math.max(seconds, 0))
@@ -909,13 +916,14 @@ function Stage.scene(name: string, body: (data: any) -> ()): (data: any, kit: an
 		table.insert(threads, main)
 		local started = os.clock()
 		local limit = LIMITS[name] or 20
-		while not finished and sceneId == id and os.clock() - started < limit do
+		skipRequested = false
+		while not finished and sceneId == id and os.clock() - started < limit and not skipRequested do
 			task.wait(0.1)
 		end
 		if sceneId ~= id then
 			return -- a newer scene took over and already cleaned up
 		end
-		if not finished then
+		if not finished and not skipRequested then
 			warn("[Cutscene] " .. name .. " hit its time limit")
 		end
 		local ok, err = pcall(cleanup :: any)

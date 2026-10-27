@@ -77,3 +77,4 @@ require(UI.Lobby).run() -- applies the difficulty; in the lobby it holds here un
 Menu.init()
 require(UI.PartyMarkers).init()
 require(UI.MapView).init()
+require(UI.AdminPanel).init() -- the owner's panel (F2): skip parts of the story

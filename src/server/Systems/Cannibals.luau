@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Difficulty = require(ReplicatedStorage.Shared.Difficulty)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Signal = require(ReplicatedStorage.Shared.Signal)
+local Stealth = require(ReplicatedStorage.Shared.Stealth)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Props = require(script.Parent.Parent.World.Props)
 local Doors = require(script.Parent.Doors)
@@ -23,6 +24,7 @@ local Cannibals = {}
 
 local rgb = Color3.fromRGB
 local TUNE = Config.Cannibal
+local P = Config.Player -- they run on the same breath you do
 
 export type KindSpec = {
 	display: string,
@@ -46,7 +48,6 @@ export type KindSpec = {
 	--   statue  can't move while someone's looking at it; rushes when not
 	--   rev     revs the chainsaw, then charges
 	trait: string?,
-	stamina: number, -- seconds it can run flat out before it's winded
 }
 
 local KINDS: { [string]: KindSpec } = {
@@ -65,7 +66,6 @@ local KINDS: { [string]: KindSpec } = {
 		apron = true,
 		keys = true,
 		trait = "charge",
-		stamina = 10,
 	},
 	Brother = {
 		display = "Michel",
@@ -80,7 +80,6 @@ local KINDS: { [string]: KindSpec } = {
 		weapon = "Cleaver",
 		mask = "Stitched",
 		trait = "silent",
-		stamina = 14,
 	},
 	Hunter = {
 		display = "The Hunter",
@@ -96,7 +95,6 @@ local KINDS: { [string]: KindSpec } = {
 		mask = "Sack",
 		lantern = true,
 		trait = "thrower",
-		stamina = 12,
 	},
 	Scavenger = {
 		display = "The Scavenger",
@@ -111,7 +109,6 @@ local KINDS: { [string]: KindSpec } = {
 		weapon = "Cleaver",
 		mask = "Stitched",
 		trait = "statue",
-		stamina = 18,
 	},
 	Papa = {
 		display = "Papa",
@@ -127,7 +124,6 @@ local KINDS: { [string]: KindSpec } = {
 		mask = "Skin",
 		apron = true,
 		trait = "rev",
-		stamina = 7,
 	},
 	Kin = {
 		display = "Kin",
@@ -141,7 +137,6 @@ local KINDS: { [string]: KindSpec } = {
 		damage = 30,
 		weapon = "Cleaver",
 		mask = "Sack",
-		stamina = 11,
 	},
 }
 Cannibals.Kinds = KINDS
@@ -194,7 +189,7 @@ export type Cannibal = {
 	nextHunt: number,
 	struggling: boolean,
 	speedMult: number, -- the chase director pushes it to keep up
-	stamina: number, -- 0..1 of its flat-out running left
+	stamina: number, -- 0..1 of its breath (the same pool as a player's)
 	windedUntil: number, -- out of breath: walks until then
 	burstUntil: number, -- charging (charge / rev)
 	nextBurst: number,
@@ -208,6 +203,7 @@ folder.Parent = workspace
 
 local list: { Cannibal } = {}
 local paused = false
+local frozen = false -- the admin's freeze (cutscenes don't lift it)
 local watched: (c: Cannibal) -> boolean
 local chaseSpeed: (c: Cannibal, now: number, dt: number) -> number
 
@@ -597,20 +593,6 @@ local function playerParts(player: Player): (Model?, Humanoid?, BasePart?, BaseP
 	return character, humanoid, root, head
 end
 
-local function visibility(player: Player): number
-	local v = 1
-	if player:GetAttribute("Crouching") then
-		v *= 0.55
-	end
-	if player:GetAttribute("Flashlight") then
-		v *= 1.45
-	end
-	if player:GetAttribute("Sprinting") then
-		v *= 1.15
-	end
-	return v
-end
-
 local function setState(c: Cannibal, state: State)
 	if c.state == state then
 		return
@@ -650,8 +632,12 @@ end
 
 ---------------------------------------------------------------- combat
 
--- Just respawned: the family ignores the player for a few seconds.
+-- Just respawned: the family ignores the player for a few seconds (and the
+-- admin in god mode for good).
 local function isSafe(player: Player): boolean
+	if player:GetAttribute("AdminGod") then
+		return true
+	end
 	local untilTime = player:GetAttribute("SafeUntil")
 	return typeof(untilTime) == "number" and os.clock() < untilTime
 end
@@ -964,18 +950,26 @@ local function perceive(c: Cannibal, dt: number): (Player?, number)
 			else
 				local toHead = head.Position - c.head.Position
 				local dist = toHead.Magnitude
-				local vis = visibility(player)
+				local crouching = player:GetAttribute("Crouching") == true
+				local vis = Stealth.of(player, root)
 				local range = math.min(TUNE.ViewRange * vis, 110)
+				-- they feel someone right behind them, unless that someone is
+				-- crouched and creeping: then you can get close
+				local sense = TUNE.ProximitySense * (if crouching then 0.45 else 1)
+				local facing = look:Dot(Util.flat(toHead).Unit)
 				local seen = false
 				if dist < range then
-					local inCone = dist < TUNE.ProximitySense or look:Dot(Util.flat(toHead).Unit) > cosView
+					local inCone = dist < sense or facing > cosView
 					if inCone and lineOfSight(c.head.Position, head.Position) then
 						seen = true
 					end
 				end
 				if seen then
 					local closeness = 1 - dist / range
-					d += (TUNE.DetectRate * vis * math.sqrt(closeness) + (if dist < 16 then 0.9 else 0)) * dt
+					-- the corner of the eye is slow to make you out; dead ahead isn't
+					local centre = if dist < sense then 1 else 0.35 + 0.65 * math.clamp((facing - cosView) / (1 - cosView), 0, 1)
+					local near = if dist < 16 * math.min(vis, 1) then 0.9 else 0
+					d += (TUNE.DetectRate * vis * math.sqrt(closeness) * centre + near) * dt
 					if c.target == player then
 						c.lastSeenPos = root.Position
 						c.lastSeenTime = now
@@ -985,7 +979,6 @@ local function perceive(c: Cannibal, dt: number): (Player?, number)
 				end
 				-- hearing
 				local speed = Util.flat(root.AssemblyLinearVelocity).Magnitude
-				local crouching = player:GetAttribute("Crouching") == true
 				if not seen and c.state ~= "Chase" and c.state ~= "Grab" and not crouching then
 					if (player:GetAttribute("Sprinting") and dist < TUNE.HearSprint) or (speed > 4 and dist < TUNE.HearWalk) then
 						c.investigatePos = root.Position
@@ -1026,22 +1019,34 @@ watched = function(c: Cannibal): boolean
 	return false
 end
 
--- Flat-out running costs breath. Out of it, they slow to a walk for a few
--- seconds, gasping: the moment to break away. Charges cost double.
+-- Running costs them breath exactly as it costs you: the same pool, the same
+-- drain, the same recovery (Config.Player, so difficulty changes both sides).
+-- Run dry and they drop to a gasping walk no faster than yours until they've
+-- got the same quarter back you need: the moment to break away. Charges cost
+-- double.
+local function windedSpeed(c: Cannibal): number
+	return math.min(c.spec.walk, P.WalkSpeed * 0.8)
+end
+
 chaseSpeed = function(c: Cannibal, now: number, dt: number): number
 	local spec = c.spec
 	if now < c.windedUntil then
-		return spec.walk * 1.05
+		return windedSpeed(c)
 	end
 	local burst = now < c.burstUntil
 	local speed = spec.run * (if burst then (if spec.trait == "rev" then 1.5 else 1.4) else 1)
 	if spec.trait == "statue" then
 		speed *= 1.3 -- the moment you look away
 	end
-	c.stamina -= dt / spec.stamina * (if burst then 2 else 1)
+	local target = c.target
+	if target and target:GetAttribute("Adrenaline") then
+		return speed -- the chase after the explosion: neither side tires
+	end
+	c.stamina -= dt * P.StaminaDrain / P.StaminaMax * (if burst then 2 else 1)
 	if c.stamina <= 0 then
 		c.stamina = 0
-		local rest = if Difficulty.current() == "Nightmare" then 2 elseif Difficulty.current() == "Hard" then 2.8 else 3.6
+		-- how long you'd take to get back to the lockout, recovering on the move
+		local rest = P.StaminaLockout / (P.StaminaRegen * 0.7)
 		c.windedUntil = now + rest
 		c.burstUntil = 0
 		c.model:SetAttribute("Winded", true)
@@ -1051,7 +1056,7 @@ chaseSpeed = function(c: Cannibal, now: number, dt: number): number
 				c.model:SetAttribute("Winded", nil)
 			end
 		end)
-		return spec.walk * 1.05
+		return windedSpeed(c)
 	end
 	return speed
 end
@@ -1061,9 +1066,11 @@ local function think(c: Cannibal, dt: number)
 	if c.struggling then
 		return -- locked in a syringe struggle with someone
 	end
-	-- breath comes back whenever it isn't running you down
+	-- breath comes back whenever it isn't running you down, at your rate (a
+	-- little slower on the move, like yours)
 	if c.state ~= "Chase" or now < c.windedUntil then
-		c.stamina = math.min(1, c.stamina + dt * (if now < c.windedUntil then 0.3 else 0.2))
+		local moving = Util.flat(c.root.AssemblyLinearVelocity).Magnitude > 1
+		c.stamina = math.min(1, c.stamina + dt * P.StaminaRegen / P.StaminaMax * (if moving then 0.7 else 1))
 	end
 	if c.state == "Sedated" then
 		if now >= c.sedatedUntil then
@@ -1071,7 +1078,7 @@ local function think(c: Cannibal, dt: number)
 		end
 		return
 	end
-	if paused then
+	if paused or frozen then
 		if c.state ~= "Paused" then
 			stop(c)
 		end
@@ -1138,7 +1145,9 @@ local function think(c: Cannibal, dt: number)
 			end
 			return
 		end
-		if now - c.lastSeenTime > TUNE.LoseSightTime then
+		-- out of sight and crouched low, they lose you sooner
+		local loseAfter = TUNE.LoseSightTime * (if target:GetAttribute("Crouching") then 0.6 else 1)
+		if now - c.lastSeenTime > loseAfter then
 			c.searchUntil = now + TUNE.SearchTime
 			c.detection[target] = 0.2
 			setState(c, "Search")
@@ -1499,18 +1508,34 @@ function Cannibals.find(kind: string): Cannibal?
 	return nil
 end
 
+local function halt()
+	for _, c in list do
+		if c.state ~= "Sedated" then
+			stop(c)
+			c.state = "Paused"
+			c.target = nil
+			c.detection = {}
+		end
+	end
+end
+
 function Cannibals.setPaused(value: boolean)
 	paused = value
 	if value then
-		for _, c in list do
-			if c.state ~= "Sedated" then
-				stop(c)
-				c.state = "Paused"
-				c.target = nil
-				c.detection = {}
-			end
-		end
+		halt()
 	end
+end
+
+-- The admin panel's freeze: every one of them stands still until it's lifted.
+function Cannibals.setFrozen(value: boolean)
+	frozen = value
+	if value then
+		halt()
+	end
+end
+
+function Cannibals.frozen(): boolean
+	return frozen
 end
 
 -- Teleport a cannibal to a new patrol route (used between chapters).

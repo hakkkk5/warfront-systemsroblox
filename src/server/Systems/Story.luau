@@ -1001,6 +1001,9 @@ enterPower = function()
 	end
 end
 
+-- set in setupStation: the generator starts and the power comes on
+local startGenerator: () -> () = function() end
+
 local function setupStation()
 	local st = sites.station
 	local fusePrompt = Interact.add(st.fuseBox, {
@@ -1061,25 +1064,31 @@ local function setupStation()
 				Story.broadcast()
 				return
 			end
-			flags.powerOn = true
-			genPrompt.Enabled = false
-			soundRemote:FireAllClients("Generator", st.generatorPart.Position)
-			for _, light in st.lights do
-				light.Enabled = true
-			end
-			for _, lamp in st.lamps do
-				lamp.Material = Enum.Material.Neon
-				lamp.Color = Color3.fromRGB(255, 236, 200)
-			end
-			local panelLamp = st.generator:FindFirstChild("Lamp", true)
-			if panelLamp and panelLamp:IsA("BasePart") then
-				panelLamp.Color = Color3.fromRGB(60, 255, 90)
-			end
-			Cannibals.noise(st.center, 260)
-			Story.say("You", "Power's on. They definitely heard that... the radio, now!", 4)
-			setStage("Radio")
+			startGenerator()
 		end,
 	})
+	-- the generator roars into life and the station lights come on
+	startGenerator = function()
+		flags.fueled = true
+		flags.fuseIn = true
+		flags.powerOn = true
+		genPrompt.Enabled = false
+		soundRemote:FireAllClients("Generator", st.generatorPart.Position)
+		for _, light in st.lights do
+			light.Enabled = true
+		end
+		for _, lamp in st.lamps do
+			lamp.Material = Enum.Material.Neon
+			lamp.Color = Color3.fromRGB(255, 236, 200)
+		end
+		local panelLamp = st.generator:FindFirstChild("Lamp", true)
+		if panelLamp and panelLamp:IsA("BasePart") then
+			panelLamp.Color = Color3.fromRGB(60, 255, 90)
+		end
+		Cannibals.noise(st.center, 260)
+		Story.say("You", "Power's on. They definitely heard that... the radio, now!", 4)
+		setStage("Radio")
+	end
 
 	Interact.add(st.radio, {
 		action = "Use Radio",
@@ -1299,6 +1308,74 @@ local function watcher()
 			Finale.watch()
 		end
 	end
+end
+
+---------------------------------------------------------------- admin
+
+-- The admin's skip (Systems/Admin): a cutscene that's playing is cut short
+-- for everyone; otherwise the story moves on to the next part, with everyone
+-- taken there. Returns what was skipped, or nil if there's nothing to skip
+-- right now.
+local skipping = false
+function Story.adminSkip(): string?
+	local scene = currentCutscene
+	if scene then
+		for _, player in Players:GetPlayers() do
+			cutsceneDone[player] = scene
+		end
+		Net.event("CutsceneSkip"):FireAllClients()
+		return "the " .. scene .. " cutscene"
+	end
+	if skipping then
+		return nil
+	end
+	local from: string = stage
+	local step: (() -> ())? = nil
+	if stage == "Investigate" then
+		step = reveal
+	elseif stage == "HouseEscape" then
+		step = function()
+			enterForest()
+			teleportAll(Story.checkpoint(), false)
+		end
+	elseif stage == "Forest" then
+		step = function()
+			enterRepair()
+			teleportAll(Story.checkpoint(), false)
+		end
+	elseif stage == "Repair" then
+		step = Story.startDrive
+	elseif stage == "Hunt" then
+		step = function()
+			Chase.stop()
+			reachStation()
+		end
+	elseif stage == "Power" then
+		step = startGenerator
+	elseif stage == "Radio" then
+		step = Story.startSurvive
+	elseif stage == "Survive" then
+		step = function()
+			flags.surviveEnds = os.clock() -- the helicopter arrives now
+		end
+	elseif stage == "Extraction" then
+		step = Finale.takeoff
+	elseif Finale.handles(stage) then
+		step = Finale.adminSkip
+	end
+	local run = step
+	if not run then
+		return nil
+	end
+	skipping = true
+	task.spawn(function()
+		local ok, err = pcall(run :: any)
+		if not ok then
+			warn("[Admin] skipping " .. from .. " failed: " .. tostring(err))
+		end
+		skipping = false
+	end)
+	return from
 end
 
 ---------------------------------------------------------------- hints

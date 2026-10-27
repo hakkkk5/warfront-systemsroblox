@@ -13,6 +13,7 @@ local Assets = require(ReplicatedStorage.Shared.Assets)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Stealth = require(ReplicatedStorage.Shared.Stealth)
 local Util = require(ReplicatedStorage.Shared.Util)
 local Movement = require(script.Parent.Parent.Controllers.Movement)
 local Viewmodel = require(script.Parent.Parent.Controllers.Viewmodel)
@@ -36,6 +37,7 @@ local batteryBar: Frame
 local batteryFill: Frame
 local eye: Frame
 local eyeFill: Frame
+local hiddenLabel: TextLabel
 local subtitle: TextLabel
 local toastHolder: Frame
 local timerLabel: TextLabel
@@ -413,6 +415,16 @@ function HUD.init()
 		Size = UDim2.fromOffset(10, 10),
 		BackgroundColor3 = Color3.new(0, 0, 0),
 	})
+	-- crouched, still and dark enough that they.d have to walk right up to you
+	hiddenLabel = Theme.label(root, "HIDDEN", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 56),
+		Size = UDim2.fromOffset(120, 16),
+		Font = Theme.Fonts.UIBold,
+		TextSize = 12,
+		TextColor3 = C.BoneDim,
+		TextTransparency = 1,
+	})
 
 	-- subtitles
 	subtitle = Theme.label(gui, "", {
@@ -518,6 +530,10 @@ function HUD.init()
 		if chased then
 			eyeFill.BackgroundColor3 = if math.floor(os.clock() * 4) % 2 == 0 then C.BloodBright else C.Blood
 		end
+		local character = player.Character
+		local body = character and character:FindFirstChild("HumanoidRootPart")
+		local hidden = not chased and body ~= nil and body:IsA("BasePart") and Stealth.of(player, body) <= Stealth.HIDDEN
+		hiddenLabel.TextTransparency = Util.lerp(hiddenLabel.TextTransparency, if hidden then 0.25 else 1, math.min(1, dt * 6))
 	end)
 end
 

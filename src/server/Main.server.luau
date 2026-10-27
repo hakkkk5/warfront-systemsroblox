@@ -127,6 +127,7 @@ Cannibals.publishTemplates()
 mark("templates")
 
 Story.init(house, sites, world, finaleSites)
+require(Systems.Admin).init() -- the owner's panel (F2): skip parts of the story
 require(Systems.RandomEvents).init() -- apparitions, jumpscares, whispers
 require(Systems.Rewards).init() -- Teeth for escaping, sedating, chores
 require(Systems.Throwing).init() -- bottles, rocks, molotovs, noise traps

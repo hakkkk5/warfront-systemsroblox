@@ -378,6 +378,21 @@ end
 
 ---------------------------------------------------------------- Chapter IX
 
+-- The bell: everyone in the county hears it, the family most of all. Hold
+-- out until the police come.
+local function ringBell()
+	flags.bellRung = true
+	soundRemote:FireAllClients("ChurchBell", places.church.bell.Position)
+	ctx.say("You", "Every cop in the county will hear that. So will they.", 4)
+	-- everyone comes, and doesn't stop coming
+	for _, c in Cannibals.all() do
+		c.hunting = true
+	end
+	Cannibals.noise(places.church.bell.Position, 2000)
+	flags.holdUntil = os.clock() + HOLD_OUT
+	setStage("LastStand")
+end
+
 local function setupChurch()
 	local church = places.church
 	local folder = Build.folder(ctx.world, "ChurchItems")
@@ -403,18 +418,7 @@ local function setupChurch()
 		canUse = function()
 			return not flags.bellRung, if flags.bellRung then "It's still ringing in your ears." else nil
 		end,
-		onUse = function()
-			flags.bellRung = true
-			soundRemote:FireAllClients("ChurchBell", church.bell.Position)
-			ctx.say("You", "Every cop in the county will hear that. So will they.", 4)
-			-- everyone comes, and doesn't stop coming
-			for _, c in Cannibals.all() do
-				c.hunting = true
-			end
-			Cannibals.noise(church.bell.Position, 2000)
-			flags.holdUntil = os.clock() + HOLD_OUT
-			setStage("LastStand")
-		end,
+		onUse = ringBell,
 	})
 end
 
@@ -496,6 +500,24 @@ function Finale.watch()
 			flags.finished = true
 			ctx.finish(Finale.trueEnding())
 		end
+	end
+end
+
+-- The admin's skip (Story.adminSkip): on to the next part of the last act,
+-- everyone moved there when it's somewhere else.
+function Finale.adminSkip()
+	if stage == "Wreck" then
+		enterPlant()
+		ctx.teleportAll(places.plant.checkpoint, false)
+	elseif stage == "Plant" then
+		mineTransition()
+	elseif stage == "Church" then
+		ringBell()
+	elseif stage == "LastStand" then
+		flags.holdUntil = os.clock() -- the police arrive now
+	elseif stage == "Getaway" and not flags.finished then
+		flags.finished = true
+		ctx.finish(Finale.trueEnding())
 	end
 end
 

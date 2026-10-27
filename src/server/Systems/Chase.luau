@@ -63,6 +63,9 @@ local function flat(v: Vector3): Vector3
 end
 
 local function hurt(player: Player, humanoid: Humanoid, root: BasePart, amount: number, from: Vector3, launch: Vector3)
+	if player:GetAttribute("AdminGod") then
+		return
+	end
 	player:SetAttribute("LastAttacker", "Butcher")
 	humanoid:TakeDamage(amount)
 	hurtRemote:FireClient(player, amount, from)

@@ -28,6 +28,7 @@ local EVENTS = {
 	"ChaseFX", -- spikes and falling trees during the chase
 	"StoreResult", -- lobby store: purchase outcome
 	"Crafting", -- open the workbench screen
+	"CutsceneSkip", -- the admin cut the cutscene short
 	-- client -> server
 	"RequestPlay",
 	"CutsceneDone",
@@ -46,6 +47,7 @@ local EVENTS = {
 	"SaveSettings", -- settings kept with the profile
 	"Throw", -- throw the held item (aim)
 	"Craft", -- make a recipe at a workbench
+	"AdminAction", -- the admin panel (Systems/Admin checks who)
 }
 
 local folder: Folder

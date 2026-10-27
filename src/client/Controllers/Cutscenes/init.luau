@@ -61,6 +61,13 @@ function Cutscenes.init()
 	Net.event("Cutscene").OnClientEvent:Connect(function(name: string, data: any)
 		task.spawn(play, name, data)
 	end)
+	-- the admin skipped this part: cut the scene short
+	Net.event("CutsceneSkip").OnClientEvent:Connect(function()
+		local stage = script:FindFirstChild("Stage")
+		if stage and stage:IsA("ModuleScript") then
+			(require(stage) :: any).skip()
+		end
+	end)
 end
 
 return Cutscenes
