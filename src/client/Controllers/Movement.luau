@@ -70,8 +70,7 @@ function Movement.wantsSprint(): boolean
 end
 
 function Movement.init()
-	-- Shift is ours, not Roblox's shift-lock
-	player.DevEnableMouseLock = false
+	-- (Shift is ours: shift-lock is off in StarterPlayer, EnableMouseLockOption)
 	-- gamepad: L3 toggles running (phones get their buttons from UI TouchControls)
 	ContextActionService:BindActionAtPriority("Sprint", function(_, state)
 		if state == Enum.UserInputState.Begin then
