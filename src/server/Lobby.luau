@@ -1106,6 +1106,44 @@ local function launch(party: Party)
 	end)
 end
 
+-- One player off on their own (solo, or matched with players on other
+-- servers) still leaves in a truck: the first empty one pulls out with them
+-- in the back, then go() teleports them (false if it failed). With every
+-- truck taken they just go.
+local function rideAlone(player: Player, go: () -> boolean): boolean
+	local truck: Party? = nil
+	for _, party in parties do
+		if #party.members == 0 and not party.leaving then
+			truck = party
+			break
+		end
+	end
+	if not truck or not rootOf(player) then
+		return go()
+	end
+	local party: Party = truck
+	party.leaving = true
+	climbIn(party, player)
+	broadcast()
+	local riders = drive(party, { player })
+	local ok = go()
+	if RunService:IsStudio() then
+		return ok -- this server turns into the game
+	end
+	task.wait(if ok then 4 else 0)
+	for _, root in riders do
+		if root.Parent then
+			root.Anchored = false
+		end
+	end
+	task.delay(if ok then 16 else 0, function()
+		park(party)
+		party.leaving = false
+		broadcast()
+	end)
+	return ok
+end
+
 -- Drive out alone, at your own difficulty.
 local function goSolo(player: Player, difficulty: string)
 	if departing[player] or partyOf(player) then
@@ -1115,7 +1153,9 @@ local function goSolo(player: Player, difficulty: string)
 	departing[player] = difficulty
 	notice({ player }, "Driving out alone…")
 	broadcast()
-	if not depart({ player }, difficulty) then
+	if not rideAlone(player, function()
+		return depart({ player }, difficulty)
+	end) then
 		notice({ player }, "The truck wouldn't start. Try again in a moment.")
 		departing[player] = nil
 		broadcast()
@@ -1161,15 +1201,20 @@ local function sendMatched(player: Player, ticket: Matchmaking.Ticket)
 	notice({ player }, "Found players. Off you go…")
 	broadcast()
 	Profiles.save(player)
-	local ok, err = pcall(function()
-		local options = Instance.new("TeleportOptions")
-		options.ReservedServerAccessCode = ticket.code
-		options:SetTeleportData({ difficulty = ticket.difficulty, party = ticket.party })
-		Rejoin.remember({ player }, { code = ticket.code, server = ticket.server })
-		TeleportService:TeleportAsync(Places.game(), { player }, options)
+	local ok = rideAlone(player, function()
+		local sent, err = pcall(function()
+			local options = Instance.new("TeleportOptions")
+			options.ReservedServerAccessCode = ticket.code
+			options:SetTeleportData({ difficulty = ticket.difficulty, party = ticket.party })
+			Rejoin.remember({ player }, { code = ticket.code, server = ticket.server })
+			TeleportService:TeleportAsync(Places.game(), { player }, options)
+		end)
+		if not sent then
+			warn("[Lobby] matched teleport failed: " .. tostring(err))
+		end
+		return sent
 	end)
 	if not ok then
-		warn("[Lobby] matched teleport failed: " .. tostring(err))
 		notice({ player }, "Couldn't reach your party. Rejoin the game to try again.")
 		departing[player] = nil
 		broadcast()
