@@ -152,13 +152,17 @@ local function onGround(cf: CFrame): CFrame
 	return Terrain.groundCFrame(p.X, p.Z)
 end
 
+-- Everyone to one spot, a little apart: a tight square round it (a party is
+-- four at most), not a line, which ran a party of four through the crypt's
+-- walls and the house's.
+local SPREAD = { CFrame.new(-1.3, 0, -1.3), CFrame.new(1.3, 0, 1.3), CFrame.new(1.3, 0, -1.3), CFrame.new(-1.3, 0, 1.3) }
 local function teleportAll(cf: CFrame, anchored: boolean)
 	for i, player in Players:GetPlayers() do
 		local root = rootOf(player)
 		if root then
 			root.Anchored = anchored
 			root.AssemblyLinearVelocity = Vector3.zero
-			root.CFrame = cf * CFrame.new((i - 1) * 3, 0, 0)
+			root.CFrame = cf * SPREAD[(i - 1) % #SPREAD + 1]
 		end
 	end
 end

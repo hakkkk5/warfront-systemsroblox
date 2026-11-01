@@ -59,6 +59,10 @@ return Stage.scene("Dawn", function(data: any)
 		car = copy
 	end
 
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Include
+	groundParams.FilterDescendantsInstances = { workspace.Terrain }
+
 	-- the family in the church doorway, watching
 	local templates = ReplicatedStorage:FindFirstChild("CannibalTemplates")
 	if templates then
@@ -74,6 +78,13 @@ return Stage.scene("Dawn", function(data: any)
 				end
 				local spot = church * CFrame.new(-4.5 + (i - 1) * 3, 4.8, -30.5) * CFrame.Angles(0, math.pi, 0)
 				rig:PivotTo(spot)
+				-- stood on whatever is under the doorway, not floating at a guess
+				local below = workspace:Raycast(spot.Position + Vector3.new(0, 4, 0), Vector3.new(0, -20, 0), groundParams)
+				if below then
+					local box, size = rig:GetBoundingBox()
+					local feet = box.Position.Y - size.Y / 2
+					rig:PivotTo(spot + Vector3.new(0, below.Position.Y - feet, 0))
+				end
 				rig.Parent = workspace
 				Stage.cleanup(function()
 					rig:Destroy()
@@ -87,9 +98,6 @@ return Stage.scene("Dawn", function(data: any)
 	-- short of where the road ends at the edge of the map
 	local look = start.LookVector
 	local away = Vector3.new(look.X, 0, look.Z).Unit
-	local groundParams = RaycastParams.new()
-	groundParams.FilterType = Enum.RaycastFilterType.Include
-	groundParams.FilterDescendantsInstances = { workspace.Terrain }
 	local function onGround(p: Vector3): CFrame
 		local hit = workspace:Raycast(p + Vector3.new(0, 40, 0), Vector3.new(0, -120, 0), groundParams)
 		local y = if hit then hit.Position.Y else p.Y
