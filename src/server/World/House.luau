@@ -636,7 +636,7 @@ function House.build(parent: Instance): Info
 	for i = 0, 2 do
 		for _, side in { -1, 1 } do
 			local chair = Props.Chair(false)
-			chair:PivotTo(L(14 + i * 5, 0, -12 + side * 4) * ANG(0, if side < 0 then 0 else math.pi, 0))
+			chair:PivotTo(L(14 + i * 5, 0, -12 + side * 4) * ANG(0, if side < 0 then math.pi else 0, 0)) -- facing the table
 			chair.Parent = furniture
 		end
 	end

@@ -209,6 +209,79 @@ function Props.PickupTruck(): Model
 	return finish(m)
 end
 
+-- The state police car at the end: a black-and-white sedan, sloped glass
+-- front and back, a light bar (LightRed / LightBlue, flashed by Finale) and
+-- a push bar. No mesh: the parts are the car.
+function Props.PoliceCruiser(): Model
+	local m = Instance.new("Model")
+	m.Name = "PoliceCruiser"
+	local black = rgb(22, 22, 24)
+	local white = rgb(232, 232, 228)
+	local trim = rgb(40, 40, 44)
+	local glass = rgb(30, 38, 46)
+	local chrome = rgb(170, 168, 160)
+	-- underbody, then the body in three panels: black nose, white doors,
+	-- black tail (front faces -Z)
+	P(m, Vector3.new(6.2, 0.8, 15.2), CF(0, 1.6, 0), trim, M.Metal)
+	P(m, Vector3.new(6.6, 1.9, 4.6), CF(0, 2.95, -5.5), black, M.SmoothPlastic).Name = "Nose"
+	local doors = P(m, Vector3.new(6.6, 1.9, 6.4), CF(0, 2.95, 0), white, M.SmoothPlastic)
+	doors.Name = "Doors"
+	P(m, Vector3.new(6.6, 1.9, 4.6), CF(0, 2.95, 5.5), black, M.SmoothPlastic).Name = "Tail"
+	-- hood and trunk lids, a shade lower than the beltline at the doors
+	P(m, Vector3.new(6.3, 0.25, 4.4), CF(0, 4.0, -5.5), black, M.SmoothPlastic)
+	P(m, Vector3.new(6.3, 0.25, 4.0), CF(0, 4.0, 5.7), black, M.SmoothPlastic)
+	P(m, Vector3.new(6.4, 0.25, 6.4), CF(0, 4.0, 0), white, M.SmoothPlastic)
+	-- the greenhouse: windshield and rear window as wedges, side glass, roof
+	Build.wedge(m, Vector3.new(5.8, 2.0, 2.1), CF(0, 5.12, -2.55), glass, M.Glass, { Transparency = 0.2 }).Name = "Windshield"
+	Build.wedge(m, Vector3.new(5.8, 2.0, 1.9), CF(0, 5.12, 3.65) * ANG(0, math.pi, 0), glass, M.Glass, { Transparency = 0.2 }).Name = "RearWindow"
+	P(m, Vector3.new(5.9, 1.8, 4.2), CF(0, 5.1, 0.6), glass, M.Glass, { Transparency = 0.25 }).Name = "SideWindows"
+	P(m, Vector3.new(6.0, 1.8, 0.35), CF(0, 5.1, 0.6), black, M.SmoothPlastic) -- B-pillars
+	P(m, Vector3.new(6.0, 0.3, 4.6), CF(0, 6.25, 0.6), white, M.SmoothPlastic).Name = "Roof"
+	-- light bar
+	P(m, Vector3.new(4.6, 0.25, 1.0), CF(0, 6.52, 0.4), trim, M.Metal)
+	local red = P(m, Vector3.new(2.15, 0.45, 0.9), CF(-1.15, 6.85, 0.4), rgb(255, 30, 30), M.Neon)
+	red.Name = "LightRed"
+	local blue = P(m, Vector3.new(2.15, 0.45, 0.9), CF(1.15, 6.85, 0.4), rgb(40, 80, 255), M.Neon)
+	blue.Name = "LightBlue"
+	-- push bar, grille, bumpers, lamps
+	P(m, Vector3.new(5.2, 1.7, 0.25), CF(0, 3.0, -8.25), trim, M.Metal).Name = "PushBar"
+	for _, x in { -1.8, 1.8 } do
+		P(m, Vector3.new(0.3, 0.3, 0.6), CF(x, 3.0, -8.0), trim, M.Metal)
+	end
+	P(m, Vector3.new(2.6, 0.7, 0.15), CF(0, 3.25, -7.85), rgb(14, 14, 16), M.Metal)
+	P(m, Vector3.new(6.8, 0.6, 0.6), CF(0, 2.15, -7.95), trim, M.Metal)
+	P(m, Vector3.new(6.8, 0.6, 0.6), CF(0, 2.15, 7.95), trim, M.Metal)
+	for _, x in { -2.35, 2.35 } do
+		P(m, Vector3.new(1.3, 0.5, 0.15), CF(x, 3.45, -7.85), rgb(240, 236, 220), M.Neon).Name = "Headlight"
+		P(m, Vector3.new(1.4, 0.45, 0.15), CF(x, 3.45, 7.85), rgb(150, 12, 12), M.Neon).Name = "Taillight"
+		P(m, Vector3.new(0.5, 0.4, 0.3), CF(x * 1.47, 4.55, -2.6), black, M.SmoothPlastic) -- mirrors
+	end
+	Build.post(m, 2.2, 0.08, CF(2.2, 5.2, 6.6), chrome, M.Metal) -- radio antenna
+	-- STATE POLICE down both doors
+	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right } do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.PixelsPerStud = 40
+		sg.LightInfluence = 1
+		sg.Parent = doors
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(0.9, 0.5)
+		label.Position = UDim2.fromScale(0.05, 0.25)
+		label.BackgroundTransparency = 1
+		label.Text = "STATE POLICE"
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBlack
+		label.TextColor3 = rgb(20, 24, 40)
+		label.Parent = sg
+	end
+	for _, z in { -5.0, 5.0 } do
+		for _, x in { -3.2, 3.2 } do
+			wheel(m, CF(x, 1.4, z), 2.8)
+		end
+	end
+	return finish(m)
+end
+
 function Props.CrashedSedan(): Model
 	local m = Instance.new("Model")
 	m.Name = "CrashedSedan"

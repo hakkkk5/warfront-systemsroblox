@@ -155,7 +155,7 @@ Config.Roads = {
 		name = "MainStreet",
 		width = 10,
 		material = Enum.Material.Asphalt,
-		points = { Vector2.new(-520, -512), S.Church.pos + Vector2.new(0, -36) },
+		points = { Vector2.new(-520, -605), S.Church.pos + Vector2.new(0, -36) }, -- on to the map edge: the ending drives off down it
 	},
 } :: { Road }
 

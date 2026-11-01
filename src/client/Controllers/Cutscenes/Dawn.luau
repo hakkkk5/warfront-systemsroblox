@@ -32,7 +32,7 @@ return Stage.scene("Dawn", function(data: any)
 
 	-- the cruiser we drive away (a copy; the real one stays parked)
 	local car: Model? = nil
-	local start = church * CFrame.new(4, 0, -104)
+	local start = church * CFrame.new(4, 0, -70)
 	if typeof(original) == "Instance" and original:IsA("Model") then
 		local copy = original:Clone()
 		for _, d in copy:GetDescendants() do
@@ -83,7 +83,18 @@ return Stage.scene("Dawn", function(data: any)
 	end
 
 	-- the drive: down Main Street toward the highway, away from the church
-	local away = start.LookVector
+	-- (the cruiser parks facing that way), riding the ground and stopping
+	-- short of where the road ends at the edge of the map
+	local look = start.LookVector
+	local away = Vector3.new(look.X, 0, look.Z).Unit
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Include
+	groundParams.FilterDescendantsInstances = { workspace.Terrain }
+	local function onGround(p: Vector3): CFrame
+		local hit = workspace:Raycast(p + Vector3.new(0, 40, 0), Vector3.new(0, -120, 0), groundParams)
+		local y = if hit then hit.Position.Y else p.Y
+		return CFrame.lookAt(Vector3.new(p.X, y, p.Z), Vector3.new(p.X, y, p.Z) + away)
+	end
 	local t0 = os.clock()
 	local done = false
 	Stage.cleanup(function()
@@ -92,8 +103,8 @@ return Stage.scene("Dawn", function(data: any)
 	Stage.go(function()
 		while not done do
 			local t = os.clock() - t0
-			local travel = math.max(0, t - 2) ^ 1.6 * 2.2
-			local carCF = start + away * travel
+			local travel = math.min(math.max(0, t - 2) ^ 1.5 * 1.7, 150)
+			local carCF = onGround(start.Position + away * travel)
 			if car then
 				car:PivotTo(carCF)
 			end

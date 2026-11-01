@@ -155,16 +155,16 @@ function Viewmodel.init()
 	emitter.Name = "Emitter"
 	spot = Instance.new("SpotLight")
 	spot.Face = Enum.NormalId.Front
-	spot.Angle = 52
-	spot.Range = 62
-	spot.Brightness = 2.4
+	spot.Angle = 60
+	spot.Range = 80
+	spot.Brightness = 3
 	spot.Color = Color3.fromRGB(255, 240, 214)
 	spot.Shadows = true
 	spot.Enabled = false
 	spot.Parent = emitter
 	fill = Instance.new("PointLight")
-	fill.Range = 9
-	fill.Brightness = 0.35
+	fill.Range = 16 -- lights up the room around you a little, not just the beam
+	fill.Brightness = 0.6
 	fill.Color = Color3.fromRGB(255, 236, 210)
 	fill.Shadows = false
 	fill.Enabled = false
@@ -231,7 +231,7 @@ function Viewmodel.init()
 		local lightOn = Viewmodel.on and hasLight and alive and not player:GetAttribute("Hidden")
 		spot.Enabled = lightOn
 		fill.Enabled = lightOn
-		spot.Brightness = 2.4 * flicker * (0.55 + 0.45 * math.min(Viewmodel.battery / 40, 1))
+		spot.Brightness = 3 * flicker * (0.55 + 0.45 * math.min(Viewmodel.battery / 40, 1))
 
 		-- sway from mouse movement
 		local delta = UserInputService:GetMouseDelta()

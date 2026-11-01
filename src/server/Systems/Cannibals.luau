@@ -48,6 +48,7 @@ export type KindSpec = {
 	--   statue  can't move while someone's looking at it; rushes when not
 	--   rev     revs the chainsaw, then charges
 	trait: string?,
+	frontSedate: boolean?, -- the syringe goes in instantly from any side, mid-chase too
 }
 
 local KINDS: { [string]: KindSpec } = {
@@ -66,6 +67,7 @@ local KINDS: { [string]: KindSpec } = {
 		apron = true,
 		keys = true,
 		trait = "charge",
+		frontSedate = true,
 	},
 	Brother = {
 		display = "Michel",
@@ -779,6 +781,9 @@ function Cannibals.trySedate(c: Cannibal, player: Player): (boolean, string?)
 	if not root then
 		return false, nil
 	end
+	if c.spec.frontSedate then
+		return true, nil
+	end
 	if c.state == "Chase" and c.target == player and os.clock() - c.lastSeenTime < 1.5 then
 		return false, "It sees you coming! Lose it, then sneak up from behind."
 	end
@@ -1431,7 +1436,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 	c.prompt = Interact.add(torso, {
 		action = "Inject Sedative",
 		object = spec.display,
-		hold = 0.5,
+		hold = if spec.frontSedate then 0 else 0.5,
 		distance = 6.5,
 		canUse = function(player)
 			if not Inventory.has(player, "Syringe") then
@@ -1440,12 +1445,16 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 			if c.state == "Sedated" or c.struggling then
 				return false, nil
 			end
+			if player:GetAttribute("Adrenaline") then
+				-- the chase after the explosion: it's past needles
+				return false, "No needle will stop it now. RUN!"
+			end
 			return true
 		end,
 		onUse = function(player)
 			local ok, message = Cannibals.trySedate(c, player)
 			if ok and Inventory.remove(player, "Syringe") then
-				-- sneaked up from behind: straight in
+				-- sneaked up from behind (or the Butcher, from anywhere): straight in
 				Cannibals.sedate(c, player)
 				Interact.notify(player, spec.display .. " collapses.", "item")
 			elseif c.state == "Chase" or c.state == "Grab" then

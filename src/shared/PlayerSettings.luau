@@ -34,7 +34,7 @@ PlayerSettings.List = {
 		label = "Brightness",
 		default = 0,
 		min = -0.2,
-		max = 0.3,
+		max = 0.5,
 		step = 0.05,
 		format = function(v)
 			return string.format("%+d", math.round(v * 20))

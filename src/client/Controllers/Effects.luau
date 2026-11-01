@@ -242,7 +242,8 @@ function Effects.init()
 
 		for _, f in fearVignette:GetChildren() do
 			if f:IsA("Frame") then
-				f.BackgroundTransparency = Util.lerp(0.15, 0, fear) - (if Effects.menuMode then 0 else 0)
+				-- light at rest so the edges of the screen aren't black, closing in with fear
+				f.BackgroundTransparency = Util.lerp(0.6, 0, fear)
 			end
 		end
 		hurtFlash = math.max(0, hurtFlash - dt * 1.4)

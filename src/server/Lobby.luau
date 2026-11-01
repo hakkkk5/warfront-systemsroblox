@@ -1496,9 +1496,9 @@ function Lobby.run()
 	-- a little kinder than the woods, so people can find the trucks
 	-- (Studio re-applies the game's lighting when it turns into the game)
 	local Lighting = game:GetService("Lighting")
-	Lighting.Brightness = 0.9
-	Lighting.ExposureCompensation = 0.25
-	Lighting.OutdoorAmbient = rgb(40, 44, 56)
+	Lighting.Brightness = 2.1
+	Lighting.ExposureCompensation = 0.6
+	Lighting.OutdoorAmbient = rgb(124, 130, 150)
 	-- previews for the store's perk cards (client LobbyMenu)
 	local previews: { string } = {}
 	for _, perk in StoreCatalog.list() do

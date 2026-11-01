@@ -520,7 +520,7 @@ function HouseWings.build(ctx: Ctx): Info
 	piece("KitchenTable", 50, 0, -12, 0, rgb(120, 100, 70), M.Wood)
 	for i, a in { 0, 180 } do
 		local chair = Props.Chair(false)
-		chair:PivotTo(L(50 + (if i == 1 then -5.5 else 5.5), 0, -12) * ANG(0, rad(a + 90), 0))
+		chair:PivotTo(L(50 + (if i == 1 then -5.5 else 5.5), 0, -12) * ANG(0, rad(a - 90), 0)) -- facing the table
 		chair.Parent = furniture
 	end
 	-- the tea is still in the cups

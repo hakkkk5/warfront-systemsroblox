@@ -322,7 +322,7 @@ local function buildPlant(world: Instance, rng: Util.Rng): any
 		box(furniture, Vector3.new(2, 5, 2.4), 34 - i * 2.2, FY + 2.5, -1.8, rgb(100, 104, 100), M.Metal)
 	end
 	local chair = Props.Chair(false)
-	chair:PivotTo(L(24, FY, -5.5) * ANG(0, math.pi, 0))
+	chair:PivotTo(L(24, FY, -5.5)) -- facing the desk
 	chair.Parent = furniture
 	box(furniture, Vector3.new(4, 5, 0.1), 35.3, FY + 6, -9, rgb(230, 224, 210), M.SmoothPlastic, noCollide)
 
@@ -524,10 +524,11 @@ local function buildChurch(world: Instance, rng: Util.Rng): any
 	Build.ball(structure, 0.9, L(0, CY + TH + 3.3, -24), rgb(80, 60, 40), M.Metal)
 	box(structure, Vector3.new(0.3, 3, 0.3), 0, CY + TH + 7.5, -24, DARK_WOOD, M.Wood, noCollide)
 
-	-- the pews, an aisle down the middle
+	-- the pews, an aisle down the middle; on the right they stop short of the
+	-- crypt stairwell (x 6..9, z 4..12) so the way up from the crypt is clear
 	for i = 0, 7 do
 		local z = -16 + i * 3.2
-		for _, x in { -6.5, 6.5 } do
+		for _, x in (if i <= 5 then { -6.5, 6.5 } else { -6.5 }) :: { number } do
 			box(furniture, Vector3.new(8, 0.5, 1.6), x, CY + 2, z, DARK_WOOD, M.Wood)
 			box(furniture, Vector3.new(8, 2.4, 0.3), x, CY + 3.2, z + 0.8, DARK_WOOD, M.Wood)
 			for _, dx in { -3.7, 3.7 } do
@@ -535,25 +536,26 @@ local function buildChurch(world: Instance, rng: Util.Rng): any
 			end
 		end
 	end
-	-- the altar, and before it the family's supper table, laid
+	-- the altar, and before it the family's supper table, laid (all of it left
+	-- of the crypt stairwell, x < 6)
 	box(furniture, Vector3.new(16, 1, 4), 0, CY + 0.5, 18, rgb(90, 70, 56), M.WoodPlanks)
 	box(furniture, Vector3.new(6, 3.6, 2), 0, CY + 2.8, 18.6, rgb(200, 196, 186), M.Marble)
 	box(furniture, Vector3.new(0.6, 8, 0.6), 0, CY + 9, 19.5, rgb(40, 30, 24), M.Wood)
 	box(furniture, Vector3.new(4, 0.6, 0.6), 0, CY + 11, 19.5, rgb(40, 30, 24), M.Wood)
-	box(furniture, Vector3.new(18, 0.5, 4), 0, CY + 3.2, 12, rgb(70, 46, 30), M.Wood)
-	for _, x in { -8.4, 8.4 } do
+	box(furniture, Vector3.new(14, 0.5, 4), -2, CY + 3.2, 12, rgb(70, 46, 30), M.Wood)
+	for _, x in { -8.4, 4.4 } do
 		for _, z in { 10.4, 13.6 } do
 			box(furniture, Vector3.new(0.5, 3, 0.5), x, CY + 1.5, z, rgb(70, 46, 30), M.Wood)
 		end
 	end
-	box(furniture, Vector3.new(17, 0.05, 3.2), 0, CY + 3.48, 12, rgb(220, 214, 200), M.Fabric, noCollide)
-	for i = 0, 6 do
-		local x = -7.5 + i * 2.5
+	box(furniture, Vector3.new(13, 0.05, 3.2), -2, CY + 3.48, 12, rgb(220, 214, 200), M.Fabric, noCollide)
+	for i = 0, 5 do
+		local x = -8 + i * 2.3
 		Build.post(furniture, 0.1, 1.4, L(x, CY + 3.52, 11.2), rgb(200, 196, 186), M.SmoothPlastic)
 		box(furniture, Vector3.new(0.8, 0.4, 0.6), x, CY + 3.72, 11.2, rgb(110, 26, 22), M.SmoothPlastic, noCollide)
 		Build.candle(furniture, L(x + 1.2, CY + 3.48, 12.8), 0.6 + rng:NextNumber() * 0.6)
 		local seat = Props.Chair(false)
-		seat:PivotTo(L(x, CY, 9) * ANG(0, 0, 0))
+		seat:PivotTo(L(x, CY, 9) * ANG(0, math.pi, 0)) -- facing the table
 		seat.Parent = furniture
 	end
 	Build.stain(furniture, L(2, CY + 3.5, 12), Vector2.new(2, 1.2), rng)
@@ -667,7 +669,7 @@ local function buildChurch(world: Instance, rng: Util.Rng): any
 		bell = bell,
 		patrol = { at(0, -10), at(0, 6), at(-8, 2), at(8, -12), at(0, -34), at(-20, 0), at(20, 10), at(0, 28), at(0, -60), at(0, -90) },
 		checkpoint = L(0, CY + 3, -10),
-		cruiser = ground(4, -104) * ANG(0, rad(170), 0),
+		cruiser = ground(4, -70), -- facing down Main Street, away from the church
 		polaroid = L(1.4, CY + 4.62, 18.4) * ANG(0, rad(15), 0),
 		street = at(0, -100),
 	}

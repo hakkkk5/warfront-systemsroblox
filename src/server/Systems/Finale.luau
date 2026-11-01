@@ -438,23 +438,18 @@ end
 local function arriveCruiser()
 	flags.cruiser = true
 	Net.event("Timer"):FireAllClients(nil)
-	local car = Props.PickupTruck()
+	local car = Props.PoliceCruiser()
 	car.Name = "StatePoliceCruiser"
 	car:PivotTo(places.church.cruiser)
 	for _, d in car:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = true
-			if d.Color.R > 0.3 and d.Color.G < 0.3 then
-				d.Color = Color3.fromRGB(30, 30, 34)
-			end
 		end
 	end
 	car.Parent = ctx.world
 	cruiser = car
-	local _, size = car:GetBoundingBox()
-	local top = places.church.cruiser * CFrame.new(0, size.Y + 0.3, 0)
-	local red = Build.part(car, Vector3.new(1.4, 0.5, 0.8), top * CFrame.new(-0.8, 0, 0), Color3.fromRGB(255, 30, 30), Enum.Material.Neon)
-	local blue = Build.part(car, Vector3.new(1.4, 0.5, 0.8), top * CFrame.new(0.8, 0, 0), Color3.fromRGB(40, 80, 255), Enum.Material.Neon)
+	local red = car:FindFirstChild("LightRed") :: BasePart
+	local blue = car:FindFirstChild("LightBlue") :: BasePart
 	for _, lamp in { red, blue } do
 		local light = Instance.new("PointLight")
 		light.Color = lamp.Color
