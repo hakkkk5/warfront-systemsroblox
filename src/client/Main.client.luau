@@ -61,6 +61,7 @@ MonsterForm.init()
 ChaseFX.init()
 Throwing.init()
 Scares.init()
+require(Controllers.Presence).init() -- one of them close: the drone, their steps, the lights, the sting
 Uncanny.init()
 Prompts.init()
 HUD.init()
@@ -77,4 +78,5 @@ require(UI.Lobby).run() -- applies the difficulty; in the lobby it holds here un
 Menu.init()
 require(UI.PartyMarkers).init()
 require(UI.MapView).init()
+require(UI.GuideArrow).init() -- where to go next: a marker on it, or an arrow on the screen edge
 require(UI.AdminPanel).init() -- the owner's panel (F2): skip parts of the story

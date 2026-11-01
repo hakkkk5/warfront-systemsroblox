@@ -10,14 +10,12 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Audio = require(script.Parent.Audio)
 local Effects = require(script.Parent.Effects)
 local Jumpscare = require(script.Parent.Jumpscare)
 local MonsterForm = require(script.Parent.MonsterForm)
-local Viewmodel = require(script.Parent.Viewmodel)
 local HUD = require(script.Parent.Parent.UI.HUD)
 
 local Scares = {}
@@ -363,31 +361,8 @@ function Scares.init()
 		end)
 	end)
 
-	-- Tells: when one of them is close (and not already on you) the flashlight
-	-- gets nervous and your heart starts to pound, before you see anything.
-	local heart = false
-	RunService.Heartbeat:Connect(function()
-		local cam = workspace.CurrentCamera
-		local nearest = math.huge
-		for _, rig in CollectionService:GetTagged("CannibalSkin") do
-			if rig:IsA("Model") and rig.Parent then
-				local pivot = rig:GetPivot().Position
-				nearest = math.min(nearest, (pivot - cam.CFrame.Position).Magnitude)
-			end
-		end
-		local chased = Players.LocalPlayer:GetAttribute("Chased") == true
-		local playing = HUD.visible and Players.LocalPlayer:GetAttribute("InCutscene") ~= true
-		local dread = if chased or not playing then 0 else math.clamp(1 - (nearest - 10) / 32, 0, 1)
-		Viewmodel.dread = dread
-		local want = dread > 0.35
-		if want ~= heart then
-			heart = want
-			Audio.loop("Heartbeat", want, 0.25)
-		end
-		if heart then
-			Audio.setLoopVolume("Heartbeat", 0.15 + dread * 0.55)
-		end
-	end)
+	-- (the tells when one of them is close, before you see anything, are
+	-- Presence's: the drone, their steps, the nervous flashlight)
 end
 
 return Scares

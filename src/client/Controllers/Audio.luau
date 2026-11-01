@@ -98,8 +98,16 @@ function Audio.play(name: string, position: Vector3?, volume: number?, pitch: nu
 end
 
 local loops: { [string]: Sound } = {}
+-- what each loop was last asked for, so asking again is free (callers ask
+-- every frame; a fresh tween each time fought itself and cost a lot)
+local asked: { [string]: number } = {}
 
 function Audio.loop(name: string, on: boolean, volume: number?)
+	local target = if on then volume or VOLUMES[name] or 0.6 else 0
+	if asked[name] == target then
+		return
+	end
+	asked[name] = target
 	local sound = loops[name]
 	if on then
 		if not sound then
@@ -127,6 +135,39 @@ function Audio.setLoopVolume(name: string, volume: number)
 	local sound = loops[name]
 	if sound then
 		sound.Volume = volume
+	end
+end
+
+-- A loop set straight to a level each frame by its caller (a drone that
+-- swells, a heart that pounds): no fades of its own, the level is the fade.
+function Audio.loopLevel(name: string, volume: number)
+	local sound = loops[name]
+	if not sound then
+		if volume <= 0.001 then
+			return
+		end
+		local id = soundId(name)
+		if id == "" then
+			return
+		end
+		local created = Instance.new("Sound")
+		created.SoundId = id
+		created.Looped = true
+		created.SoundGroup = sfxGroup
+		created.Parent = SoundService
+		created:Play()
+		loops[name] = created
+		sound = created
+	end
+	asked[name] = nil
+	;(sound :: Sound).Volume = math.max(0, volume)
+end
+
+-- Faster or slower (a heart racing as one of them closes in).
+function Audio.setLoopPitch(name: string, pitch: number)
+	local sound = loops[name]
+	if sound then
+		sound.PlaybackSpeed = pitch
 	end
 end
 
@@ -164,16 +205,24 @@ function Audio.music(track: string?, volume: number?)
 end
 
 local master = 1
+local layer = 1 -- Presence: the music gives way as one of them closes in
 local duck = Instance.new("NumberValue")
 duck.Value = 1
 duck.Changed:Connect(function(v: number)
-	musicGroup.Volume = 0.55 * master * v
+	musicGroup.Volume = 0.55 * master * v * layer
 end)
 
 function Audio.setMasterVolume(v: number)
 	master = v
-	musicGroup.Volume = 0.55 * v * duck.Value
+	musicGroup.Volume = 0.55 * v * duck.Value * layer
 	sfxGroup.Volume = v
+end
+
+-- How much of the music plays under everything else (1 all of it), so the
+-- drone and the footsteps of whatever is coming cut through.
+function Audio.setMusicLayer(v: number)
+	layer = math.clamp(v, 0, 1)
+	musicGroup.Volume = 0.55 * master * duck.Value * layer
 end
 
 -- Pulls the music down to `level` for `seconds`, then lets it back up: the

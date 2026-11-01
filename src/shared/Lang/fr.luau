@@ -162,6 +162,7 @@ return {
 	["Low"] = "Faible",
 	-- party markers
 	["Party markers"] = "Repères du groupe",
+	["Guide arrow"] = "Flèche de guidage",
 	["%s was caught."] = "%s s'est fait attraper.",
 	["Caught"] = "Attrapé",
 	-- daily supplies

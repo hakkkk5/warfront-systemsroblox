@@ -115,6 +115,8 @@ Assets.Sounds = {
 	Crickets = "rbxassetid://9112764573", -- Pro Sound Effects "Crickets Night 3": the woods at night (loop)
 	StepDirt = "rbxassetid://9118686212", -- Pro Sound Effects "Rocks Dirt Impacts In Ground 22": a step in the dirt (its first crunch)
 	Breath = "rbxassetid://134436716666898", -- Creator Store "male_outofbreath_03": you, out of stamina (loop)
+	Dread = "rbxassetid://9043359270", -- APM "DARK DRONE 06": one of the family is close (loop, swells as it nears)
+	Stinger = "rbxassetid://9047014318", -- APM "Beautiful Horror - Stinger 1": the moment one of them is after you
 }
 
 return Assets

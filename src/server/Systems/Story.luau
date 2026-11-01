@@ -1280,9 +1280,35 @@ function Story.begin()
 	end)
 end
 
+-- The guide arrow (client GuideArrow): each player's nearest objective, the
+-- same places a hint shows (none on Nightmare, none during a cutscene).
+local function updateGuides()
+	local targets: { Vector3 } = if Config.Player.HintCooldown >= 1e6 or currentCutscene then {} else Story.hintTargets()
+	for _, player in Players:GetPlayers() do
+		local root = rootOf(player)
+		local best: Vector3? = nil
+		if root then
+			local bestD = math.huge
+			for _, target in targets do
+				local d = (target - root.Position).Magnitude
+				if d < bestD then
+					best, bestD = target, d
+				end
+			end
+		end
+		if player:GetAttribute("GuideTarget") ~= best then
+			player:SetAttribute("GuideTarget", best)
+		end
+	end
+end
+
 local function watcher()
 	while true do
 		task.wait(0.5)
+		local ok, err = pcall(updateGuides :: any)
+		if not ok then
+			warn("[Story] guide: " .. tostring(err))
+		end
 		if stage == "HouseEscape" and flags.frontDoorOpen then
 			-- outside once past the porch steps
 			for _, player in Players:GetPlayers() do

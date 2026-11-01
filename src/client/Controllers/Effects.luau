@@ -15,6 +15,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 local Settings = require(script.Parent.Settings)
 local Audio = require(script.Parent.Audio)
 local CameraController = require(script.Parent.CameraController)
+local Presence = require(script.Parent.Presence)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
 local Effects = {}
@@ -236,7 +237,8 @@ function Effects.init()
 		local detection = (player:GetAttribute("Detection") :: number?) or 0
 		local chased = player:GetAttribute("Chased") == true
 
-		local target = math.max(detection * 0.8, if chased then 1 else 0)
+		-- seen, chased, or just one of them close by (Presence)
+		local target = math.max(detection * 0.8, if chased then 1 else 0, Presence.level * 0.6)
 		fear = Util.lerp(fear, target, math.min(1, dt * 2))
 		local lowHealth = math.clamp((0.5 - health) / 0.5, 0, 1)
 
@@ -263,12 +265,10 @@ function Effects.init()
 		local blurTarget = Effects.blurOverride or (lowHealth * 6)
 		blur.Size = Util.lerp(blur.Size, blurTarget, math.min(1, dt * 5))
 
-		-- heartbeat speeds up with fear
-		if fear > 0.15 or lowHealth > 0.2 then
-			Audio.loop("Heartbeat", true, math.max(fear, lowHealth) * 0.9)
-		else
-			Audio.loop("Heartbeat", false)
-		end
+		-- the heart: louder and faster with fear, one of them close, or hurt
+		local pound = math.max(fear, lowHealth, Presence.level)
+		Audio.loopLevel("Heartbeat", if pound > 0.12 then pound * 0.9 else 0)
+		Audio.setLoopPitch("Heartbeat", 0.9 + pound * 0.45)
 
 		local currentStage = (workspace:GetAttribute("Stage") :: string?) or ""
 		if not Effects.menuMode then

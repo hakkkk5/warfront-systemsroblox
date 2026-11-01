@@ -101,6 +101,19 @@ PlayerSettings.List = {
 		end,
 	},
 	{
+		-- an arrow to where you need to go next (client UI GuideArrow; never on
+		-- Nightmare, which has no hints)
+		key = "guideArrow",
+		label = "Guide arrow",
+		default = 1,
+		min = 0,
+		max = 1,
+		step = 1,
+		format = function(v)
+			return if v >= 0.5 then "On" else "Off"
+		end,
+	},
+	{
 		-- 0 = the player's Roblox language (shared Lang)
 		key = "language",
 		label = "Language",
