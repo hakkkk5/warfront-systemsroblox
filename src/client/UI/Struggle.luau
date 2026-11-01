@@ -155,6 +155,58 @@ local function touchPad(parent: Instance): Frame
 	return pad
 end
 
+-- Your hand in the close-up, the syringe pointed at its neck (along -Z from
+-- the grip). place() puts it at a grip CFrame with the plunger pushed in by
+-- `plunge` (0..1), the dose going with it.
+type Hand = { model: Model, place: (grip: CFrame, plunge: number) -> () }
+
+local function syringeHand(): Hand
+	local model = Instance.new("Model")
+	model.Name = "StruggleHand"
+	local function piece(size: Vector3, color: Color3, material: Enum.Material, cylinder: boolean?): Part
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		if cylinder then
+			p.Shape = Enum.PartType.Cylinder
+		end
+		p.Parent = model
+		return p
+	end
+	local sleeve = piece(Vector3.new(0.5, 0.5, 1.4), Color3.fromRGB(38, 44, 52), Enum.Material.Fabric)
+	local hand = piece(Vector3.new(0.42, 0.36, 0.5), Color3.fromRGB(214, 170, 140), Enum.Material.SmoothPlastic)
+	local barrel = piece(Vector3.new(1.0, 0.24, 0.24), Color3.fromRGB(220, 230, 235), Enum.Material.Glass, true)
+	barrel.Transparency = 0.35
+	local dose = piece(Vector3.new(0.82, 0.17, 0.17), Color3.fromRGB(150, 220, 120), Enum.Material.Neon, true)
+	local needle = piece(Vector3.new(0.55, 0.045, 0.045), Color3.fromRGB(200, 200, 205), Enum.Material.Metal, true)
+	local plunger = piece(Vector3.new(0.6, 0.08, 0.08), Color3.fromRGB(230, 230, 230), Enum.Material.SmoothPlastic, true)
+	local cap = piece(Vector3.new(0.06, 0.3, 0.3), Color3.fromRGB(230, 230, 230), Enum.Material.SmoothPlastic, true)
+	local along = CFrame.Angles(0, math.pi / 2, 0) -- a cylinder's length is its X: turn it to run along -Z
+	model.Parent = workspace.CurrentCamera
+	return {
+		model = model,
+		place = function(grip: CFrame, plunge: number)
+			sleeve.CFrame = grip * CFrame.new(0.05, -0.12, 0.8)
+			hand.CFrame = grip
+			local up = grip * CFrame.new(0, 0.14, 0)
+			barrel.CFrame = up * CFrame.new(0, 0, -0.55) * along
+			local left = 0.82 * (1 - plunge * 0.9)
+			dose.Size = Vector3.new(left, 0.17, 0.17)
+			dose.CFrame = up * CFrame.new(0, 0, -0.96 + left / 2) * along
+			needle.CFrame = up * CFrame.new(0, 0, -1.32) * along
+			local back = 0.15 - plunge * 0.7
+			plunger.CFrame = up * CFrame.new(0, 0, back) * along
+			cap.CFrame = up * CFrame.new(0, 0, back + 0.3) * along
+		end,
+	}
+end
+
 local function run(data: any)
 	if active or typeof(data) ~= "table" or typeof(data.keys) ~= "table" then
 		return
@@ -177,6 +229,8 @@ local function run(data: any)
 	camera.CameraType = Enum.CameraType.Scriptable
 	local push = 0
 	local shake = 0
+	local hand = syringeHand()
+	local progress, jab, plunge, plungeTarget, knocked, knockTarget = 0, 0, 0, 0, 0, 0
 	local renderConn = RunService.RenderStepped:Connect(function(dt: number)
 		push = math.min(push + dt * 0.35, 1)
 		shake = math.max(0, shake - dt * 3)
@@ -188,6 +242,15 @@ local function run(data: any)
 		local wobble = CFrame.Angles(math.noise(t, 1) * 0.02 * (1 + shake * 4), math.noise(t, 2) * 0.02 * (1 + shake * 4), math.noise(t, 3) * 0.04 * (1 + shake * 3))
 		camera.CFrame = CFrame.lookAt(pos, target) * wobble
 		camera.FieldOfView = 58 - push * 12
+		-- the syringe creeping up to its neck, jabbing with every key you hit
+		jab = math.max(0, jab - dt * 5)
+		plunge = Util.lerp(plunge, plungeTarget, math.min(1, dt * 9))
+		knocked = Util.lerp(knocked, knockTarget, math.min(1, dt * 10))
+		local reach = progress * 0.45 + jab * 0.4 + plungeTarget * 0.55
+		local grip = camera.CFrame
+			* CFrame.new(0.5 - knocked * 1.6, -0.72 + progress * 0.22 - knocked * 1.4, -0.95 - reach)
+			* CFrame.Angles(math.rad(6 + jab * 4), math.rad(12 - progress * 6), math.rad(-8 - knocked * 70))
+		hand.place(grip, plunge)
 	end)
 	-- movement keys only feed the struggle now
 	ContextActionService:BindActionAtPriority("StruggleKeys", function(_, state, input)
@@ -237,6 +300,8 @@ local function run(data: any)
 			break
 		end
 		pipFrames[i].BackgroundColor3 = C.Sickly
+		progress = i / #data.keys
+		jab = 1
 		shake = 1
 		CameraController.shake(0.7, 6)
 		Audio.play("Slash", nil, 0.6, 1 + i * 0.05)
@@ -248,6 +313,7 @@ local function run(data: any)
 	if success then
 		-- the needle goes in
 		title.Text = "NOW!"
+		plungeTarget = 1
 		keyLabel.Text = "💉"
 		push = 1
 		Audio.play("Inject", nil, 1, 1)
@@ -255,6 +321,7 @@ local function run(data: any)
 		CameraController.shake(2, 3)
 	else
 		title.Text = "TOO SLOW"
+		knockTarget = 1 -- it slaps the needle out of your hand
 		Audio.play("Impact", nil, 1, 0.7)
 		Effects.flash(C.BloodBright, 0.8)
 		CameraController.shake(3, 2)
@@ -264,6 +331,7 @@ local function run(data: any)
 
 	ContextActionService:UnbindAction("StruggleKeys")
 	renderConn:Disconnect()
+	hand.model:Destroy()
 	root:Destroy()
 	CameraController.setEnabled(true)
 	active = false

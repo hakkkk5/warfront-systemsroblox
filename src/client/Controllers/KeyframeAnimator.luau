@@ -219,6 +219,10 @@ local function choose(rig: Rig): (string?, number)
 		end
 		return PLAYER_WALK, math.clamp(speed / PLAYER_WALK_AT, 0.5, 1.5)
 	end
+	-- locked in the syringe fight with someone (Cannibals.struggle)
+	if attr(model, "Grappling") == true then
+		return "Grapple", 1
+	end
 	local walkClip = attr(model, "AnimWalk") or "Walk1"
 	local runClip = attr(model, "AnimRun") or "Run2"
 	if typeof(force) == "string" then

@@ -13,9 +13,12 @@ local Systems = Server:WaitForChild("Systems")
 -- in Studio) so it isn't empty in edit mode. Generation is deterministic, so
 -- rebuilding it here gives the same world with every door and prompt wired.
 for _, name in { "World", "Cannibals", "TerrainPreview" } do
+	-- every copy: the place has been baked more than once (two empty
+	-- "Cannibals" folders were left side by side with the live one)
 	local baked = workspace:FindFirstChild(name)
-	if baked then
+	while baked do
 		baked:Destroy()
+		baked = workspace:FindFirstChild(name)
 	end
 end
 

@@ -21,6 +21,7 @@ local P = Config.Player
 Movement.stamina = P.StaminaMax
 Movement.exhausted = false
 Movement.locked = false -- cutscenes / hiding
+Movement.heavy = false -- carrying something heavy (the HUD says so)
 
 local wantSprint = false
 local crouching = false
@@ -98,10 +99,14 @@ function Movement.init()
 		if not moving and wantSprint and not UserInputService.TouchEnabled then
 			wantSprint = false
 		end
-		local canSprint = Movement.wantsSprint() and moving and not crouching and not heavy and not Movement.exhausted and not Movement.locked
+		-- carrying the engine, a wheel or the fuel can you can still run, just
+		-- slower and it takes it out of you (it used to stop running dead,
+		-- which looked like running was broken)
+		Movement.heavy = heavy
+		local canSprint = Movement.wantsSprint() and moving and not crouching and not Movement.exhausted and not Movement.locked
 
 		if canSprint then
-			Movement.stamina = math.max(0, Movement.stamina - P.StaminaDrain * dt)
+			Movement.stamina = math.max(0, Movement.stamina - P.StaminaDrain * dt * (if heavy then 1.6 else 1))
 			if Movement.stamina <= 0 then
 				Movement.exhausted = true
 			end

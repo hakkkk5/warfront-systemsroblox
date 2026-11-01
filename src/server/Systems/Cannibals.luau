@@ -48,7 +48,6 @@ export type KindSpec = {
 	--   statue  can't move while someone's looking at it; rushes when not
 	--   rev     revs the chainsaw, then charges
 	trait: string?,
-	frontSedate: boolean?, -- the syringe goes in instantly from any side, mid-chase too
 }
 
 local KINDS: { [string]: KindSpec } = {
@@ -67,7 +66,6 @@ local KINDS: { [string]: KindSpec } = {
 		apron = true,
 		keys = true,
 		trait = "charge",
-		frontSedate = true,
 	},
 	Brother = {
 		display = "Michel",
@@ -770,28 +768,18 @@ end
 
 ---------------------------------------------------------------- sedation
 
-function Cannibals.trySedate(c: Cannibal, player: Player): (boolean, string?)
-	if c.state == "Sedated" or not c.alive then
-		return false, nil
-	end
-	if not Inventory.has(player, "Syringe") then
-		return false, "You need a sedative syringe."
-	end
+-- Sneaked up on from behind, unseen: the needle goes straight in. Anything
+-- else (face to face, or it saw you coming) is a fight for it: struggle.
+function Cannibals.fromBehind(c: Cannibal, player: Player): boolean
 	local _, _, root = playerParts(player)
-	if not root then
-		return false, nil
-	end
-	if c.spec.frontSedate then
-		return true, nil
+	if not root or not c.alive or c.state == "Sedated" then
+		return false
 	end
 	if c.state == "Chase" and c.target == player and os.clock() - c.lastSeenTime < 1.5 then
-		return false, "It sees you coming! Lose it, then sneak up from behind."
+		return false
 	end
 	local toPlayer = Util.flat(root.Position - c.root.Position)
-	if toPlayer.Magnitude > 0.1 and c.root.CFrame.LookVector:Dot(toPlayer.Unit) > 0.3 then
-		return false, "Get behind it first."
-	end
-	return true, nil
+	return not (toPlayer.Magnitude > 0.1 and c.root.CFrame.LookVector:Dot(toPlayer.Unit) > 0.3)
 end
 
 function Cannibals.sedate(c: Cannibal, player: Player?)
@@ -875,6 +863,7 @@ function Cannibals.struggle(c: Cannibal, player: Player)
 	c.struggling = true
 	stop(c)
 	player:SetAttribute("Struggling", true)
+	c.model:SetAttribute("Grappling", true) -- clients play the grapple on it (KeyframeAnimator)
 	local difficulty = workspace:GetAttribute("Difficulty")
 	local count = if difficulty == "Easy" then 4 elseif difficulty == "Hard" then 6 elseif difficulty == "Nightmare" then 7 else 5
 	local window = if difficulty == "Easy" then 1.5 elseif difficulty == "Hard" then 1.0 elseif difficulty == "Nightmare" then 0.85 else 1.2
@@ -905,6 +894,7 @@ function Cannibals.struggle(c: Cannibal, player: Player)
 	pendingStruggles[id] = nil
 	player:SetAttribute("Struggling", nil)
 	c.struggling = false
+	c.model:SetAttribute("Grappling", nil)
 	if not c.alive then
 		return
 	end
@@ -1436,7 +1426,7 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 	c.prompt = Interact.add(torso, {
 		action = "Inject Sedative",
 		object = spec.display,
-		hold = if spec.frontSedate then 0 else 0.5,
+		hold = 0, -- instant: from behind it goes in, face to face the fight starts
 		distance = 6.5,
 		canUse = function(player)
 			if not Inventory.has(player, "Syringe") then
@@ -1452,16 +1442,15 @@ function Cannibals.spawn(kind: string, cf: CFrame, opts: SpawnOptions?): Canniba
 			return true
 		end,
 		onUse = function(player)
-			local ok, message = Cannibals.trySedate(c, player)
-			if ok and Inventory.remove(player, "Syringe") then
-				-- sneaked up from behind (or the Butcher, from anywhere): straight in
-				Cannibals.sedate(c, player)
-				Interact.notify(player, spec.display .. " collapses.", "item")
-			elseif c.state == "Chase" or c.state == "Grab" then
-				-- face to face: fight for it
+			if Cannibals.fromBehind(c, player) then
+				if Inventory.remove(player, "Syringe") then
+					-- sneaked up from behind: straight in
+					Cannibals.sedate(c, player)
+					Interact.notify(player, spec.display .. " collapses.", "item")
+				end
+			else
+				-- face to face: the fight starts at once (W A S D to get it in)
 				task.spawn(Cannibals.struggle, c, player)
-			elseif message then
-				Interact.notify(player, message, "warn")
 			end
 		end,
 	})
@@ -1521,8 +1510,9 @@ local function halt()
 	for _, c in list do
 		if c.state ~= "Sedated" then
 			stop(c)
-			c.state = "Paused"
-			c.target = nil
+			-- through setState, so its State attribute and eyes say so too (set
+			-- directly, clients went on seeing it chase through cutscenes)
+			setState(c, "Paused")
 			c.detection = {}
 		end
 	end

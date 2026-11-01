@@ -33,6 +33,7 @@ local chapterLabel: TextLabel
 local titleLabel: TextLabel
 local staminaBar: Frame
 local staminaFill: Frame
+local staminaLabel: TextLabel? = nil
 local batteryBar: Frame
 local batteryFill: Frame
 local eye: Frame
@@ -390,6 +391,7 @@ function HUD.init()
 
 	-- bars (bottom centre)
 	staminaBar, staminaFill = makeBar(root, UDim2.new(0.5, 0, 1, -38), C.Bone, "STAMINA")
+	staminaLabel = staminaBar:FindFirstChildOfClass("TextLabel")
 	batteryBar, batteryFill = makeBar(root, UDim2.new(0.5, 0, 1, -24), C.Warn, "BATTERY")
 
 	-- detection eye (top centre)
@@ -508,7 +510,10 @@ function HUD.init()
 		end
 		local stamina = Movement.stamina / Config.Player.StaminaMax
 		staminaFill.Size = UDim2.fromScale(stamina, 1)
-		staminaFill.BackgroundColor3 = if Movement.exhausted then C.Blood else C.Bone
+		staminaFill.BackgroundColor3 = if Movement.exhausted then C.Blood elseif Movement.heavy then C.Warn else C.Bone
+		if staminaLabel then
+			staminaLabel.Text = if Movement.heavy then "HEAVY LOAD" else "STAMINA"
+		end
 		staminaBar.BackgroundTransparency = Util.lerp(staminaBar.BackgroundTransparency, if stamina >= 0.999 then 1 else 0.3, dt * 4)
 		staminaFill.BackgroundTransparency = staminaBar.BackgroundTransparency * 0.9
 		local hasLight = player:GetAttribute("HasFlashlight") == true
